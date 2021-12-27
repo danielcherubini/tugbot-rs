@@ -1,13 +1,11 @@
 extern crate dotenv;
-
-use std::env;
-
 use dotenv::dotenv;
-
 use serenity::{
     async_trait,
+    http::GuildPagination,
     model::{
         gateway::Ready,
+        guild::GuildInfo,
         id::GuildId,
         interactions::{
             application_command::{
@@ -19,6 +17,7 @@ use serenity::{
     },
     prelude::*,
 };
+use std::env;
 
 struct Handler;
 
@@ -65,12 +64,22 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
-        let guild_id = GuildId(
-            env::var("GUILD_ID")
-                .expect("Expected GUILD_ID in environment")
-                .parse()
-                .expect("GUILD_ID must be an integer"),
-        );
+        let mut guild_id = GuildId(0);
+        let guilds = ctx
+            .http
+            .get_guilds(&GuildPagination::After(guild_id), 10)
+            .await;
+
+        match guilds {
+            Err(error) => println!("{}", error),
+            Ok(resp) => {
+                for guild_info in resp {
+                    let guild_info: GuildInfo = guild_info;
+                    println!("{}", guild_info.id);
+                    guild_id = guild_info.id;
+                }
+            }
+        }
 
         let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
             commands
