@@ -1,0 +1,9 @@
+[package]
+name = "tugbot-rs"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+dotenv = "0.15"
+serenity = { version = "0.10", default-features = false, features = ["client", "gateway", "rustls_backend", "model"] }
+tokio = { version = "1.15.0", features = ["macros", "rt-multi-thread"] }
