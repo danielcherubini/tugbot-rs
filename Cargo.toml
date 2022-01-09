@@ -1,2 +1,14 @@
-[workspace]
-members = ["tugbot_lib", "tugbot_bot"]
+[package]
+name = "tugbot"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "tugbot"
+path = "src/lib.rs"
+
+[dependencies]
+dotenv = "0.15.0"
+serenity = { version = "0.10.9", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "unstable_discord_api"] }
+tokio = { version = "1.15.0", features = ["macros", "rt-multi-thread"] }

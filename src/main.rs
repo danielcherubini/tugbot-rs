@@ -1,4 +1,4 @@
-extern crate tugbot_lib;
+extern crate tugbot;
 
 use serenity::{
     async_trait,
@@ -7,19 +7,14 @@ use serenity::{
         id::GuildId,
         interactions::{
             application_command::{
-                ApplicationCommandInteractionDataOptionValue, 
-                ApplicationCommandOptionType,
+                ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
             },
-            Interaction, 
-            InteractionResponseType,
+            Interaction, InteractionResponseType,
         },
     },
     prelude::*,
 };
-use tugbot_lib::tugbot::{
-    config::Config, 
-    server::Server
-};
+use tugbot::tugbot::{config::Config, server::Server};
 
 struct Handler;
 
@@ -65,7 +60,7 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         let servers = Server::get_servers(&ctx).await;
-        
+
         for server in servers {
             let _commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
@@ -89,8 +84,7 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-
-    let tugbot_config = Config::get_config(); 
+    let tugbot_config = Config::get_config();
 
     // Configure the client with your Discord bot token in the environment.
     // The Application Id is usually the Bot User Id.
