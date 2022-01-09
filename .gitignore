@@ -1,3 +1,4 @@
+/tugbot_lib/target
+/tugbot_bot/target
 /target
-
 .env
