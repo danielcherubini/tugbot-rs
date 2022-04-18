@@ -14,7 +14,7 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             let content = match command.data.name.as_str() {
-                "gulag" => Gulag::setup_gulag_interaction(&command),
+                "gulag" => Gulag::setup_interaction(&ctx, &command).await,
                 _ => "not implemented :(".to_string(),
             };
 
@@ -38,9 +38,7 @@ impl EventHandler for Handler {
         for server in servers {
             let _commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
-                    commands.create_application_command(|command| {
-                        Gulag::setup_gulag_application_command(command)
-                    })
+                    commands.create_application_command(|command| Gulag::setup_command(command))
                 })
                 .await;
         }
