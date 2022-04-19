@@ -67,7 +67,7 @@ impl Gulag {
 
                         mem.add_role(&ctx.http, gulag_role.id).await.unwrap();
 
-                        return format!("Sending {} to the Gulag", user.tag());
+                        return format!("Sending @{} to the Gulag", user.name);
                     }
                 },
             }

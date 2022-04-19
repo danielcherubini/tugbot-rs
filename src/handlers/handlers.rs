@@ -1,4 +1,4 @@
-use crate::{handlers::gulag::Gulag, tugbot::server::Server};
+use crate::tugbot::server::Server;
 use serenity::{
     async_trait,
     client::{Context, EventHandler},
@@ -6,6 +6,8 @@ use serenity::{
         gateway::Ready, id::GuildId, interactions::InteractionResponseType, prelude::Interaction,
     },
 };
+
+use super::{gulag::Gulag, horny::Horny};
 
 pub struct Handler;
 
@@ -15,6 +17,7 @@ impl EventHandler for Handler {
         if let Interaction::ApplicationCommand(command) = interaction {
             let content = match command.data.name.as_str() {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
+                "horny" => Horny::setup_interaction(&ctx, &command).await,
                 _ => "not implemented :(".to_string(),
             };
 
@@ -38,7 +41,8 @@ impl EventHandler for Handler {
         for server in servers {
             let _commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
-                    commands.create_application_command(|command| Gulag::setup_command(command))
+                    commands.create_application_command(|command| Gulag::setup_command(command));
+                    commands.create_application_command(|command| Horny::setup_command(command))
                 })
                 .await;
         }
