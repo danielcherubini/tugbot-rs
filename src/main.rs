@@ -1,18 +1,11 @@
 extern crate tugbot;
 
-use celery::prelude::*;
 use serenity::Client;
 use tugbot::{handlers::handlers::Handler, tugbot::config::Config};
 
 #[tokio::main]
 async fn main() {
-    let tugbot_config = Congig::get_config();
-
-    let my_app = celery::app!(
-        broker = RedisBroker { tugbot_config.redis },
-        tasks = [remove_from_gulag],
-        task_routes = [],
-    );
+    let tugbot_config = Config::get_config();
 
     // Configure the client with your Discord bot token in the environment.
     // The Application Id is usually the Bot User Id.

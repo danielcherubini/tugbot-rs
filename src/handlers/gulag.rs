@@ -9,7 +9,6 @@ use serenity::{
         },
     },
 };
-
 pub struct Gulag;
 
 async fn find_gulag_role(ctx: &Context, guild_id: u64) -> Option<Role> {
@@ -27,10 +26,6 @@ async fn find_gulag_role(ctx: &Context, guild_id: u64) -> Option<Role> {
 }
 
 impl Gulag {
-    #[celery::task]
-    pub fn remove_from_gulag() {
-        println!("Removing from the gulag");
-    }
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
         return command
             .name("gulag")
