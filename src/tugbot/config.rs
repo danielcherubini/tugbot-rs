@@ -5,6 +5,7 @@ use std::env;
 pub struct Config {
     pub token: String,
     pub application_id: u64,
+    pub redis: String,
 }
 
 impl Config {
@@ -17,9 +18,12 @@ impl Config {
             .parse()
             .expect("application id is not a valid id");
 
+        let redis = "redis://127.0.0.1:6379".to_string();
+
         return Config {
             token,
             application_id,
+            redis,
         };
     }
 }
