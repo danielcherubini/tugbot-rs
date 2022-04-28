@@ -1828,6 +1828,7 @@ version = "0.1.0"
 dependencies = [
  "celery",
  "dotenv",
+ "serde",
  "serenity",
  "tokio 1.15.0",
 ]
