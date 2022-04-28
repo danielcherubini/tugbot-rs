@@ -7,7 +7,7 @@ use serenity::{
     },
 };
 
-use super::{gulag::Gulag, horny::Horny};
+use super::{gulag::Gulag, horny::Horny, phony::Phony};
 
 pub struct Handler;
 
@@ -18,6 +18,7 @@ impl EventHandler for Handler {
             let content = match command.data.name.as_str() {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
                 "horny" => Horny::setup_interaction(&ctx, &command).await,
+                "phony" => Phony::setup_interaction(&ctx, &command).await,
                 _ => "not implemented :(".to_string(),
             };
 
@@ -42,7 +43,8 @@ impl EventHandler for Handler {
             let _commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands.create_application_command(|command| Gulag::setup_command(command));
-                    commands.create_application_command(|command| Horny::setup_command(command))
+                    commands.create_application_command(|command| Horny::setup_command(command));
+                    commands.create_application_command(|command| Phony::setup_command(command))
                 })
                 .await;
         }
