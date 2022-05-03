@@ -1,11 +1,12 @@
 extern crate dotenv;
 use dotenv::dotenv;
+use serenity::prelude::GatewayIntents;
 use std::env;
 
 pub struct Config {
     pub token: String,
     pub application_id: u64,
-    pub redis: String,
+    pub intents: GatewayIntents,
 }
 
 impl Config {
@@ -18,12 +19,11 @@ impl Config {
             .parse()
             .expect("application id is not a valid id");
 
-        let redis = "redis://127.0.0.1:6379".to_string();
-
+        let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
         return Config {
             token,
             application_id,
-            redis,
+            intents,
         };
     }
 }

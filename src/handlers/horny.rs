@@ -21,10 +21,7 @@ impl Horny {
             .description("Mark yourself as horny/lfg");
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> String {
+    pub async fn setup_interaction(ctx: &Context, command: &ApplicationCommandInteraction) {
         let member = command.member.as_ref().unwrap();
         let guild_id = command.guild_id.unwrap();
         let user = &command.user;
@@ -38,14 +35,12 @@ impl Horny {
             Some(nick) => {
                 let new_nick = fix_nickname(nick);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return String::from("Done");
             }
             None => {
                 let name = member.display_name().to_string();
                 let new_nick = fix_nickname(&name);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return String::from("Done");
             }
         }
     }
