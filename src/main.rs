@@ -10,7 +10,7 @@ async fn main() {
     // Configure the client with your Discord bot token in the environment.
     // The Application Id is usually the Bot User Id.
     // Build our client.
-    let mut client = Client::builder(tugbot_config.token)
+    let mut client = Client::builder(tugbot_config.token, tugbot_config.intents)
         .event_handler(Handler)
         .application_id(tugbot_config.application_id)
         .await
