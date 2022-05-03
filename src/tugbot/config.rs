@@ -19,7 +19,7 @@ impl Config {
             .parse()
             .expect("application id is not a valid id");
 
-        let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
+        let intents = GatewayIntents::privileged();
         return Config {
             token,
             application_id,
