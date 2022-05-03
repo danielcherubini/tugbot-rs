@@ -40,13 +40,18 @@ impl EventHandler for Handler {
         let servers = Server::get_servers(&ctx).await;
 
         for server in servers {
-            let _commands =
+            let commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands.create_application_command(|command| Gulag::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command))
                 })
                 .await;
+
+            println!(
+                "I now have the following guild slash commands: {:#?}",
+                commands
+            );
         }
     }
 }
