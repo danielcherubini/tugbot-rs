@@ -38,15 +38,14 @@ impl Horny {
             Some(nick) => {
                 let new_nick = fix_nickname(nick);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return format!("Done now you are {}", nick);
+                return String::from("Done");
             }
             None => {
                 let name = member.display_name().to_string();
                 let new_nick = fix_nickname(&name);
-                println!("{}", new_nick);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return String::from("Missing user thing");
+                return String::from("Done");
             }
         }
     }
