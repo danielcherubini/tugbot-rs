@@ -15,18 +15,12 @@ pub struct Handler;
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            // Returns a message into chat
             let content = match command.data.name.as_str() {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
-                _ => "not implemented :(".to_string(),
-            };
-
-            // Returns nothing into chat
-            match command.data.name.as_str() {
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
-                _ => (),
-            }
+                _ => "not implemented :(".to_string(),
+            };
 
             if let Err(why) = command
                 .create_interaction_response(&ctx.http, |response| {
