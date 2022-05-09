@@ -3,16 +3,9 @@ use serenity::{
     model::interactions::application_command::ApplicationCommandInteraction,
 };
 
-pub struct Horny;
+use super::helpers::fix_nickname;
 
-fn fix_nickname(nick: &String) -> String {
-    if let Some(_result) = nick.find("horny") {
-        let nicks: Vec<&str> = nick.split("| ").collect();
-        return nicks[1].to_string();
-    } else {
-        return format!("horny | {}", nick);
-    }
-}
+pub struct Horny;
 
 impl Horny {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
@@ -28,6 +21,7 @@ impl Horny {
         let member = command.member.as_ref().unwrap();
         let guild_id = command.guild_id.unwrap();
         let user = &command.user;
+        let prefix = String::from("horny");
         let mem = ctx
             .http
             .get_member(*guild_id.as_u64(), *user.id.as_u64())
@@ -36,13 +30,13 @@ impl Horny {
 
         match member.nick.as_ref() {
             Some(nick) => {
-                let new_nick = fix_nickname(nick);
+                let new_nick = fix_nickname(nick, &prefix);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
                 return String::from("Done");
             }
             None => {
                 let name = member.display_name().to_string();
-                let new_nick = fix_nickname(&name);
+                let new_nick = fix_nickname(&name, &prefix);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
                 return String::from("Done");
