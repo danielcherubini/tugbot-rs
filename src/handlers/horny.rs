@@ -3,7 +3,7 @@ use serenity::{
     model::interactions::application_command::ApplicationCommandInteraction,
 };
 
-use super::helpers::fix_nickname;
+use super::nickname::fix_nickname;
 
 pub struct Horny;
 
