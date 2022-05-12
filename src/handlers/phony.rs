@@ -3,7 +3,7 @@ use serenity::{
     model::interactions::application_command::ApplicationCommandInteraction,
 };
 
-use super::nickname::fix_nickname;
+use super::{handlers::HandlerResponse, nickname::fix_nickname};
 
 pub struct Phony;
 
@@ -17,7 +17,7 @@ impl Phony {
     pub async fn setup_interaction(
         ctx: &Context,
         command: &ApplicationCommandInteraction,
-    ) -> String {
+    ) -> HandlerResponse {
         let member = command.member.as_ref().unwrap();
         let guild_id = command.guild_id.unwrap();
         let user = &command.user;
@@ -32,14 +32,20 @@ impl Phony {
             Some(nick) => {
                 let new_nick = fix_nickname(nick, &prefix);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return String::from("Done");
+                return HandlerResponse {
+                    content: String::from("Done"),
+                    ephemeral: true,
+                };
             }
             None => {
                 let name = member.display_name().to_string();
                 let new_nick = fix_nickname(&name, &prefix);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return String::from("Done");
+                return HandlerResponse {
+                    content: String::from("Done"),
+                    ephemeral: true,
+                };
             }
         }
     }

@@ -14,6 +14,8 @@ use serenity::{
     },
 };
 use tokio::{task::spawn, time::sleep};
+
+use super::handlers::HandlerResponse;
 pub struct Gulag;
 
 async fn find_gulag_role(ctx: &Context, guild_id: u64) -> Option<Role> {
@@ -63,7 +65,7 @@ impl Gulag {
     pub async fn setup_interaction(
         ctx: &Context,
         command: &ApplicationCommandInteraction,
-    ) -> String {
+    ) -> HandlerResponse {
         let options = command
             .data
             .options
@@ -75,9 +77,19 @@ impl Gulag {
         let channel_id = command.channel_id.0;
         if let ApplicationCommandInteractionDataOptionValue::User(user, _member) = options {
             match command.guild_id {
-                None => return "no member".to_string(),
+                None => {
+                    return HandlerResponse {
+                        content: "no member".to_string(),
+                        ephemeral: false,
+                    }
+                }
                 Some(guild_id) => match find_gulag_role(&ctx, *guild_id.as_u64()).await {
-                    None => return "couldn't find gulag role".to_string(),
+                    None => {
+                        return HandlerResponse {
+                            content: "couldn't find gulag role".to_string(),
+                            ephemeral: false,
+                        }
+                    }
                     Some(gulag_role) => {
                         let mut mem = ctx
                             .http
@@ -92,12 +104,18 @@ impl Gulag {
                             Gulag::remove_from_gulag(http, mem, gulag_role.id, channel_id).await;
                         });
 
-                        return format!("Sending @{} to the Gulag", user.name);
+                        return HandlerResponse {
+                            content: format!("Sending @{} to the Gulag", user.name),
+                            ephemeral: false,
+                        };
                     }
                 },
             }
         } else {
-            return "Please provide a valid user".to_string();
+            return HandlerResponse {
+                content: "Please provide a valid user".to_string(),
+                ephemeral: false,
+            };
         };
     }
 }

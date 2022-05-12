@@ -9,6 +9,11 @@ use serenity::{
 
 use super::{gulag::Gulag, horny::Horny, phony::Phony};
 
+pub struct HandlerResponse {
+    pub content: String,
+    pub ephemeral: bool,
+}
+
 pub struct Handler;
 
 #[async_trait]
@@ -19,14 +24,21 @@ impl EventHandler for Handler {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
-                _ => "not implemented :(".to_string(),
+                _ => HandlerResponse {
+                    content: "not implemented :(".to_string(),
+                    ephemeral: false,
+                },
             };
 
             if let Err(why) = command
                 .create_interaction_response(&ctx.http, |response| {
                     response
                         .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| message.content(content))
+                        .interaction_response_data(|message| {
+                            message
+                                .content(content.content)
+                                .ephemeral(content.ephemeral)
+                        })
                 })
                 .await
             {
