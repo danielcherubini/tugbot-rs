@@ -20,7 +20,7 @@ pub struct Handler;
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            let content = match command.data.name.as_str() {
+            let handler_response = match command.data.name.as_str() {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
@@ -36,8 +36,8 @@ impl EventHandler for Handler {
                         .kind(InteractionResponseType::ChannelMessageWithSource)
                         .interaction_response_data(|message| {
                             message
-                                .content(content.content)
-                                .ephemeral(content.ephemeral)
+                                .content(handler_response.content)
+                                .ephemeral(handler_response.ephemeral)
                         })
                 })
                 .await

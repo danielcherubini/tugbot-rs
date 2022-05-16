@@ -21,7 +21,7 @@ impl Phony {
         let member = command.member.as_ref().unwrap();
         let guild_id = command.guild_id.unwrap();
         let user = &command.user;
-        let prefix = String::from("phony");
+        let prefix = &command.data.name;
         let mem = ctx
             .http
             .get_member(*guild_id.as_u64(), *user.id.as_u64())
