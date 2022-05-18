@@ -31,15 +31,6 @@ async fn find_elkmen_role(ctx: &Context, guild_id: u64) -> Option<Role> {
     }
 }
 
-// fn get_reactions() -> MessageReaction {
-//     let reaction: MessageReaction = MessageReaction {
-//         count: 1,
-//         me: true,
-//         reaction_type: ReactionType::Unicode("thumbsup".to_string()),
-//     };
-//     return reaction;
-// }
-
 impl ElkMen {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
         return command
