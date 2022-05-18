@@ -27,7 +27,7 @@ impl EventHandler for Handler {
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "not implemented :(".to_string(),
-                    ephemeral: false,
+                    ephemeral: true,
                 },
             };
 
