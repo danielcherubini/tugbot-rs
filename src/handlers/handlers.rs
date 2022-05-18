@@ -7,7 +7,7 @@ use serenity::{
     },
 };
 
-use super::{gulag::Gulag, horny::Horny, phony::Phony};
+use super::{elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony};
 
 pub struct HandlerResponse {
     pub content: String,
@@ -24,6 +24,7 @@ impl EventHandler for Handler {
                 "gulag" => Gulag::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
+                "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "not implemented :(".to_string(),
                     ephemeral: false,
@@ -56,7 +57,8 @@ impl EventHandler for Handler {
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands.create_application_command(|command| Gulag::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
-                    commands.create_application_command(|command| Phony::setup_command(command))
+                    commands.create_application_command(|command| Phony::setup_command(command));
+                    commands.create_application_command(|command| ElkMen::setup_command(command))
                 })
                 .await;
 
