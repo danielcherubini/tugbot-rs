@@ -40,7 +40,7 @@ impl Gulag {
         channel_id: u64,
     ) {
         mem.remove_role(&http, gulag_role_id).await.unwrap();
-        let message = format!("Freeing {} from the gulag", mem.display_name());
+        let message = format!("Freeing {} from the gulag", mem.to_string());
         let channel = http.get_channel(channel_id).await.unwrap();
         channel
             .id()
@@ -105,7 +105,7 @@ impl Gulag {
                         });
 
                         return HandlerResponse {
-                            content: format!("Sending @{} to the Gulag", user.name),
+                            content: format!("Sending {} to the Gulag", user.to_string()),
                             ephemeral: false,
                         };
                     }
