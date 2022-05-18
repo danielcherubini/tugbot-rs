@@ -106,7 +106,7 @@ impl ElkMen {
                         let _ = msg.react(ctx, '👎').await;
                         let http = Arc::clone(&ctx.http);
                         spawn(async move {
-                            sleep(Duration::from_secs(15)).await;
+                            sleep(Duration::from_secs(600)).await;
                             let m = http
                                 .get_message(channel_id, *msg.id.as_u64())
                                 .await
