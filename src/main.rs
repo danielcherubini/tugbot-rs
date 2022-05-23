@@ -17,7 +17,6 @@ async fn main() {
         .expect("Error creating client");
 
     // Finally, start a single shard, and start listening to events.
-    //
     // Shards will automatically attempt to reconnect, and will perform
     // exponential backoff until it reconnects.
     if let Err(why) = client.start().await {
