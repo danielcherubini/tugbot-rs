@@ -1,12 +1,16 @@
 use serenity::{
     client::Context,
     http::GuildPagination,
-    model::id::{GuildId, RoleId},
+    model::{
+        id::{GuildId, RoleId},
+        prelude::ChannelId,
+    },
 };
 
 pub struct Server {
     pub guild_id: GuildId,
     pub gulag_id: RoleId,
+    pub get_roles_channel_id: ChannelId,
 }
 
 impl Server {
@@ -23,12 +27,22 @@ impl Server {
         for guild_info in guilds {
             let id64: u64 = u64::from(guild_info.id);
             let roles = ctx.http.get_guild_roles(id64).await.unwrap();
+            let channels = ctx.http.get_channels(id64).await.unwrap();
+
+            let mut get_roles_cid = ChannelId::default();
+
+            for channel in channels {
+                if channel.name == "get-roles" {
+                    get_roles_cid = channel.id;
+                }
+            }
 
             for role in roles {
                 if role.name == "gulag" {
                     servers.push(Server {
                         guild_id: guild_info.id,
                         gulag_id: role.id,
+                        get_roles_channel_id: get_roles_cid,
                     });
                 }
             }

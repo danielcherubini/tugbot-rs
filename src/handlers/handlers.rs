@@ -7,7 +7,7 @@ use serenity::{
     },
 };
 
-use super::{elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony};
+use super::{elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony, reactions::Reactions};
 
 pub struct HandlerResponse {
     pub content: String,
@@ -53,7 +53,7 @@ impl EventHandler for Handler {
         let servers = Server::get_servers(&ctx).await;
 
         for server in servers {
-            let commands =
+            let _commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands.create_application_command(|command| Gulag::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
@@ -62,10 +62,12 @@ impl EventHandler for Handler {
                 })
                 .await;
 
-            println!(
-                "I now have the following guild slash commands: {:#?}",
-                commands
-            );
+            Reactions::setup(&ctx, &server).await;
+
+            // println!(
+            //     "I now have the following guild slash commands: {:#?}",
+            //     commands
+            // );
         }
     }
 }
