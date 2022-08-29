@@ -9,6 +9,7 @@ use crate::tugbot::server::Server;
 pub struct Reactions;
 struct Game {
     name: String,
+    role_name: String,
     emoji: ReactionType,
 }
 
@@ -17,14 +18,17 @@ impl Reactions {
         let mut games: Vec<Game> = Vec::new();
         games.push(Game {
             name: "Warzone".to_string(),
+            role_name: "@tag-warzone".to_string(),
             emoji: ReactionType::Unicode("👍".to_string()),
         });
         games.push(Game {
             name: "Apex".to_string(),
+            role_name: "@tag-apex".to_string(),
             emoji: ReactionType::Unicode("👎".to_string()),
         });
         games.push(Game {
             name: "Fuck".to_string(),
+            role_name: "@tag-fuck".to_string(),
             emoji: ReactionType::Unicode("👹".to_string()),
         });
         return games;
@@ -37,6 +41,8 @@ impl Reactions {
         for game in games {
             message
                 .push(game.name)
+                .push(": ")
+                .push(game.role_name)
                 .push(": ")
                 .push_line(game.emoji.to_string());
         }
