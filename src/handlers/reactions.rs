@@ -162,17 +162,28 @@ impl Reactions {
                                     .await
                                     .unwrap();
                                 for user in reaction_users.to_owned() {
+                                    // Move this into it's own function
+                                    // This needs to check the users that have said yes to the
+                                    // role against the users on the server and their roles, if a
+                                    // user is on the reaction role here but its missing on their
+                                    // roles, then add the role, else remove it, so we treat the
+                                    // users in the reaction role as the master list
                                     if user.name != "tugbot-dev" {
                                         let has_role =
                                             user.has_role(&http, guild_id, role).await.unwrap();
-                                        println!("{:#?}", has_role);
+                                        if !has_role {
+                                            http.add_member_role(
+                                                guild_id.0,
+                                                user.id.0,
+                                                role.0,
+                                                Some("adding"),
+                                            )
+                                            .await
+                                            .unwrap();
+                                        }
+                                        println!("user has role {:#?}", has_role);
                                     }
                                 }
-                                // for game in Self::build_games() {
-                                //     if game.emoji == reaction.reaction_type {
-                                //         println!("{:#?}", reaction);
-                                //     }
-                                // }
                             }
 
                             // Sleep
@@ -193,7 +204,6 @@ impl Reactions {
         let mut found_role = Some(RoleId::default());
         for role in roles {
             if role.name == "foo" {
-                println!("{}", role.name);
                 found_role = Some(role.id);
             }
         }
