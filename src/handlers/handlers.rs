@@ -62,7 +62,8 @@ impl EventHandler for Handler {
                 })
                 .await;
 
-            Reactions::setup(&ctx, &server).await;
+            let reactions = Reactions::new();
+            reactions.setup(&ctx, &server).await;
 
             // println!(
             //     "I now have the following guild slash commands: {:#?}",

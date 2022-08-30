@@ -1,12 +1,18 @@
+use std::{sync::Arc, time::Duration};
+
 use serenity::{
     client::Context,
-    model::prelude::{Channel, Message, ReactionType},
+    http::Http,
+    model::prelude::{Channel, GuildId, Message, ReactionType, RoleId},
     utils::MessageBuilder,
 };
+use tokio::spawn;
 
 use crate::tugbot::server::Server;
 
-pub struct Reactions;
+pub struct Reactions {
+    games: Vec<Game>,
+}
 struct Game {
     name: String,
     role_name: String,
@@ -14,33 +20,67 @@ struct Game {
 }
 
 impl Reactions {
-    fn setup_games() -> Vec<Game> {
-        let mut games: Vec<Game> = Vec::new();
-        games.push(Game {
+    pub fn new() -> Self {
+        Self {
+            games: Self::build_games(),
+        }
+    }
+
+    fn build_games() -> Vec<Game> {
+        let mut g: Vec<Game> = Vec::new();
+        g.push(Game {
             name: "Warzone".to_string(),
             role_name: "@tag-warzone".to_string(),
             emoji: ReactionType::Unicode("👍".to_string()),
         });
-        games.push(Game {
+        g.push(Game {
             name: "Apex".to_string(),
             role_name: "@tag-apex".to_string(),
             emoji: ReactionType::Unicode("👎".to_string()),
         });
-        games.push(Game {
+        g.push(Game {
             name: "Fuck".to_string(),
             role_name: "@tag-fuck".to_string(),
             emoji: ReactionType::Unicode("👹".to_string()),
         });
-        return games;
+        return g;
     }
 
-    fn reaction_role_message() -> String {
+    pub async fn setup(&self, ctx: &Context, server: &Server) {
+        match Self::find_roles_channel(ctx, server).await {
+            Some(channel) => match Self::find_reaction_message(ctx, &channel).await {
+                Some(message) => {
+                    let mess = channel
+                        .id()
+                        .edit_message(&ctx.http, message.id, |m| {
+                            m.content(self.reaction_role_message())
+                        })
+                        .await
+                        .unwrap();
+                    self.add_reactions_to_message(&ctx, mess, server.guild_id)
+                        .await;
+                }
+                None => {
+                    let mess = channel
+                        .id()
+                        .send_message(&ctx.http, |m| m.content(self.reaction_role_message()))
+                        .await
+                        .unwrap();
+
+                    self.add_reactions_to_message(&ctx, mess, server.guild_id)
+                        .await;
+                }
+            },
+            None => {}
+        }
+    }
+
+    fn reaction_role_message(&self) -> String {
         let mut message = MessageBuilder::new();
         message.push_bold_line("React to this message to play the following");
-        let games = Self::setup_games();
-        for game in games {
+        for game in &self.games {
             message
-                .push(game.name)
+                .push(game.name.to_owned())
                 .push(": ")
                 .push(game.role_name)
                 .push(": ")
@@ -49,6 +89,7 @@ impl Reactions {
 
         return message.build();
     }
+
     async fn find_roles_channel(ctx: &Context, server: &Server) -> Option<Channel> {
         match ctx.http.get_channels(server.guild_id.0).await {
             Err(_why) => None,
@@ -77,49 +118,65 @@ impl Reactions {
         }
     }
 
-    async fn add_reactions_to_message(ctx: &Context, message: Message) {
-        let games = Self::setup_games();
-        for game in games {
-            let _ = message.react(&ctx.http, game.emoji).await.unwrap();
+    async fn add_reactions_to_message(&self, ctx: &Context, message: Message, guild_id: GuildId) {
+        for game in &self.games {
+            let _ = message
+                .react(&ctx.http, game.emoji.to_owned())
+                .await
+                .unwrap();
         }
-        println!("adding reactions");
-        let reaction = message.await_reaction(&ctx.shard).await;
-        match reaction {
-            Some(r) => {
-                let emoji = &r.as_inner_ref().emoji;
-                println!("{}", emoji.as_data().to_string());
-            }
-            None => {
-                println!("fuck");
-            }
-        }
-        println!("added reactions");
+        Self::poll_reactions(self, &ctx, message, guild_id).await;
     }
 
-    pub async fn setup(ctx: &Context, server: &Server) {
-        match Self::find_roles_channel(ctx, server).await {
-            Some(channel) => match Self::find_reaction_message(ctx, &channel).await {
-                Some(message) => {
-                    let mess = channel
-                        .id()
-                        .edit_message(&ctx.http, message.id, |m| {
-                            m.content(Self::reaction_role_message())
-                        })
-                        .await
-                        .unwrap();
-                    Self::add_reactions_to_message(&ctx, mess).await;
-                }
-                None => {
-                    let mess = channel
-                        .id()
-                        .send_message(&ctx.http, |m| m.content(Self::reaction_role_message()))
-                        .await
-                        .unwrap();
+    async fn poll_reactions(&self, ctx: &Context, message: Message, guild_id: GuildId) {
+        // let role = Self::find_role_id(ctx, guild_id).await.unwrap();
+        let http = Arc::clone(&ctx.http);
+        let channel_id = message.channel_id.0;
 
-                    Self::add_reactions_to_message(&ctx, mess).await;
+        spawn(async move {
+            let poll = true;
+            while poll {
+                let m = http
+                    .get_message(channel_id, *message.id.as_u64())
+                    .await
+                    .unwrap();
+                for reaction in m.reactions.to_owned() {
+                    let reaction_users = http
+                        .get_reaction_users(
+                            channel_id,
+                            *message.id.as_u64(),
+                            &reaction.reaction_type,
+                            10,
+                            Some(0),
+                        )
+                        .await
+                        .unwrap();
+                    for user in reaction_users.to_owned() {
+                        if user.name != "tugbot-dev" {
+                            let has_role = user.has_role(http, guild_id, role);
+                            println!("{:#?}", user);
+                        }
+                    }
+                    // for game in Self::build_games() {
+                    //     if game.emoji == reaction.reaction_type {
+                    //         println!("{:#?}", reaction);
+                    //     }
+                    // }
                 }
-            },
-            None => {}
+
+                // Sleep
+                tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        });
+    }
+
+    async fn find_role_id(ctx: &Context, guild_id: GuildId) -> Option<RoleId> {
+        let roles = ctx.http.get_guild_roles(guild_id.0).await.unwrap();
+        for role in roles {
+            if role.name == "foo" {
+                Some(role);
+            }
         }
+        None
     }
 }
