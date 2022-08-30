@@ -1,8 +1,13 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use serenity::{
     client::Context,
-    http::Http,
     model::prelude::{Channel, GuildId, Message, ReactionType, RoleId},
     utils::MessageBuilder,
 };
@@ -12,6 +17,7 @@ use crate::tugbot::server::Server;
 
 pub struct Reactions {
     games: Vec<Game>,
+    is_loop_running: AtomicBool,
 }
 struct Game {
     name: String,
@@ -22,6 +28,7 @@ struct Game {
 impl Reactions {
     pub fn new() -> Self {
         Self {
+            is_loop_running: AtomicBool::new(false),
             games: Self::build_games(),
         }
     }
@@ -82,7 +89,7 @@ impl Reactions {
             message
                 .push(game.name.to_owned())
                 .push(": ")
-                .push(game.role_name)
+                .push(game.role_name.to_string())
                 .push(": ")
                 .push_line(game.emoji.to_string());
         }
@@ -125,58 +132,71 @@ impl Reactions {
                 .await
                 .unwrap();
         }
-        Self::poll_reactions(self, &ctx, message, guild_id).await;
+        // self.is_loop_running = AtomicBool::new(false);
+        self.poll_reactions(&ctx, message, guild_id).await;
     }
 
     async fn poll_reactions(&self, ctx: &Context, message: Message, guild_id: GuildId) {
-        // let role = Self::find_role_id(ctx, guild_id).await.unwrap();
-        let http = Arc::clone(&ctx.http);
-        let channel_id = message.channel_id.0;
+        println!("Beginning Poll");
+        match Self::find_role_id(ctx, guild_id).await {
+            Some(role) => {
+                let http = Arc::clone(&ctx.http);
+                let channel_id = message.channel_id.0;
+                if !self.is_loop_running.load(Ordering::Relaxed) {
+                    println!("Running Loop");
+                    spawn(async move {
+                        loop {
+                            let m = http
+                                .get_message(channel_id, *message.id.as_u64())
+                                .await
+                                .unwrap();
+                            for reaction in m.reactions.to_owned() {
+                                let reaction_users = http
+                                    .get_reaction_users(
+                                        channel_id,
+                                        *message.id.as_u64(),
+                                        &reaction.reaction_type,
+                                        10,
+                                        Some(0),
+                                    )
+                                    .await
+                                    .unwrap();
+                                for user in reaction_users.to_owned() {
+                                    if user.name != "tugbot-dev" {
+                                        let has_role =
+                                            user.has_role(&http, guild_id, role).await.unwrap();
+                                        println!("{:#?}", has_role);
+                                    }
+                                }
+                                // for game in Self::build_games() {
+                                //     if game.emoji == reaction.reaction_type {
+                                //         println!("{:#?}", reaction);
+                                //     }
+                                // }
+                            }
 
-        spawn(async move {
-            let poll = true;
-            while poll {
-                let m = http
-                    .get_message(channel_id, *message.id.as_u64())
-                    .await
-                    .unwrap();
-                for reaction in m.reactions.to_owned() {
-                    let reaction_users = http
-                        .get_reaction_users(
-                            channel_id,
-                            *message.id.as_u64(),
-                            &reaction.reaction_type,
-                            10,
-                            Some(0),
-                        )
-                        .await
-                        .unwrap();
-                    for user in reaction_users.to_owned() {
-                        if user.name != "tugbot-dev" {
-                            let has_role = user.has_role(http, guild_id, role);
-                            println!("{:#?}", user);
+                            // Sleep
+                            tokio::time::sleep(Duration::from_secs(10)).await;
                         }
-                    }
-                    // for game in Self::build_games() {
-                    //     if game.emoji == reaction.reaction_type {
-                    //         println!("{:#?}", reaction);
-                    //     }
-                    // }
+                    });
+                    self.is_loop_running.swap(true, Ordering::Relaxed);
                 }
-
-                // Sleep
-                tokio::time::sleep(Duration::from_secs(10)).await;
             }
-        });
+            None => {
+                println!("No Role Found");
+            }
+        }
     }
 
     async fn find_role_id(ctx: &Context, guild_id: GuildId) -> Option<RoleId> {
         let roles = ctx.http.get_guild_roles(guild_id.0).await.unwrap();
+        let mut found_role = Some(RoleId::default());
         for role in roles {
             if role.name == "foo" {
-                Some(role);
+                println!("{}", role.name);
+                found_role = Some(role.id);
             }
         }
-        None
+        return found_role;
     }
 }
