@@ -7,7 +7,7 @@ use serenity::{
     },
 };
 
-use super::{elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony, reactions::Reactions};
+use super::{elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony, roles::Roles};
 
 pub struct HandlerResponse {
     pub content: String,
@@ -25,6 +25,7 @@ impl EventHandler for Handler {
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
+                "games" => Roles::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "not implemented :(".to_string(),
                     ephemeral: true,
@@ -58,12 +59,10 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| Gulag::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
-                    commands.create_application_command(|command| ElkMen::setup_command(command))
+                    commands.create_application_command(|command| ElkMen::setup_command(command));
+                    commands.create_application_command(|command| Roles::setup_command(command))
                 })
                 .await;
-
-            let reactions = Reactions::new();
-            reactions.setup(&ctx, &server).await;
 
             // println!(
             //     "I now have the following guild slash commands: {:#?}",
