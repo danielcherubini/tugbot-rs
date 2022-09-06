@@ -9,6 +9,7 @@ use serenity::{
 
 use super::{elkmen::ElkMen, games::Games, gulag::Gulag, horny::Horny, phony::Phony};
 
+#[derive(Default)]
 pub struct HandlerResponse {
     pub content: String,
     pub ephemeral: bool,

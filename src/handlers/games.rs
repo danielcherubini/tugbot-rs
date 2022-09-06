@@ -1,16 +1,15 @@
-use std::{sync::Arc, time::Duration};
-
 use serenity::{
     builder::{CreateApplicationCommand, CreateApplicationCommandOption},
     client::Context,
     model::{
         interactions::application_command::ApplicationCommandInteraction,
         prelude::{
-            application_command::ApplicationCommandOptionType, MessageFlags, ReactionType, Role,
-            RoleId,
+            application_command::{
+                ApplicationCommandInteractionDataOption, ApplicationCommandOptionType,
+            },
+            Role, RoleId,
         },
     },
-    utils::MessageBuilder,
 };
 
 use super::handlers::HandlerResponse;
@@ -23,14 +22,12 @@ pub struct Game {
     pub name: String,
     pub role_name: String,
     pub role_id: u64,
-    pub emoji: String,
 }
 
 impl Game {
-    pub fn new(name: String, role_name: String, emoji: String) -> Self {
+    pub fn new(name: String, role_name: String) -> Self {
         Self {
             name,
-            emoji,
             role_name,
             role_id: 0,
         }
@@ -40,36 +37,28 @@ impl Game {
 impl Games {
     pub fn new() -> Self {
         let mut g: Vec<Game> = Vec::new();
-        g.push(Game::new(
-            "Warzone".to_string(),
-            "tag-warzone".to_string(),
-            "👹".to_string(),
-        ));
-        g.push(Game::new(
-            "Apex".to_string(),
-            "tag-apex".to_string(),
-            "👺".to_string(),
-        ));
-        g.push(Game::new(
-            "Doom".to_string(),
-            "tag-doom".to_string(),
-            "👻".to_string(),
-        ));
+        g.push(Game::new("Warzone".to_string(), "tag-warzone".to_string()));
+        g.push(Game::new("Apex".to_string(), "tag-apex".to_string()));
+        g.push(Game::new("Doom".to_string(), "tag-doom".to_string()));
 
         Self { games: g }
     }
 
-    pub fn find_role_from_emoji(games: Vec<Game>, emoji: ReactionType) -> Option<Game> {
-        let mut found = false;
-        let mut found_game: Game = Game::default();
-        for game in games {
-            if emoji == ReactionType::Unicode(game.emoji.to_owned()) {
-                found_game = game.to_owned().clone();
-                found = true;
+    fn find_game_from_role_name(games: Vec<Game>, role_name: String) -> Option<Game> {
+        let unescaped_role_name = snailquote::unescape(role_name.as_str()).unwrap();
+        let mut found_game = false;
+        let mut game = Game::default();
+        for g in games.clone() {
+            if g.role_name == unescaped_role_name {
+                game = g;
+                found_game = true;
+                break;
             }
         }
-        if found {
-            Some(found_game)
+
+        println!("found? {} - {:#?}", found_game, game);
+        if found_game {
+            Some(game)
         } else {
             None
         }
@@ -84,7 +73,6 @@ impl Games {
                         name: game.name.to_owned(),
                         role_name: game.role_name.to_owned(),
                         role_id: *role.id.as_u64(),
-                        emoji: game.emoji.to_owned(),
                     };
                     g.push(new_game);
                 }
@@ -93,7 +81,7 @@ impl Games {
         return g;
     }
 
-    pub fn does_user_have_role(user_roles: Vec<RoleId>, role_id: RoleId) -> Option<RoleId> {
+    fn does_user_have_role(user_roles: Vec<RoleId>, role_id: RoleId) -> Option<RoleId> {
         let mut found_role = false;
         let mut role = RoleId::default();
         for user_role in user_roles {
@@ -102,11 +90,94 @@ impl Games {
                 role = role_id;
             }
         }
-
         if found_role {
             Some(role)
         } else {
             None
+        }
+    }
+
+    async fn add_or_remove_game(
+        ctx: &Context,
+        command: &ApplicationCommandInteraction,
+        options: &Vec<ApplicationCommandInteractionDataOption>,
+    ) -> HandlerResponse {
+        let mut handler_response = HandlerResponse::default();
+        handler_response.ephemeral = true;
+
+        let guild_id = command.guild_id.unwrap();
+        let roles = &ctx.http.get_guild_roles(guild_id.0).await.unwrap();
+        let games = Games::match_roles_and_games(Games::new().games, roles.to_owned());
+        let user = &command.user;
+
+        let mut mem = ctx
+            .http
+            .get_member(*guild_id.as_u64(), *user.id.as_u64())
+            .await
+            .unwrap();
+
+        for option in options {
+            match &option.value {
+                Some(value) => match option.name.as_str() {
+                    "add" => {
+                        match Self::find_game_from_role_name(games.to_owned(), value.to_string()) {
+                            Some(game) => {
+                                mem.add_role(&ctx, game.role_id).await.unwrap();
+                                handler_response.content = "Added Role".to_string();
+                            }
+                            None => {
+                                println!("couldn't find game from role name");
+                                handler_response.content =
+                                    "You didnt fill out the request correctly".to_string();
+                            }
+                        };
+                    }
+                    "remove" => {
+                        match Self::find_game_from_role_name(games.to_owned(), value.to_string()) {
+                            Some(game) => {
+                                match Self::does_user_have_role(
+                                    mem.roles.to_owned(),
+                                    RoleId(game.role_id),
+                                ) {
+                                    Some(role) => {
+                                        mem.remove_role(&ctx, role).await.unwrap();
+                                        handler_response.content = "Removed Role".to_string();
+                                    }
+                                    None => {
+                                        println!("user didn't have role");
+                                        handler_response.content =
+                                            "You didnt fill out the request correctly".to_string();
+                                    }
+                                }
+                            }
+                            None => {
+                                println!("couldn't find game from role name");
+                                handler_response.content =
+                                    "You didnt fill out the request correctly".to_string();
+                            }
+                        };
+                    }
+                    _ => {
+                        println!("nothing");
+                        handler_response.content =
+                            "You didnt fill out the request correctly".to_string();
+                    }
+                },
+                None => {
+                    println!("nothing");
+                    handler_response.content =
+                        "You didnt fill out the request correctly".to_string();
+                }
+            }
+        }
+
+        return handler_response;
+    }
+
+    async fn no_options_passed() -> HandlerResponse {
+        HandlerResponse {
+            content: "No Response".to_string(),
+            ephemeral: true,
         }
     }
 
@@ -140,114 +211,12 @@ impl Games {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
-        // let member = command.member.as_ref().unwrap();
-        let guild_id = command.guild_id.unwrap();
-        let user = &command.user;
-        let channel_id = command.channel_id.0;
-
         let options = &command.data.options;
 
-        println!("{:#?}", options);
-
         if options.len() == 0 {
-            let roles = &ctx.http.get_guild_roles(guild_id.0).await.unwrap();
-            let games = Games::match_roles_and_games(Games::new().games, roles.to_owned());
-            let channel = &ctx.http.get_channel(channel_id).await.unwrap();
-            let mut message = MessageBuilder::new();
-            let mut reactions: Vec<ReactionType> = Vec::new();
-
-            for game in games.clone() {
-                message.push_line(format!(
-                    "{} - {}: @{}",
-                    game.emoji,
-                    game.name.to_owned(),
-                    game.role_name
-                ));
-                reactions.push(ReactionType::Unicode(game.emoji.to_owned()));
-            }
-            message.build();
-
-            let msg = channel
-                .id()
-                .send_message(&ctx.http, |m| {
-                    m.content(message)
-                        .flags(MessageFlags::EPHEMERAL)
-                        .reactions(reactions)
-                })
-                .await
-                .unwrap();
-
-            let http = Arc::clone(&ctx.http);
-            // spawn(async move {
-
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            let mut mem = ctx
-                .http
-                .get_member(*guild_id.as_u64(), *user.id.as_u64())
-                .await
-                .unwrap();
-
-            let m = http
-                .get_message(channel_id, *msg.id.as_u64())
-                .await
-                .unwrap();
-
-            let mut roles_to_add: Vec<RoleId> = Vec::new();
-            let mut roles_to_remove: Vec<RoleId> = Vec::new();
-            for reaction in m.reactions {
-                // Iterate here through the reactions to see which roles the user has selected
-                if reaction.count > 1 {
-                    match Games::find_role_from_emoji(games.clone(), reaction.reaction_type) {
-                        Some(role) => {
-                            let role_id = RoleId(role.role_id);
-                            let user_roles = mem.roles.to_owned();
-                            match Self::does_user_have_role(user_roles, role_id) {
-                                Some(_) => {
-                                    roles_to_remove.push(role_id);
-                                }
-                                None => {
-                                    roles_to_add.push(role_id);
-                                }
-                            }
-                        }
-                        None => {}
-                    };
-                }
-            }
-            roles_to_add.dedup();
-            roles_to_remove.dedup();
-
-            println!("adding {:#?}", roles_to_add);
-            if roles_to_add.len() > 0 {
-                mem.add_roles(&http, &roles_to_add).await.unwrap();
-            }
-            println!("removing {:#?}", roles_to_remove);
-            if roles_to_remove.len() > 0 {
-                mem.remove_roles(&http, &roles_to_remove).await.unwrap();
-            }
-
-            msg.delete(&ctx.http).await.unwrap();
-            // });
-
-            HandlerResponse {
-                content: "done".to_string(),
-                ephemeral: true,
-            }
+            return Self::no_options_passed().await;
         } else {
-            for option in options {
-                match option.name.as_str() {
-                    "add" => {
-                        println!("{}", option.name);
-                    }
-                    _ => {
-                        println!("nothing");
-                    }
-                }
-            }
-            HandlerResponse {
-                content: "done".to_string(),
-                ephemeral: true,
-            }
+            return Self::add_or_remove_game(ctx, command, options).await;
         }
     }
 }

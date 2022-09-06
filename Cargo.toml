@@ -9,6 +9,7 @@ name = "tugbot"
 path = "src/lib.rs"
 
 [dependencies]
+snailquote = "0.3.1"
 dotenv = "0.15.0"
 serenity = { version = "0.11.1", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "collector", "unstable_discord_api"] }
 tokio = { version = "1.15.0", features = ["time", "macros", "rt-multi-thread"] }
