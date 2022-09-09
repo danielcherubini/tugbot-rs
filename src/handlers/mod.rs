@@ -1,3 +1,4 @@
+pub mod colors;
 pub mod elkmen;
 pub mod games;
 pub mod gulag;
