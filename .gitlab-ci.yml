@@ -38,7 +38,7 @@ terraform:
     - main
   variables:
     TF_ROOT: ${CI_PROJECT_DIR}/terraform
-    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/<your-state-name>
+    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/tugstate
     TF_VAR_pm_api_url: ${PROXMOX_URL}
     TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
     TF_VAR_pm_api_token_secret: ${PROXMOX_TOKEN}
