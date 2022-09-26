@@ -34,7 +34,7 @@ packer:
     - packer build packer/packer.json 
 
 terraform:build:
-  needs: ["packer"]
+  needs: ["packer", "test:terraform:validate"]
   stage: terraform
   extends: .terraform:build
   tags:
