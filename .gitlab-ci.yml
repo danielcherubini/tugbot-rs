@@ -26,3 +26,10 @@ test:cargo:
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo test --workspace --verbose
+
+before_script:
+  - docker info
+
+build_image:
+  script:
+    - docker build -t tugbot .
