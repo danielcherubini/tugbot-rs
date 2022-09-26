@@ -17,7 +17,6 @@ test:cargo:
     - cargo test --workspace --verbose
 test:terraform:fmt:
   stage: test
-  needs: ["packer"]
   extends: .terraform:fmt
 test:terraform:validate:
   stage: test
@@ -35,6 +34,7 @@ packer:
     - packer build packer/packer.json 
 
 terraform:build:
+  needs: ["packer"]
   stage: terraform
   extends: .terraform:build
   tags:
