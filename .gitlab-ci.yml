@@ -24,12 +24,21 @@ packer:
     - packer build packer/packer.json 
 
 terraform:
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
   stage: terraform
   needs: ["packer"]
+  before_script:
+    - cd ${TF_ROOT}
+  cache:
+    key: example-production
+    paths:
+    - ${TF_ROOT}/.terraform
   only:
     - tags
     - main
   variables:
+    TF_ROOT: ${CI_PROJECT_DIR}/terraform
+    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/<your-state-name>
     TF_VAR_pm_api_url: ${PROXMOX_URL}
     TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
     TF_VAR_pm_api_token_secret: ${PROXMOX_TOKEN}
@@ -37,6 +46,6 @@ terraform:
   tags:
     - shell
   script:
-    - terraform -chdir=terraform init
-    - terraform -chdir=terraform plan
-    - terraform -chdir=terraform apply -auto-approve
+    - gitlab-terraform init
+    - gitlab-terraform plan
+    - gitlab-terraform apply
