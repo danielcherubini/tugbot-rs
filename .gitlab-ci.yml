@@ -16,8 +16,7 @@ packer:
   stage: packer
   only:
     - tags
-  except:
-    - /^(?!master).+@/
+    - main
   tags:
     - shell
   script:
@@ -27,8 +26,7 @@ terraform:
   stage: terraform
   only:
     - tags
-  except:
-    - /^(?!master).+@/
+    - main
   variables:
     TF_VAR_pm_api_url: ${PROXMOX_URL}
     TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
