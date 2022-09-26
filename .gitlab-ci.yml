@@ -1,3 +1,7 @@
+include:
+  - template: Terraform/Base.gitlab-ci.yml  # https://gitlab.com/gitlab-org/gitlab/blob/master/lib/gitlab/ci/templates/Terraform/Base.gitlab-ci.yml
+  - template: Jobs/SAST-IaC.gitlab-ci.yml   # https://gitlab.com/gitlab-org/gitlab/blob/master/lib/gitlab/ci/templates/Jobs/SAST-IaC.gitlab-ci.yml
+
 stages:
   - test
   - packer
@@ -23,12 +27,27 @@ packer:
   script:
     - packer build packer/packer.json 
 
-terraform:
+terraform:fmt:
   stage: terraform
   needs: ["packer"]
-  only:
-    - tags
-    - main
+  extends: .terraform:fmt
+  tags:
+    - shell
+terraform:validate:
+  stage: terraform
+  extends: .terraform:validate
+  tags:
+    - shell
+terraform:build:
+  stage: terraform
+  extends: .terraform:build
+  tags:
+    - shell
+terraform:deploy:
+  stage: terraform
+  extends: .terraform:deploy
+  dependencies:
+    - terraform:build
   variables:
     TF_VAR_pm_api_url: ${PROXMOX_URL}
     TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
@@ -36,7 +55,3 @@ terraform:
     TF_VAR_ssh_key: ${SSH_KEY}
   tags:
     - shell
-  script:
-    - terraform -chdir=terraform init
-    - terraform -chdir=terraform plan
-    - terraform -chdir=terraform apply -auto-approve
