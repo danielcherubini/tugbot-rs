@@ -18,19 +18,13 @@ packer:
   tags:
     - shell
   script:
-    - packer build infra/packer.json 
+    - packer build packer/packer.json 
 
-terraform:init:
+terraform:
   stage: terraform
   tags:
     - shell
   script:
-    - terraform init
-    - terraform plan
-
-terraform:apply:
-  stage: terraform
-  tags:
-    - shell
-  script:
-    - terraform apply -auto-approve
+    - terraform -chdir=terraform init
+    - terraform -chdir=terraform plan
+    - terraform -chdir=terraform apply -auto-approve
