@@ -1,0 +1,14 @@
+[Unit]
+Description=Tugbot Service
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+WorkingDirectory=/usr/src/tugbot
+ExecStart=/root/.cargo/bin/tugbot
+
+[Install]
+WantedBy=multi-user.target
