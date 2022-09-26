@@ -1,23 +1,5 @@
 stages:
   - terraform
-
-image: "rust:latest"
-
-test:cargo:
-  stage: test
-  tags:
-    - rust
-  script:
-    - rustc --version && cargo --version  # Print version info for debugging
-    - cargo test --workspace --verbose
-
-packer:
-  stage: packer
-  tags:
-    - shell
-  script:
-    - packer build packer/packer.json 
-
 terraform:
   stage: terraform
   tags:
