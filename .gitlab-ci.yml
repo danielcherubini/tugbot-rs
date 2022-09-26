@@ -1,6 +1,7 @@
 stages:
   - test
-  - build_image
+  - packer
+  - terraform
 
 image: "rust:latest"
 
@@ -12,9 +13,24 @@ test:cargo:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo test --workspace --verbose
 
-build_image:
-  stage: build_image
+packer:
+  stage: packer
   tags:
     - shell
   script:
-    - packer build packer/packer.json 
+    - packer build infra/packer.json 
+
+terraform:init:
+  stage: terraform
+  tags:
+    - shell
+  script:
+    - terraform init
+    - terraform plan
+
+terraform:apply:
+  stage: terraform
+  tags:
+    - shell
+  script:
+    - terraform apply -auto-approve
