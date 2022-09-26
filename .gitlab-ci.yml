@@ -44,7 +44,7 @@ terraform:
     TF_VAR_pm_api_token_secret: ${PROXMOX_TOKEN}
     TF_VAR_ssh_key: ${SSH_KEY}
   tags:
-    - shell
+    - terraform
   script:
     - gitlab-terraform init
     - gitlab-terraform plan
