@@ -15,6 +15,13 @@ test:cargo:
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo test --workspace --verbose
+test:terraform:fmt:
+  stage: test
+  needs: ["packer"]
+  extends: .terraform:fmt
+test:terraform:validate:
+  stage: test
+  extends: .terraform:validate
 
 packer:
   stage: packer
@@ -27,17 +34,6 @@ packer:
   script:
     - packer build packer/packer.json 
 
-terraform:fmt:
-  stage: terraform
-  needs: ["packer"]
-  extends: .terraform:fmt
-  tags:
-    - shell
-terraform:validate:
-  stage: terraform
-  extends: .terraform:validate
-  tags:
-    - shell
 terraform:build:
   stage: terraform
   extends: .terraform:build
