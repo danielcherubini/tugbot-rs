@@ -1,6 +1,4 @@
 stages:
-  - test
-  - packer
   - terraform
 
 image: "rust:latest"

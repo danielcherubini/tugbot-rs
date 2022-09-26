@@ -22,9 +22,9 @@
       "ssh_username": "root",
       "onboot": true,
       "os": "l26",
-      "cores": 8,
+      "cores": 4,
       "sockets": 1,
-      "memory": 2048,
+      "memory": 4096,
       "network_adapters": [
         {
           "bridge": "vmbr0"
