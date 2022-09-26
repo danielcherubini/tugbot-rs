@@ -6,11 +6,15 @@ image: "rust:latest"
 
 test:cargo:
   stage: test
+  tags:
+    - rust
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo test --workspace --verbose
 
 build_image:
   stage: build_image
+  tags:
+    - shell
   script:
     - docker build -t tugbot .
