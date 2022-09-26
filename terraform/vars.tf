@@ -5,15 +5,15 @@ variable "ssh_key" {}
 
 variable "node" {
   type = object({
-      janus = string
-      jove = string
-      bacchus = string
-    })
+    janus   = string
+    jove    = string
+    bacchus = string
+  })
   default = {
-      janus = "janus"
-      jove = "jove"
-      bacchus = "bacchus"
-    }
+    janus   = "janus"
+    jove    = "jove"
+    bacchus = "bacchus"
+  }
 }
 
 variable "template" {
