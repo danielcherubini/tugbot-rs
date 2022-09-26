@@ -1,10 +1,7 @@
 variable "pm_api_url" {}
 variable "pm_api_token_id" {}
 variable "pm_api_token_secret" {}
-
-variable "ssh_key" {
-  default = "$SSH_KEY"
-}
+variable "ssh_key" {}
 
 variable "node" {
   type = object({
