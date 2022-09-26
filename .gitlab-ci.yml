@@ -1,7 +1,34 @@
 stages:
+  - test
+  - packer
   - terraform
+
+test:cargo:
+  stage: test
+  image: "rust:latest"
+  tags:
+    - rust
+  script:
+    - rustc --version && cargo --version  # Print version info for debugging
+    - cargo test --workspace --verbose
+
+packer:
+  stage: packer
+  only:
+    - tags
+  except:
+    - /^(?!master).+@/
+  tags:
+    - shell
+  script:
+    - packer build packer/packer.json 
+
 terraform:
   stage: terraform
+  only:
+    - tags
+  except:
+    - /^(?!master).+@/
   variables:
     TF_VAR_pm_api_url: ${PROXMOX_URL}
     TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
