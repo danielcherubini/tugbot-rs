@@ -64,10 +64,15 @@ impl EventHandler for Handler {
                 })
                 .await;
 
-            println!(
-                "I now have the following guild slash commands: {:#?}",
-                commands
-            );
+            println!("I now have the following guild slash commands: ",);
+            match commands {
+                Ok(commandvec) => {
+                    for command in commandvec {
+                        println!("{}", command.name)
+                    }
+                }
+                Err(e) => println!("{}", e),
+            }
         }
     }
 }
