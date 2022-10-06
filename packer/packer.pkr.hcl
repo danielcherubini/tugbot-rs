@@ -29,7 +29,7 @@ source "proxmox-clone" "tugbot" {
   insecure_skip_tls_verify = true
   memory                   = 4096
   network_adapters {
-    bridge = "vmbr0"
+    bridge = "vmbr1"
   }
   node                 = "jove"
   onboot               = true

@@ -36,7 +36,7 @@ resource "proxmox_vm_qemu" "tugbot" {
 
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = "vmbr1"
   }
   lifecycle {
     ignore_changes = [
