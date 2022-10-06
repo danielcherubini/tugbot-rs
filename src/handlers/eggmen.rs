@@ -15,7 +15,7 @@ use serenity::{
 use tokio::{task::spawn, time::sleep};
 
 use super::handlers::HandlerResponse;
-pub struct ElkMen;
+pub struct Eggmen;
 
 async fn find_eggmen_role(ctx: &Context, guild_id: u64) -> Option<Role> {
     match ctx.http.get_guild_roles(guild_id).await {
@@ -31,7 +31,7 @@ async fn find_eggmen_role(ctx: &Context, guild_id: u64) -> Option<Role> {
     }
 }
 
-impl ElkMen {
+impl Eggmen {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
         return command
             .name("egg-invite")
