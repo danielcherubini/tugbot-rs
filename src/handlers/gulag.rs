@@ -16,23 +16,41 @@ use serenity::{
 use tokio::{task::spawn, time::sleep};
 
 use super::handlers::HandlerResponse;
-pub struct Gulag;
 
-async fn find_gulag_role(ctx: &Context, guild_id: u64) -> Option<Role> {
-    match ctx.http.get_guild_roles(guild_id).await {
-        Err(_why) => None,
-        Ok(roles) => {
-            for role in roles {
-                if role.name == "gulag" {
-                    return Some(role);
-                }
-            }
-            None
-        }
-    }
+#[derive(Clone, Debug, Default)]
+pub struct Gulag {
+    pub in_gulag: Vec<u64>,
 }
 
 impl Gulag {
+    pub async fn find_gulag_role(ctx: &Context, guild_id: u64) -> Option<Role> {
+        match ctx.http.get_guild_roles(guild_id).await {
+            Err(_why) => None,
+            Ok(roles) => {
+                for role in roles {
+                    if role.name == "gulag" {
+                        return Some(role);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    pub async fn add_to_gulag(
+        &mut self,
+        ctx: &Context,
+        guild_id: u64,
+        user_id: u64,
+        gulag_role_id: RoleId,
+    ) -> Member {
+        let mut mem = ctx.http.get_member(guild_id, user_id).await.unwrap();
+        mem.add_role(&ctx.http, gulag_role_id).await.unwrap();
+
+        self.in_gulag.push(user_id);
+        return mem;
+    }
+
     async fn remove_from_gulag(
         http: Arc<Http>,
         mut mem: Member,
@@ -63,6 +81,7 @@ impl Gulag {
     }
 
     pub async fn setup_interaction(
+        &mut self,
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
@@ -83,7 +102,7 @@ impl Gulag {
                         ephemeral: false,
                     }
                 }
-                Some(guild_id) => match find_gulag_role(&ctx, *guild_id.as_u64()).await {
+                Some(guild_id) => match Self::find_gulag_role(&ctx, *guild_id.as_u64()).await {
                     None => {
                         return HandlerResponse {
                             content: "couldn't find gulag role".to_string(),
@@ -91,13 +110,9 @@ impl Gulag {
                         }
                     }
                     Some(gulag_role) => {
-                        let mut mem = ctx
-                            .http
-                            .get_member(*guild_id.as_u64(), *user.id.as_u64())
-                            .await
-                            .unwrap();
-
-                        mem.add_role(&ctx.http, gulag_role.id).await.unwrap();
+                        let mem = self
+                            .add_to_gulag(ctx, *guild_id.as_u64(), *user.id.as_u64(), gulag_role.id)
+                            .await;
                         let http = Arc::clone(&ctx.http);
                         spawn(async move {
                             sleep(Duration::from_secs(300)).await;

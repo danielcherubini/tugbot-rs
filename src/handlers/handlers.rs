@@ -1,4 +1,4 @@
-use crate::tugbot::server::Server;
+use crate::tugbot::servers::Servers;
 use serenity::{
     async_trait,
     client::{Context, EventHandler},
@@ -21,7 +21,7 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             let handler_response = match command.data.name.as_str() {
-                "gulag" => Gulag::setup_interaction(&ctx, &command).await,
+                "gulag" => Gulag::setup_interaction(&mut Gulag::default(), &ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
@@ -51,7 +51,7 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-        let servers = Server::get_servers(&ctx).await;
+        let servers = Servers::get_servers(&ctx).await;
 
         for server in servers {
             let commands =
