@@ -15,6 +15,8 @@ use serenity::{
 };
 use tokio::{task::spawn, time::sleep};
 
+use crate::db::{create_user, establish_connection};
+
 use super::handlers::HandlerResponse;
 
 #[derive(Clone, Debug, Default)]
@@ -46,7 +48,8 @@ impl Gulag {
     ) -> Member {
         let mut mem = ctx.http.get_member(guild_id, user_id).await.unwrap();
         mem.add_role(&ctx.http, gulag_role_id).await.unwrap();
-
+        let conn = &mut establish_connection();
+        create_user(conn, user_id as i64, true);
         self.in_gulag.push(user_id);
         return mem;
     }

@@ -8,4 +8,11 @@ diesel::table! {
     }
 }
 
-// diesel::allow_tables_to_appear_in_same_query!(servers);
+diesel::table! {
+    users (user_id) {
+        user_id -> Int8,
+        in_gulag -> Bool,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(servers, users,);

@@ -7,8 +7,8 @@ use dotenv::dotenv;
 use std::env;
 
 use self::{
-    models::{NewServer, Server},
-    schema::servers,
+    models::{NewServer, NewUser, Server, User},
+    schema::{servers, users},
 };
 
 pub fn establish_connection() -> PgConnection {
@@ -25,5 +25,14 @@ pub fn create_server(conn: &mut PgConnection, guild_id: i64, gulag_id: i64) -> S
     diesel::insert_into(servers::table)
         .values(&new_server)
         .get_result(conn)
-        .expect("Error saving new post")
+        .expect("Error saving new server")
+}
+
+pub fn create_user(conn: &mut PgConnection, user_id: i64, in_gulag: bool) -> User {
+    let new_user = NewUser { user_id, in_gulag };
+
+    diesel::insert_into(users::table)
+        .values(&new_user)
+        .get_result(conn)
+        .expect("Error saving new User")
 }

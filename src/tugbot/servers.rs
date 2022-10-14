@@ -22,11 +22,7 @@ pub struct Servers {
 impl Servers {
     pub async fn get_servers(ctx: &Context) -> Vec<Servers> {
         let mut serverss = Vec::new();
-        // let data = ctx.data.read().await;
-        // let pg_client = data
-        //     .get::<PostgresClient>()
-        //     .expect("Expected CommandCounter in TypeMap.")
-        //     .clone();
+
         let connection = &mut establish_connection();
         let results = servers
             .load::<Server>(connection)
