@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::db::schema::*;
 use diesel::prelude::*;
 
@@ -16,14 +18,23 @@ pub struct NewServer {
 }
 
 #[derive(Queryable)]
-pub struct User {
+pub struct GulagUser {
+    pub id: i32,
     pub user_id: i64,
+    pub guild_id: i64,
+    pub gulag_role_id: i64,
+    pub channel_id: i64,
     pub in_gulag: bool,
+    pub created_at: SystemTime,
 }
 
 #[derive(Insertable)]
-#[diesel(table_name = users)]
-pub struct NewUser {
+#[diesel(table_name = gulag_users)]
+pub struct NewGulagUser {
     pub user_id: i64,
+    pub guild_id: i64,
+    pub gulag_role_id: i64,
+    pub channel_id: i64,
     pub in_gulag: bool,
+    pub created_at: SystemTime,
 }

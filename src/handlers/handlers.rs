@@ -7,7 +7,9 @@ use serenity::{
     },
 };
 
-use super::{eggmen::Eggmen, elkmen::ElkMen, gulag::Gulag, horny::Horny, phony::Phony};
+use super::{
+    eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler, horny::Horny, phony::Phony,
+};
 
 pub struct HandlerResponse {
     pub content: String,
@@ -21,7 +23,7 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             let handler_response = match command.data.name.as_str() {
-                "gulag" => Gulag::setup_interaction(&mut Gulag::default(), &ctx, &command).await,
+                "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
@@ -52,11 +54,13 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         let servers = Servers::get_servers(&ctx).await;
+        GulagHandler::run_gulag_check(&ctx);
 
         for server in servers {
             let commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
-                    commands.create_application_command(|command| Gulag::setup_command(command));
+                    commands
+                        .create_application_command(|command| GulagHandler::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     commands.create_application_command(|command| ElkMen::setup_command(command));
