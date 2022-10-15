@@ -8,6 +8,11 @@ variable "discord_token" {
   default = "${env("DISCORD_TOKEN")}"
 }
 
+variable "database_url" {
+  type    = string
+  default = "${env("DATABASE_URL")}"
+}
+
 variable "proxmox_token" {
   type    = string
   default = "${env("PROXMOX_TOKEN")}"
@@ -58,7 +63,7 @@ build {
       "git clone https://gitlab.com/danielcherubini/tugbot-rs.git /usr/src/tugbot",
       "cd /usr/src/tugbot",
       "cargo install --path .",
-      "echo 'DISCORD_TOKEN=${var.discord_token}\nAPPLICATION_ID=${var.discord_application_id}' > .env",
+      "echo 'DISCORD_TOKEN=${var.discord_token}\nAPPLICATION_ID=${var.discord_application_id}\nDATABASE_URL=${var.database_url}' > .env",
       "cp systemd/tugbot.service /etc/systemd/system",
       "systemctl daemon-reload",
       "systemctl enable tugbot.service"

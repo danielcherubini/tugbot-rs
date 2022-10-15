@@ -1,6 +1,6 @@
 pub mod eggmen;
 pub mod elkmen;
-pub mod gulag;
+pub mod gulag_handler;
 pub mod handlers;
 pub mod horny;
 pub mod nickname;
