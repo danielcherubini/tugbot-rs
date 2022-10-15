@@ -1,28 +1,51 @@
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Rust.gitlab-ci.yml
+stages:
+  - test
+  - packer
+  - terraform
 
-# Official language image. Look for the different tagged releases at:
-# https://hub.docker.com/r/library/rust/tags/
-image: "rust:latest"
-
-# Optional: Pick zero or more services to be used on all builds.
-# Only needed when using a docker container to run your tests in.
-# Check out: http://docs.gitlab.com/ee/ci/docker/using_docker_images.html#what-is-a-service
-# services:
-#   - mysql:latest
-#   - redis:latest
-#   - postgres:latest
-
-# Optional: Install a C compiler, cmake and git into the container.
-# You will often need this when you (or any of your dependencies) depends on C code.
-# before_script:
-#   - apt-get update -yqq
-#   - apt-get install -yqq --no-install-recommends build-essential
-
-# Use cargo to test the project
 test:cargo:
+  stage: test
+  image: "rust:latest"
+  tags:
+    - rust
   script:
     - rustc --version && cargo --version  # Print version info for debugging
     - cargo test --workspace --verbose
+
+packer:
+  stage: packer
+  needs: ["test:cargo"]
+  only:
+    - tags
+    - main
+  tags:
+    - shell
+  script:
+    - packer build packer/packer.pkr.hcl 
+
+terraform:
+  image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
+  stage: terraform
+  needs: ["packer"]
+  before_script:
+    - cd ${TF_ROOT}
+  cache:
+    key: example-production
+    paths:
+    - ${TF_ROOT}/.terraform
+  only:
+    - tags
+    - main
+  variables:
+    TF_ROOT: ${CI_PROJECT_DIR}/terraform
+    TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/tugstate
+    TF_VAR_pm_api_url: ${PROXMOX_URL}
+    TF_VAR_pm_api_token_id: ${PROXMOX_USERNAME}
+    TF_VAR_pm_api_token_secret: ${PROXMOX_TOKEN}
+    TF_VAR_ssh_key: ${SSH_KEY}
+  tags:
+    - terraform
+  script:
+    - gitlab-terraform init
+    - gitlab-terraform plan
+    - gitlab-terraform apply
