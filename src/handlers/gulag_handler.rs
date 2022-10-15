@@ -189,14 +189,14 @@ impl GulagHandler {
                             channelid,
                         )
                         .await;
-                        // let http = Arc::clone(&ctx.http);
-                        // spawn(async move {
-                        //     sleep(Duration::from_secs(300)).await;
-                        //     Gulag::remove_from_gulag(http, mem, gulag_role.id, channel_id).await;
-                        // });
 
+                        let content = format!(
+                            "Sending {} to the Gulag for {} minutes",
+                            user.to_string(),
+                            gulaglength / 60,
+                        );
                         return HandlerResponse {
-                            content: format!("Sending {} to the Gulag", user.to_string()),
+                            content,
                             ephemeral: false,
                         };
                     }
