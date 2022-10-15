@@ -1,22 +1,27 @@
+use std::time::Duration;
+
 use crate::tugbot::servers::Servers;
 use serenity::{
     async_trait,
+    builder::CreateComponents,
     client::{Context, EventHandler},
     model::{
         gateway::Ready,
         id::GuildId,
         interactions::InteractionResponseType,
-        prelude::{Interaction, Member},
+        prelude::{Interaction, InteractionApplicationCommandCallbackDataFlags, Member},
     },
 };
 
 use super::{
-    eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler, horny::Horny, phony::Phony,
+    colors::Colors, eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler, horny::Horny,
+    phony::Phony,
 };
 
 #[derive(Default)]
 pub struct HandlerResponse {
     pub content: String,
+    pub components: Option<CreateComponents>,
     pub ephemeral: bool,
 }
 
@@ -56,27 +61,54 @@ impl EventHandler for Handler {
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
-                "games" => Games::setup_interaction(&ctx, &command).await,
+                "color" => Colors::setup_interaction(&ctx, &command).await,
                 "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
-                    content: "not implemented :(".to_string(),
+                    content: "Not Implimented".to_string(),
+                    components: None,
                     ephemeral: true,
                 },
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| {
-                            message
+            command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|i| match handler_response.components {
+                            Some(components) => i
                                 .content(handler_response.content)
                                 .ephemeral(handler_response.ephemeral)
+                                .set_components(components),
+                            None => i
+                                .content(handler_response.content)
+                                .ephemeral(handler_response.ephemeral),
                         })
                 })
                 .await
-            {
-                println!("Cannot respond to slash command: {}", why);
+                .unwrap();
+
+            let response = command.get_interaction_response(&ctx.http).await;
+
+            match response {
+                Ok(r) => {
+                    let res = r.await_component_interaction(&ctx).await.unwrap();
+                    println!("{:?}", res.data.values);
+                    // r.reply(&ctx.http, "ferts").await.unwrap();
+                    // command
+                    //     .create_followup_message(&ctx.http, |f| {
+                    //         f.content(format!("{}", res.data.values[0]))
+                    //             .flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
+                    //     })
+                    //     .await
+                    //     .unwrap();
+                    // command
+                    //     .delete_original_interaction_response(&ctx.http)
+                    //     .await
+                    //     .unwrap();
+                    return;
+                }
+                Err(e) => {
+                    println!("Cannot respond to slash command: {}", e);
+                }
             }
         }
     }
@@ -94,7 +126,7 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     commands.create_application_command(|command| ElkMen::setup_command(command));
-                    commands.create_application_command(|command| Games::setup_command(command))
+                    commands.create_application_command(|command| Colors::setup_command(command))
                 })
                 .await
                 .unwrap();

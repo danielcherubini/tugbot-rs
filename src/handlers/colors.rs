@@ -1,19 +1,7 @@
 use serenity::{
-    builder::{
-        CreateActionRow, CreateApplicationCommand, CreateApplicationCommandOption,
-        CreateSelectMenu, CreateSelectMenuOption,
-    },
+    builder::{CreateApplicationCommand, CreateComponents, CreateSelectMenuOption},
     client::Context,
-    model::{
-        interactions::application_command::ApplicationCommandInteraction,
-        prelude::{
-            application_command::{
-                ApplicationCommandInteractionDataOption, ApplicationCommandOptionType,
-            },
-            Message, Role, RoleId,
-        },
-    },
-    utils::MessageBuilder,
+    model::{interactions::application_command::ApplicationCommandInteraction, prelude::Role},
 };
 
 use super::handlers::HandlerResponse;
@@ -55,47 +43,47 @@ impl Colors {
         Self { colors: g }
     }
 
-    fn menu_options(&self) -> Vec<CreateSelectMenuOption> {
-        let mut options = vec![];
-        for color in self.colors.to_owned() {
-            options.push(color.menu_option())
-        }
-        options
-    }
-
-    fn select_menu(&self) -> CreateSelectMenu {
-        let mut menu = CreateSelectMenu::default();
-        menu.custom_id("color_select");
-        menu.placeholder("Select your color");
-        menu.options(|opt| opt.set_options(self.menu_options()));
-        menu
-    }
-
-    fn action_row(&self) -> CreateActionRow {
-        let mut ar = CreateActionRow::default();
-        ar.add_select_menu(self.select_menu());
-        ar
-    }
-
-    fn find_color_from_role_name(colors: Vec<Color>, role_name: String) -> Option<Color> {
-        let unescaped_role_name = snailquote::unescape(role_name.as_str()).unwrap();
-        let mut found_color = false;
-        let mut color = Color::default();
-        for g in colors.clone() {
-            if g.role_name == unescaped_role_name {
-                color = g;
-                found_color = true;
-                break;
-            }
-        }
-
-        println!("found? {} - {:#?}", found_color, color);
-        if found_color {
-            Some(color)
-        } else {
-            None
-        }
-    }
+    // fn menu_options(&self) -> Vec<CreateSelectMenuOption> {
+    //     let mut options = vec![];
+    //     for color in self.colors.to_owned() {
+    //         options.push(color.menu_option())
+    //     }
+    //     options
+    // }
+    //
+    // fn select_menu(&self) -> CreateSelectMenu {
+    //     let mut menu = CreateSelectMenu::default();
+    //     menu.custom_id("color_select");
+    //     menu.placeholder("Select your color");
+    //     menu.options(|opt| opt.set_options(self.menu_options()));
+    //     menu
+    // }
+    //
+    // fn action_row(&self) -> CreateActionRow {
+    //     let mut ar = CreateActionRow::default();
+    //     ar.add_select_menu(self.select_menu());
+    //     ar
+    // }
+    //
+    // fn find_color_from_role_name(colors: Vec<Color>, role_name: String) -> Option<Color> {
+    //     let unescaped_role_name = snailquote::unescape(role_name.as_str()).unwrap();
+    //     let mut found_color = false;
+    //     let mut color = Color::default();
+    //     for g in colors.clone() {
+    //         if g.role_name == unescaped_role_name {
+    //             color = g;
+    //             found_color = true;
+    //             break;
+    //         }
+    //     }
+    //
+    //     println!("found? {} - {:#?}", found_color, color);
+    //     if found_color {
+    //         Some(color)
+    //     } else {
+    //         None
+    //     }
+    // }
 
     pub fn match_roles_and_colors(colors: Vec<Color>, roles: Vec<Role>) -> Vec<Color> {
         let mut g: Vec<Color> = Vec::new();
@@ -114,131 +102,117 @@ impl Colors {
         return g;
     }
 
-    fn does_user_have_role(user_roles: Vec<RoleId>, role_id: RoleId) -> Option<RoleId> {
-        let mut found_role = false;
-        let mut role = RoleId::default();
-        for user_role in user_roles {
-            if user_role == role_id {
-                found_role = true;
-                role = role_id;
-            }
-        }
-        if found_role {
-            Some(role)
-        } else {
-            None
-        }
-    }
+    // fn does_user_have_role(user_roles: Vec<RoleId>, role_id: RoleId) -> Option<RoleId> {
+    //     let mut found_role = false;
+    //     let mut role = RoleId::default();
+    //     for user_role in user_roles {
+    //         if user_role == role_id {
+    //             found_role = true;
+    //             role = role_id;
+    //         }
+    //     }
+    //     if found_role {
+    //         Some(role)
+    //     } else {
+    //         None
+    //     }
+    // }
 
-    async fn add_or_remove_color(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-        options: &Vec<ApplicationCommandInteractionDataOption>,
-    ) -> HandlerResponse {
-        let mut handler_response = HandlerResponse::default();
-        handler_response.ephemeral = true;
-
-        let guild_id = command.guild_id.unwrap();
-        let roles = &ctx.http.get_guild_roles(guild_id.0).await.unwrap();
-        let colors = Colors::match_roles_and_colors(Colors::new().colors, roles.to_owned());
-        let user = &command.user;
-
-        let mut mem = ctx
-            .http
-            .get_member(*guild_id.as_u64(), *user.id.as_u64())
-            .await
-            .unwrap();
-
-        for option in options {
-            match &option.value {
-                Some(value) => match option.name.as_str() {
-                    "add" => handler_response.content = "Please select the color".to_string(),
-                    "remove" => {
-                        match Self::find_color_from_role_name(colors.to_owned(), value.to_string())
-                        {
-                            Some(color) => {
-                                match Self::does_user_have_role(
-                                    mem.roles.to_owned(),
-                                    RoleId(color.role_id),
-                                ) {
-                                    Some(role) => {
-                                        mem.remove_role(&ctx, role).await.unwrap();
-                                        handler_response.content = "Removed Role".to_string();
-                                    }
-                                    None => {
-                                        println!("user didn't have role");
-                                        handler_response.content =
-                                            "You didnt fill out the request correctly".to_string();
-                                    }
-                                }
-                            }
-                            None => {
-                                println!("couldn't find color from role name");
-                                handler_response.content =
-                                    "You didnt fill out the request correctly".to_string();
-                            }
-                        };
-                    }
-                    _ => {
-                        println!("nothing");
-                        handler_response.content =
-                            "You didnt fill out the request correctly".to_string();
-                    }
-                },
-                None => {
-                    println!("nothing");
-                    handler_response.content =
-                        "You didnt fill out the request correctly".to_string();
-                }
-            }
-        }
-
-        return handler_response;
-    }
-
-    async fn no_options_passed() -> HandlerResponse {
-        HandlerResponse {
-            content: "No Response".to_string(),
-            ephemeral: true,
-        }
-    }
+    // async fn add_or_remove_color<'a>(
+    //     ctx: &Context,
+    //     command: &ApplicationCommandInteraction,
+    //     options: &Vec<ApplicationCommandInteractionDataOption>,
+    // ) -> HandlerResponse<'a> {
+    //     let mut handler_response = HandlerResponse::default();
+    //     handler_response.ephemeral = true;
+    //
+    //     let guild_id = command.guild_id.unwrap();
+    //     let roles = &ctx.http.get_guild_roles(guild_id.0).await.unwrap();
+    //     let colors = Colors::match_roles_and_colors(Colors::new().colors, roles.to_owned());
+    //     let user = &command.user;
+    //
+    //     let mut mem = ctx
+    //         .http
+    //         .get_member(*guild_id.as_u64(), *user.id.as_u64())
+    //         .await
+    //         .unwrap();
+    //
+    //     for option in options {
+    //         match &option.value {
+    //             Some(value) => match option.name.as_str() {
+    //                 "add" => handler_response.content = "Please select the color".to_string(),
+    //                 "remove" => {
+    //                     match Self::find_color_from_role_name(colors.to_owned(), value.to_string())
+    //                     {
+    //                         Some(color) => {
+    //                             match Self::does_user_have_role(
+    //                                 mem.roles.to_owned(),
+    //                                 RoleId(color.role_id),
+    //                             ) {
+    //                                 Some(role) => {
+    //                                     mem.remove_role(&ctx, role).await.unwrap();
+    //                                     handler_response.content = "Removed Role".to_string();
+    //                                 }
+    //                                 None => {
+    //                                     println!("user didn't have role");
+    //                                     handler_response.content =
+    //                                         "You didnt fill out the request correctly".to_string();
+    //                                 }
+    //                             }
+    //                         }
+    //                         None => {
+    //                             println!("couldn't find color from role name");
+    //                             handler_response.content =
+    //                                 "You didnt fill out the request correctly".to_string();
+    //                         }
+    //                     };
+    //                 }
+    //                 _ => {
+    //                     println!("nothing");
+    //                     handler_response.content =
+    //                         "You didnt fill out the request correctly".to_string();
+    //                 }
+    //             },
+    //             None => {
+    //                 println!("nothing");
+    //                 handler_response.content =
+    //                     "You didnt fill out the request correctly".to_string();
+    //             }
+    //         }
+    //     }
+    //
+    //     return handler_response;
+    // }
 
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        let colors = Colors::new().colors;
-        let mut add_option = CreateApplicationCommandOption::default();
-        add_option
-            .name("add")
-            .description("what do you want to do")
-            .kind(ApplicationCommandOptionType::String);
-
-        let mut remove_option = CreateApplicationCommandOption::default();
-        remove_option
-            .name("remove")
-            .description("what do you want to do")
-            .kind(ApplicationCommandOptionType::String);
-
-        for color in colors {
-            add_option.add_string_choice(&color.name, &color.role_name);
-            remove_option.add_string_choice(&color.name, &color.role_name);
-        }
-
         return command
-            .name("colors")
-            .description("Which colors to you play")
-            .add_option(add_option)
-            .add_option(remove_option);
+            .name("color")
+            .description("Change your nickname color");
     }
 
     pub async fn setup_interaction(
-        ctx: &Context,
+        _ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
-        let options = &command.data.options;
+        let _options = &command.data.options;
+        let components = CreateComponents::default()
+            .create_action_row(|row| {
+                row.create_select_menu(|menu| {
+                    menu.custom_id("animal_select");
+                    menu.placeholder("No animal selected");
+                    menu.options(|m| {
+                        m.create_option(|o| o.label("Fuck").value("Fuck"));
+                        m.create_option(|o| o.label("This").value("This"));
+                        m.create_option(|o| o.label("Shit").value("Shit"))
+                    })
+                })
+            })
+            .to_owned();
 
-        if options.len() == 0 {
-            return Self::no_options_passed().await;
-        } else {
-            return Self::add_or_remove_color(ctx, command, options).await;
+        HandlerResponse {
+            content: "Choose Which Color you want on your name".to_string(),
+            components: Some(components),
+            ephemeral: true,
         }
     }
 }

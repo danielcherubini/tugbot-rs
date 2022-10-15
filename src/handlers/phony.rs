@@ -34,6 +34,7 @@ impl Phony {
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
                 return HandlerResponse {
                     content: String::from("Done"),
+                    components: None,
                     ephemeral: true,
                 };
             }
@@ -44,6 +45,7 @@ impl Phony {
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
                 return HandlerResponse {
                     content: String::from("Done"),
+                    components: None,
                     ephemeral: true,
                 };
             }

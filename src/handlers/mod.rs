@@ -1,7 +1,4 @@
 pub mod colors;
-pub mod elkmen;
-pub mod games;
-pub mod gulag;
 pub mod eggmen;
 pub mod elkmen;
 pub mod gulag_handler;
