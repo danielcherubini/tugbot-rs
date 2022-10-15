@@ -56,7 +56,7 @@ build {
 
   provisioner "shell" {
     inline = [
-      "sudo apt-get -y install git build-essential",
+      "sudo apt-get -y install git build-essential libpq-dev",
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
       ". $HOME/.cargo/env",
       "mkdir -p /usr/src/tugbot",
