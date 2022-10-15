@@ -33,6 +33,7 @@ pub fn send_to_gulag(
     user_id: i64,
     guild_id: i64,
     gulag_role_id: i64,
+    gulag_length: i32,
     channel_id: i64,
 ) -> GulagUser {
     let new_user = NewGulagUser {
@@ -41,6 +42,7 @@ pub fn send_to_gulag(
         gulag_role_id,
         channel_id,
         in_gulag: true,
+        gulag_length,
         created_at: SystemTime::now(),
     };
 

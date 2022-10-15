@@ -8,6 +8,7 @@ diesel::table! {
         gulag_role_id -> Int8,
         channel_id -> Int8,
         in_gulag -> Bool,
+        gulag_length -> Int4,
         created_at -> Timestamp,
     }
 }

@@ -25,6 +25,7 @@ pub struct GulagUser {
     pub gulag_role_id: i64,
     pub channel_id: i64,
     pub in_gulag: bool,
+    pub gulag_length: i32,
     pub created_at: SystemTime,
 }
 
@@ -36,5 +37,6 @@ pub struct NewGulagUser {
     pub gulag_role_id: i64,
     pub channel_id: i64,
     pub in_gulag: bool,
+    pub gulag_length: i32,
     pub created_at: SystemTime,
 }

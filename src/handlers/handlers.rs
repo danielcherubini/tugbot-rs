@@ -3,7 +3,10 @@ use serenity::{
     async_trait,
     client::{Context, EventHandler},
     model::{
-        gateway::Ready, id::GuildId, interactions::InteractionResponseType, prelude::Interaction,
+        gateway::Ready,
+        id::GuildId,
+        interactions::InteractionResponseType,
+        prelude::{Interaction, Member},
     },
 };
 
@@ -20,6 +23,31 @@ pub struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
+    async fn guild_member_addition(&self, ctx: Context, member: Member) {
+        match GulagHandler::is_user_in_gulag(*member.user.id.as_u64()) {
+            Some(user) => {
+                GulagHandler::add_to_gulag(
+                    &ctx,
+                    user.guild_id as u64,
+                    user.user_id as u64,
+                    user.gulag_role_id as u64,
+                    user.gulag_length as u32,
+                    user.channel_id as u64,
+                )
+                .await;
+
+                let message = format!("You can't escape so easly {}", member.to_string());
+                let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
+                channel
+                    .id()
+                    .send_message(ctx.http, |m| m.content(message))
+                    .await
+                    .unwrap();
+            }
+            None => {}
+        }
+    }
+
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             let handler_response = match command.data.name.as_str() {

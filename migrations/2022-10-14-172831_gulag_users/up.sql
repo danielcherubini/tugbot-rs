@@ -5,5 +5,6 @@ CREATE TABLE "gulag_users" (
   "gulag_role_id" bigint NOT NULL,
   "channel_id" bigint NOT NULL,
   "in_gulag" boolean NOT NULL,
+  "gulag_length" int NOT NULL,
   "created_at" timestamp NOT NULL
 );
