@@ -1,7 +1,10 @@
 use serenity::{
-    builder::{CreateApplicationCommand, CreateComponents, CreateSelectMenuOption},
+    builder::{
+        CreateActionRow, CreateApplicationCommand, CreateComponents, CreateSelectMenu,
+        CreateSelectMenuOption,
+    },
     client::Context,
-    model::{interactions::application_command::ApplicationCommandInteraction, prelude::Role},
+    model::interactions::application_command::ApplicationCommandInteraction,
 };
 
 use super::handlers::HandlerResponse;
@@ -34,72 +37,39 @@ impl Color {
 }
 
 impl Colors {
-    pub fn new() -> Self {
+    pub async fn new(ctx: &Context, guild_id: u64) -> Self {
         let mut g: Vec<Color> = Vec::new();
-        g.push(Color::new("Red".to_string(), "color-red".to_string()));
-        g.push(Color::new("Green".to_string(), "color-green".to_string()));
-        g.push(Color::new("Blue".to_string(), "color-blue".to_string()));
+        // Get Roles from Discord and iterate over them to create the colors array
+        let roles = &ctx.http.get_guild_roles(guild_id).await.unwrap();
+        for role in roles {
+            if role.name.starts_with("color-") {
+                g.push(Color::new(role.name.to_string(), role.id.to_string()));
+            }
+        }
 
         Self { colors: g }
     }
 
-    // fn menu_options(&self) -> Vec<CreateSelectMenuOption> {
-    //     let mut options = vec![];
-    //     for color in self.colors.to_owned() {
-    //         options.push(color.menu_option())
-    //     }
-    //     options
-    // }
-    //
-    // fn select_menu(&self) -> CreateSelectMenu {
-    //     let mut menu = CreateSelectMenu::default();
-    //     menu.custom_id("color_select");
-    //     menu.placeholder("Select your color");
-    //     menu.options(|opt| opt.set_options(self.menu_options()));
-    //     menu
-    // }
-    //
-    // fn action_row(&self) -> CreateActionRow {
-    //     let mut ar = CreateActionRow::default();
-    //     ar.add_select_menu(self.select_menu());
-    //     ar
-    // }
-    //
-    // fn find_color_from_role_name(colors: Vec<Color>, role_name: String) -> Option<Color> {
-    //     let unescaped_role_name = snailquote::unescape(role_name.as_str()).unwrap();
-    //     let mut found_color = false;
-    //     let mut color = Color::default();
-    //     for g in colors.clone() {
-    //         if g.role_name == unescaped_role_name {
-    //             color = g;
-    //             found_color = true;
-    //             break;
-    //         }
-    //     }
-    //
-    //     println!("found? {} - {:#?}", found_color, color);
-    //     if found_color {
-    //         Some(color)
-    //     } else {
-    //         None
-    //     }
-    // }
-
-    pub fn match_roles_and_colors(colors: Vec<Color>, roles: Vec<Role>) -> Vec<Color> {
-        let mut g: Vec<Color> = Vec::new();
-        for role in roles {
-            for color in colors.clone() {
-                if role.name == color.role_name {
-                    let new_color = Color {
-                        name: color.name.to_owned(),
-                        role_name: color.role_name.to_owned(),
-                        role_id: *role.id.as_u64(),
-                    };
-                    g.push(new_color);
-                }
-            }
+    fn menu_options(&self) -> Vec<CreateSelectMenuOption> {
+        let mut options = vec![];
+        for color in self.colors.to_owned() {
+            options.push(color.menu_option())
         }
-        return g;
+        options
+    }
+
+    fn select_menu(&self) -> CreateSelectMenu {
+        let mut menu = CreateSelectMenu::default();
+        menu.custom_id("color_select");
+        menu.placeholder("Select your color");
+        menu.options(|opt| opt.set_options(self.menu_options()));
+        menu
+    }
+
+    fn action_row(&self) -> CreateActionRow {
+        let mut ar = CreateActionRow::default();
+        ar.add_select_menu(self.select_menu());
+        ar
     }
 
     // fn does_user_have_role(user_roles: Vec<RoleId>, role_id: RoleId) -> Option<RoleId> {
@@ -191,22 +161,14 @@ impl Colors {
     }
 
     pub async fn setup_interaction(
-        _ctx: &Context,
+        ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
         let _options = &command.data.options;
+        let guild_id = command.guild_id.unwrap().as_u64().to_owned();
+        let colors = Colors::new(ctx, guild_id).await;
         let components = CreateComponents::default()
-            .create_action_row(|row| {
-                row.create_select_menu(|menu| {
-                    menu.custom_id("color_select");
-                    menu.placeholder("No color selected");
-                    menu.options(|m| {
-                        m.create_option(|o| o.label("Fuck").value("Fuck"));
-                        m.create_option(|o| o.label("This").value("This"));
-                        m.create_option(|o| o.label("Shit").value("Shit"))
-                    })
-                })
-            })
+            .add_action_row(colors.action_row())
             .to_owned();
 
         HandlerResponse {
