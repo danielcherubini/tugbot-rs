@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt::format, time::Duration};
 
 use crate::tugbot::servers::Servers;
 use serenity::{
@@ -92,19 +92,15 @@ impl EventHandler for Handler {
                 Ok(r) => {
                     let res = r.await_component_interaction(&ctx).await.unwrap();
                     println!("{:?}", res.data.values);
-                    // r.reply(&ctx.http, "ferts").await.unwrap();
-                    // command
-                    //     .create_followup_message(&ctx.http, |f| {
-                    //         f.content(format!("{}", res.data.values[0]))
-                    //             .flags(InteractionApplicationCommandCallbackDataFlags::EPHEMERAL)
-                    //     })
-                    //     .await
-                    //     .unwrap();
-                    // command
-                    //     .delete_original_interaction_response(&ctx.http)
-                    //     .await
-                    //     .unwrap();
-                    return;
+                    res.create_interaction_response(&ctx.http, |r| {
+                        r.kind(InteractionResponseType::ChannelMessageWithSource)
+                            .interaction_response_data(|data| {
+                                data.content(format!("{:?}", res.data.values[0]))
+                                    .ephemeral(true)
+                            })
+                    })
+                    .await
+                    .unwrap()
                 }
                 Err(e) => {
                     println!("Cannot respond to slash command: {}", e);
