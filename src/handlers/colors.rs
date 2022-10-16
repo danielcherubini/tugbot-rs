@@ -198,8 +198,8 @@ impl Colors {
         let components = CreateComponents::default()
             .create_action_row(|row| {
                 row.create_select_menu(|menu| {
-                    menu.custom_id("animal_select");
-                    menu.placeholder("No animal selected");
+                    menu.custom_id("color_select");
+                    menu.placeholder("No color selected");
                     menu.options(|m| {
                         m.create_option(|o| o.label("Fuck").value("Fuck"));
                         m.create_option(|o| o.label("This").value("This"));

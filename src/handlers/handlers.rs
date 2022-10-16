@@ -1,5 +1,3 @@
-use std::{fmt::format, time::Duration};
-
 use crate::tugbot::servers::Servers;
 use serenity::{
     async_trait,
@@ -9,7 +7,7 @@ use serenity::{
         gateway::Ready,
         id::GuildId,
         interactions::InteractionResponseType,
-        prelude::{Interaction, InteractionApplicationCommandCallbackDataFlags, Member},
+        prelude::{Interaction, Member},
     },
 };
 
@@ -91,7 +89,13 @@ impl EventHandler for Handler {
             match response {
                 Ok(r) => {
                     let res = r.await_component_interaction(&ctx).await.unwrap();
-                    println!("{:?}", res.data.values);
+                    match res.data.custom_id.as_str() {
+                        "color_select" => {
+                            println!("Do Color Select")
+                        }
+                        _ => {}
+                    }
+                    println!("{:?}", res.data.custom_id);
                     res.create_interaction_response(&ctx.http, |r| {
                         r.kind(InteractionResponseType::ChannelMessageWithSource)
                             .interaction_response_data(|data| {
