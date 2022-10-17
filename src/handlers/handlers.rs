@@ -91,20 +91,28 @@ impl EventHandler for Handler {
                     let res = r.await_component_interaction(&ctx).await.unwrap();
                     match res.data.custom_id.as_str() {
                         "color_select" => {
-                            println!("Do Color Select")
-                        }
-                        _ => {}
-                    }
-                    println!("{:?}", res.data.custom_id);
-                    res.create_interaction_response(&ctx.http, |r| {
-                        r.kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|data| {
-                                data.content(format!("{:?}", res.data.values[0]))
-                                    .ephemeral(true)
+                            println!("Do Color Select");
+                            Colors::swap_color_role(
+                                &ctx,
+                                *command.guild_id.unwrap().as_u64(),
+                                *command.user.id.as_u64(),
+                                res.data.values[0].parse::<u64>().unwrap(),
+                            )
+                            .await;
+
+                            res.create_interaction_response(&ctx.http, |r| {
+                                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                                    .interaction_response_data(|data| {
+                                        data.content(format!("OK, done")).ephemeral(true)
+                                    })
                             })
-                    })
-                    .await
-                    .unwrap()
+                            .await
+                            .unwrap()
+                        }
+                        _ => {
+                            println!("Select custom_id match was missing")
+                        }
+                    }
                 }
                 Err(e) => {
                     println!("Cannot respond to slash command: {}", e);
