@@ -9,9 +9,6 @@ use serenity::{
 };
 
 use super::handlers::HandlerResponse;
-pub struct Colors {
-    pub colors: Vec<Color>,
-}
 
 #[derive(Default, Clone, Debug)]
 pub struct Color {
@@ -32,7 +29,11 @@ impl Color {
     }
 }
 
-impl Colors {
+pub struct ColorHandler {
+    pub colors: Vec<Color>,
+}
+
+impl ColorHandler {
     pub async fn new(ctx: &Context, guild_id: u64) -> Self {
         let mut g: Vec<Color> = Vec::new();
         // Get Roles from Discord and iterate over them to create the colors array
@@ -69,7 +70,7 @@ impl Colors {
     }
 
     pub async fn swap_color_role(ctx: &Context, guild_id: u64, user_id: u64, role_id: u64) {
-        let colors = Colors::new(ctx, guild_id).await.colors;
+        let colors = ColorHandler::new(ctx, guild_id).await.colors;
         let mut member = ctx.http().get_member(guild_id, user_id).await.unwrap();
         let mut role_ids = vec![];
         for color in colors {
@@ -93,7 +94,7 @@ impl Colors {
     ) -> HandlerResponse {
         let _options = &command.data.options;
         let guild_id = command.guild_id.unwrap().as_u64().to_owned();
-        let colors = Colors::new(ctx, guild_id).await;
+        let colors = ColorHandler::new(ctx, guild_id).await;
         let components = CreateComponents::default()
             .add_action_row(colors.action_row())
             .to_owned();

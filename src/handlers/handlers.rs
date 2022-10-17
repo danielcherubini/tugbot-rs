@@ -12,8 +12,8 @@ use serenity::{
 };
 
 use super::{
-    colors::Colors, eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler, horny::Horny,
-    phony::Phony,
+    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler,
+    horny::Horny, phony::Phony,
 };
 
 #[derive(Default)]
@@ -59,7 +59,7 @@ impl EventHandler for Handler {
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
-                "color" => Colors::setup_interaction(&ctx, &command).await,
+                "color" => ColorHandler::setup_interaction(&ctx, &command).await,
                 "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
@@ -92,7 +92,7 @@ impl EventHandler for Handler {
                     match res.data.custom_id.as_str() {
                         "color_select" => {
                             println!("Do Color Select");
-                            Colors::swap_color_role(
+                            ColorHandler::swap_color_role(
                                 &ctx,
                                 *command.guild_id.unwrap().as_u64(),
                                 *command.user.id.as_u64(),
@@ -134,7 +134,8 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     commands.create_application_command(|command| ElkMen::setup_command(command));
-                    commands.create_application_command(|command| Colors::setup_command(command))
+                    commands
+                        .create_application_command(|command| ColorHandler::setup_command(command))
                 })
                 .await
                 .unwrap();
