@@ -59,8 +59,8 @@ impl EventHandler for Handler {
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
-                "color" => ColorHandler::setup_interaction(&ctx, &command).await,
                 "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
+                "color" => ColorHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
                     components: None,
@@ -127,22 +127,28 @@ impl EventHandler for Handler {
         GulagHandler::run_gulag_check(&ctx);
 
         for server in servers {
-            let _commands =
+            let commands =
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands
                         .create_application_command(|command| GulagHandler::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     commands.create_application_command(|command| ElkMen::setup_command(command));
+                    commands.create_application_command(|command| Eggmen::setup_command(command));
                     commands
                         .create_application_command(|command| ColorHandler::setup_command(command))
                 })
-                .await
-                .unwrap();
-            // println!(
-            //     "I now have the following guild slash commands: {:#?}",
-            //     commands
-            // );
+                .await;
+
+            println!("I now have the following guild slash commands: ",);
+            match commands {
+                Ok(commandvec) => {
+                    for command in commandvec {
+                        println!("{}", command.name)
+                    }
+                }
+                Err(e) => println!("{}", e),
+            }
         }
     }
 }
