@@ -9,8 +9,9 @@ name = "tugbot"
 path = "src/lib.rs"
 
 [dependencies]
+snailquote = "0.3.1"
 dotenv = "0.15.0"
-serenity = { version = "0.11.1", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "unstable_discord_api"] }
+serenity = { version = "0.11.1", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "unstable_discord_api", "collector"] }
 diesel = { version = "2.0.2", features = ["postgres", "r2d2"] }
 tokio = { version = "1.15.0", features = ["time", "macros", "rt-multi-thread"] }
 serde = "*"

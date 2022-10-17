@@ -1,6 +1,7 @@
 use crate::tugbot::servers::Servers;
 use serenity::{
     async_trait,
+    builder::CreateComponents,
     client::{Context, EventHandler},
     model::{
         gateway::Ready,
@@ -11,11 +12,14 @@ use serenity::{
 };
 
 use super::{
-    eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler, horny::Horny, phony::Phony,
+    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler,
+    horny::Horny, phony::Phony,
 };
 
+#[derive(Default)]
 pub struct HandlerResponse {
     pub content: String,
+    pub components: Option<CreateComponents>,
     pub ephemeral: bool,
 }
 
@@ -56,25 +60,63 @@ impl EventHandler for Handler {
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
                 "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
+                "color" => ColorHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
-                    content: "not implemented :(".to_string(),
+                    content: "Not Implimented".to_string(),
+                    components: None,
                     ephemeral: true,
                 },
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| {
-                            message
+            command
+                .create_interaction_response(&ctx.http, |r| {
+                    r.kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|i| match handler_response.components {
+                            Some(components) => i
                                 .content(handler_response.content)
                                 .ephemeral(handler_response.ephemeral)
+                                .set_components(components),
+                            None => i
+                                .content(handler_response.content)
+                                .ephemeral(handler_response.ephemeral),
                         })
                 })
                 .await
-            {
-                println!("Cannot respond to slash command: {}", why);
+                .unwrap();
+
+            let response = command.get_interaction_response(&ctx.http).await;
+
+            match response {
+                Ok(r) => {
+                    let res = r.await_component_interaction(&ctx).await.unwrap();
+                    match res.data.custom_id.as_str() {
+                        "color_select" => {
+                            println!("Do Color Select");
+                            ColorHandler::swap_color_role(
+                                &ctx,
+                                *command.guild_id.unwrap().as_u64(),
+                                *command.user.id.as_u64(),
+                                res.data.values[0].parse::<u64>().unwrap(),
+                            )
+                            .await;
+
+                            res.create_interaction_response(&ctx.http, |r| {
+                                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                                    .interaction_response_data(|data| {
+                                        data.content(format!("OK, done")).ephemeral(true)
+                                    })
+                            })
+                            .await
+                            .unwrap()
+                        }
+                        _ => {
+                            println!("Select custom_id match was missing")
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Cannot respond to slash command: {}", e);
+                }
             }
         }
     }
@@ -92,7 +134,9 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     commands.create_application_command(|command| ElkMen::setup_command(command));
-                    commands.create_application_command(|command| Eggmen::setup_command(command))
+                    commands.create_application_command(|command| Eggmen::setup_command(command));
+                    commands
+                        .create_application_command(|command| ColorHandler::setup_command(command))
                 })
                 .await;
 

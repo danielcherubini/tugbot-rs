@@ -65,6 +65,7 @@ impl Eggmen {
                 None => {
                     return HandlerResponse {
                         content: "no member".to_string(),
+                        components: None,
                         ephemeral: false,
                     }
                 }
@@ -72,6 +73,7 @@ impl Eggmen {
                     None => {
                         return HandlerResponse {
                             content: "couldn't find egg-men role".to_string(),
+                            components: None,
                             ephemeral: false,
                         }
                     }
@@ -142,6 +144,7 @@ impl Eggmen {
 
                         return HandlerResponse {
                             content: "Asking".to_string(),
+                            components: None,
                             ephemeral: true,
                         };
                     }
@@ -150,6 +153,7 @@ impl Eggmen {
         } else {
             return HandlerResponse {
                 content: "Please provide a valid user".to_string(),
+                components: None,
                 ephemeral: false,
             };
         };

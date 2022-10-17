@@ -1,3 +1,4 @@
+pub mod color_handler;
 pub mod eggmen;
 pub mod elkmen;
 pub mod gulag_handler;

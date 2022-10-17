@@ -169,6 +169,7 @@ impl GulagHandler {
                 None => {
                     return HandlerResponse {
                         content: "no member".to_string(),
+                        components: None,
                         ephemeral: false,
                     }
                 }
@@ -176,6 +177,7 @@ impl GulagHandler {
                     None => {
                         return HandlerResponse {
                             content: "couldn't find gulag role".to_string(),
+                            components: None,
                             ephemeral: false,
                         }
                     }
@@ -197,6 +199,7 @@ impl GulagHandler {
                         );
                         return HandlerResponse {
                             content,
+                            components: None,
                             ephemeral: false,
                         };
                     }
@@ -205,6 +208,7 @@ impl GulagHandler {
         } else {
             return HandlerResponse {
                 content: "Please provide a valid user".to_string(),
+                components: None,
                 ephemeral: false,
             };
         };
