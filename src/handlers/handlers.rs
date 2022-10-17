@@ -12,8 +12,8 @@ use serenity::{
 };
 
 use super::{
-    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, gulag_handler::GulagHandler,
-    horny::Horny, phony::Phony,
+    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, game_handler::GameHandler,
+    gulag_handler::GulagHandler, horny::Horny, phony::Phony,
 };
 
 #[derive(Default)]
@@ -61,6 +61,7 @@ impl EventHandler for Handler {
                 "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
                 "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
                 "color" => ColorHandler::setup_interaction(&ctx, &command).await,
+                "game" => GameHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
                     components: None,
@@ -109,6 +110,25 @@ impl EventHandler for Handler {
                             .await
                             .unwrap()
                         }
+                        "game_select" => {
+                            println!("Do Game Select");
+                            GameHandler::add_or_remove_game_role(
+                                &ctx,
+                                *command.guild_id.unwrap().as_u64(),
+                                *command.user.id.as_u64(),
+                                res.data.values[0].parse::<u64>().unwrap(),
+                            )
+                            .await;
+
+                            res.create_interaction_response(&ctx.http, |r| {
+                                r.kind(InteractionResponseType::ChannelMessageWithSource)
+                                    .interaction_response_data(|data| {
+                                        data.content(format!("OK, done")).ephemeral(true)
+                                    })
+                            })
+                            .await
+                            .unwrap()
+                        }
                         _ => {
                             println!("Select custom_id match was missing")
                         }
@@ -136,7 +156,9 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| ElkMen::setup_command(command));
                     commands.create_application_command(|command| Eggmen::setup_command(command));
                     commands
-                        .create_application_command(|command| ColorHandler::setup_command(command))
+                        .create_application_command(|command| ColorHandler::setup_command(command));
+                    commands
+                        .create_application_command(|command| GameHandler::setup_command(command))
                 })
                 .await;
 
