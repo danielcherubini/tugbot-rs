@@ -123,7 +123,7 @@ impl EventHandler for Handler {
                             res.create_interaction_response(&ctx.http, |r| {
                                 r.kind(InteractionResponseType::ChannelMessageWithSource)
                                     .interaction_response_data(|data| {
-                                        data.content(format!("OK, done")).ephemeral(true)
+                                        data.content(format!("OK, done... if you want to add another game, please ignore the above message and do /game again")).ephemeral(true)
                                     })
                             })
                             .await
