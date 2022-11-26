@@ -1,3 +1,12 @@
+packer {
+  required_plugins {
+    proxmox = {
+      version = ">= 1.1.0"
+      source  = "github.com/hashicorp/proxmox"
+    }
+  }
+}
+
 variable "discord_application_id" {
   type    = string
   default = "${env("DISCORD_APPLICATION_ID")}"

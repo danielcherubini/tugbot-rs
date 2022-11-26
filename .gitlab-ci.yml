@@ -21,7 +21,7 @@ packer:
   tags:
     - shell
   script:
-    - packer init -upgrade
+    - packer init -upgrade packer/packer.pkr.hcl
     - packer build -debug packer/packer.pkr.hcl 
 
 terraform:
