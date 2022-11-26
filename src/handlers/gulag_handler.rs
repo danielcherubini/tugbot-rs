@@ -73,11 +73,20 @@ impl GulagHandler {
         mem.remove_role(&http, gulag_roleid).await.unwrap();
         let message = format!("Freeing {} from the gulag", mem.to_string());
         let channel = http.get_channel(channelid).await.unwrap();
-        channel
+        match channel
             .id()
             .send_message(http, |m| m.content(message))
             .await
-            .unwrap();
+        {
+            Ok(_) => {
+                println!("Removed from gulag");
+                return;
+            }
+            Err(e) => {
+                println!("Error releasing from gulag {}", e.to_string());
+                return;
+            }
+        }
     }
 
     pub fn run_gulag_check(ctx: &Context) {
@@ -91,14 +100,19 @@ impl GulagHandler {
                     .load::<GulagUser>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
+                    println!("There are {} users in the gulag", results.len());
                     for result in results {
                         let greater_than_5_minutes = result.created_at.elapsed().unwrap()
                             > Duration::from_secs(result.gulag_length as u64);
                         if greater_than_5_minutes {
+                            println!(
+                                "It's been 5 minutes, releasing {} from the gulag",
+                                result.id
+                            );
                             diesel::delete(gulag_users.filter(id.eq(result.id)))
                                 .execute(conn)
                                 .expect("delete user");
-
+                            println!("Removed from database");
                             GulagHandler::remove_from_gulag(
                                 http.to_owned(),
                                 result.user_id as u64,
