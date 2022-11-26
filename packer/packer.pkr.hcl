@@ -56,6 +56,7 @@ build {
 
   provisioner "shell" {
     inline = [
+      "sleep 10",
       "sudo apt-get -y install git build-essential libpq-dev",
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
       ". $HOME/.cargo/env",
