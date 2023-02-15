@@ -83,8 +83,8 @@ impl GulagHandler {
     pub fn run_gulag_check(ctx: &Context) {
         let http = Arc::clone(&ctx.http);
         spawn(async move {
+            let conn = &mut establish_connection();
             loop {
-                let conn = &mut establish_connection();
                 sleep(Duration::from_secs(1)).await;
                 let results = gulag_users
                     .filter(in_gulag.eq(true))
