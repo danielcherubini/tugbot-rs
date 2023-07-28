@@ -40,6 +40,8 @@ impl EventHandler for Handler {
                     println!("Error supressing embeds {:?}", why);
                 }
 
+                println!("Suppressed Embed");
+
                 if let Err(why) = msg
                     .channel_id
                     .say(
@@ -51,6 +53,8 @@ impl EventHandler for Handler {
                 {
                     println!("Error Editing Message to Tweet {:?}", why);
                 }
+
+                println!("Posted Tweet");
             }
             None => return,
         }
