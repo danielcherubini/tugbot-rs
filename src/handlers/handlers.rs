@@ -31,12 +31,15 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     // Twitter Changer
-    async fn message(&self, ctx: Context, msg: Message) {
+    async fn message(&self, ctx: Context, mut msg: Message) {
         let re = Regex::new(r"https://twitter.com/.+/status/\d+").unwrap();
 
         match re.captures(&msg.content) {
             Some(..) => {
-                print!("Twitter found");
+                if let Err(why) = msg.suppress_embeds(ctx.to_owned()).await {
+                    println!("Error supressing embeds {:?}", why);
+                }
+
                 if let Err(why) = msg
                     .channel_id
                     .say(
