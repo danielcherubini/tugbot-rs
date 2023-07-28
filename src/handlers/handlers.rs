@@ -4,12 +4,15 @@ use serenity::{
     builder::CreateComponents,
     client::{Context, EventHandler},
     model::{
+        channel::Message,
         gateway::Ready,
         id::GuildId,
         interactions::InteractionResponseType,
         prelude::{Interaction, Member},
     },
 };
+
+use regex::Regex;
 
 use super::{
     color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, game_handler::GameHandler,
@@ -27,6 +30,29 @@ pub struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
+    // Twitter Changer
+    async fn message(&self, ctx: Context, msg: Message) {
+        let re = Regex::new(r"https://twitter.com/.+/status/\d+").unwrap();
+
+        match re.captures(&msg.content) {
+            Some(..) => {
+                print!("Twitter found");
+                if let Err(why) = msg
+                    .channel_id
+                    .say(
+                        ctx,
+                        msg.content
+                            .replace("https://twitter.com", "https://vxtwitter.com"),
+                    )
+                    .await
+                {
+                    println!("Error Editing Message to Tweet {:?}", why);
+                }
+            }
+            None => return,
+        }
+    }
+
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
         match GulagHandler::is_user_in_gulag(*member.user.id.as_u64()) {
             Some(user) => {
