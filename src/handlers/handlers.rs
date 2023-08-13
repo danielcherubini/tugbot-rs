@@ -12,11 +12,9 @@ use serenity::{
     },
 };
 
-use regex::Regex;
-
 use super::{
     color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, game_handler::GameHandler,
-    gulag_handler::GulagHandler, horny::Horny, phony::Phony,
+    gulag_handler::GulagHandler, horny::Horny, phony::Phony, twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -31,33 +29,8 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     // Twitter Changer
-    async fn message(&self, ctx: Context, mut msg: Message) {
-        let re = Regex::new(r"https://twitter.com/.+/status/\d+").unwrap();
-
-        match re.captures(&msg.content) {
-            Some(..) => {
-                if let Err(why) = msg.suppress_embeds(ctx.to_owned()).await {
-                    println!("Error supressing embeds {:?}", why);
-                }
-
-                println!("Suppressed Embed");
-
-                if let Err(why) = msg
-                    .channel_id
-                    .say(
-                        ctx,
-                        msg.content
-                            .replace("https://twitter.com", "https://vxtwitter.com"),
-                    )
-                    .await
-                {
-                    println!("Error Editing Message to Tweet {:?}", why);
-                }
-
-                println!("Posted Tweet");
-            }
-            None => return,
-        }
+    async fn message(&self, ctx: Context, msg: Message) {
+        Twitter::fx_twitter_handler(ctx, msg).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
