@@ -30,7 +30,7 @@ pub struct Handler;
 impl EventHandler for Handler {
     // Twitter Changer
     async fn message(&self, ctx: Context, msg: Message) {
-        Twitter::fx_twitter_handler(ctx, msg).await;
+        Twitter::handler(ctx, msg).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
