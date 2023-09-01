@@ -70,7 +70,7 @@ impl GulagReaction {
                     return true;
                 };
 
-                if react.count > 2 {
+                if react.count > 9 {
                     return true;
                 }
             }
