@@ -18,34 +18,16 @@ impl Elon {
                     println!("{:?}", member);
 
                     if Elon::has_elon_role(&ctx, guildid, &member).await {
-                        let gulag_length = 300;
                         let channelid = msg.channel_id.0;
 
-                        match GulagHandler::find_gulag_role(ctx, guildid).await {
-                            None => println!("couldn't find gulag id"),
-                            Some(gulag_roleid) => {
-                                println!("Send to gulag");
-                                GulagHandler::add_to_gulag(
-                                    ctx,
-                                    guildid,
-                                    member.user.id.0,
-                                    gulag_roleid.id.0,
-                                    gulag_length,
-                                    channelid,
-                                )
-                                .await;
-
-                                let content = format!(
-                                    "Sending {} to the Gulag for {} minutes",
-                                    member.user.to_string(),
-                                    gulag_length / 60,
-                                );
-
-                                if let Err(why) = msg.channel_id.say(ctx, content).await {
-                                    println!("Error Editing Message to Tweet {:?}", why);
-                                }
-                            }
-                        }
+                        GulagHandler::send_to_gulag_and_message(
+                            &ctx,
+                            guildid,
+                            member.user.id.0,
+                            channelid,
+                            msg.id.0,
+                        )
+                        .await;
                     }
                 }
             }

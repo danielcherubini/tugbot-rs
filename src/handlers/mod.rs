@@ -4,6 +4,7 @@ pub mod elkmen;
 pub mod elon;
 pub mod game_handler;
 pub mod gulag_handler;
+pub mod gulag_reaction;
 pub mod handlers;
 pub mod horny;
 pub mod nickname;
