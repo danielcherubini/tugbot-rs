@@ -71,12 +71,17 @@ impl Elon {
     }
 
     fn has_elon_words(msg: &str) -> bool {
+        let english = unidecode::unidecode(msg);
+
         let re = Regex::new(r"(concerning|looking.{0,}into.{0,}it)").unwrap();
 
         // Clean out all special characters
-        let clean = Regex::replace_all(&Regex::new(r"[^a-zA-Z0-9 ]").unwrap(), msg, "");
+        let clean =
+            Regex::replace_all(&Regex::new(r"[^a-zA-Z0-9 ]").unwrap(), english.as_str(), "");
+
         println!("{}", clean);
-        match re.captures(&clean) {
+
+        match re.captures(&clean.to_lowercase()) {
             None => false,
             Some(_) => true,
         }
