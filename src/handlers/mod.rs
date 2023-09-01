@@ -1,6 +1,7 @@
 pub mod color_handler;
 pub mod eggmen;
 pub mod elkmen;
+pub mod elon;
 pub mod game_handler;
 pub mod gulag_handler;
 pub mod handlers;

@@ -10,6 +10,7 @@ use serenity::{
 pub struct Server {
     pub guild_id: GuildId,
     pub gulag_id: RoleId,
+    pub elon_id: RoleId,
     pub get_roles_channel_id: ChannelId,
 }
 
@@ -37,15 +38,19 @@ impl Server {
                 }
             }
 
+            let server = Server {
+                guild_id: guild_info.id,
+                get_roles_channel_id: get_roles_cid,
+            };
+
             for role in roles {
-                if role.name == "gulag" {
-                    servers.push(Server {
-                        guild_id: guild_info.id,
-                        gulag_id: role.id,
-                        get_roles_channel_id: get_roles_cid,
-                    });
+                match role.name {
+                    "gulag" => server.gulag_id = role.id,
+                    "#1ElonMuskFan" => server.elon_id = role.id,
                 }
             }
+
+            servers.push(server);
         }
 
         return servers;

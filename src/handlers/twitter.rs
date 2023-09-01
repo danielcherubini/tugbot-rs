@@ -5,11 +5,11 @@ use serenity::{model::channel::Message, prelude::Context};
 pub struct Twitter;
 
 impl Twitter {
-    pub async fn handler(ctx: Context, mut msg: Message) {
+    pub async fn handler(ctx: &Context, msg: &Message) {
         match Self::fx_rewriter(&msg.content.to_owned()) {
             None => return,
             Some(fixed_message) => {
-                if let Err(why) = msg.suppress_embeds(ctx.to_owned()).await {
+                if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
                     println!("Error supressing embeds {:?}", why);
                 }
 

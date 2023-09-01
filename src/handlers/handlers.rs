@@ -13,8 +13,9 @@ use serenity::{
 };
 
 use super::{
-    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, game_handler::GameHandler,
-    gulag_handler::GulagHandler, horny::Horny, phony::Phony, twitter::Twitter,
+    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, elon::Elon,
+    game_handler::GameHandler, gulag_handler::GulagHandler, horny::Horny, phony::Phony,
+    twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -30,7 +31,8 @@ pub struct Handler;
 impl EventHandler for Handler {
     // Twitter Changer
     async fn message(&self, ctx: Context, msg: Message) {
-        Twitter::handler(ctx, msg).await;
+        Twitter::handler(&ctx, &msg).await;
+        Elon::handler(&ctx, &msg).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
