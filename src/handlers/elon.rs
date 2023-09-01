@@ -1,5 +1,5 @@
 use serenity::{
-    model::{channel::Message, prelude::PartialMember},
+    model::{channel::Message, prelude::Member},
     prelude::Context,
 };
 
@@ -9,31 +9,42 @@ pub struct Elon;
 
 impl Elon {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        let guildid = msg.guild_id.unwrap().0;
-        let member = msg.member.to_owned().unwrap();
-        let gulag_length = 300;
-        let channelid = msg.channel_id.0;
+        match msg.content.to_lowercase().as_str() {
+            "concerning" | "looking into it" => {
+                let guildid = msg.guild_id.unwrap().0;
+                match msg.member(&ctx.http).await {
+                    Err(_) => println!("no partial member"),
+                    Ok(member) => {
+                        println!("{:?}", member);
 
-        match GulagHandler::find_gulag_role(ctx, guildid).await {
-            None => println!("couldn't find gulag id"),
-            Some(gulag_roleid) => {
-                if Elon::has_elon_role(&ctx, guildid, &member).await {
-                    println!("Send to gulag");
-                    GulagHandler::add_to_gulag(
-                        ctx,
-                        guildid,
-                        member.user.unwrap().id.0,
-                        gulag_roleid.id.0,
-                        gulag_length,
-                        channelid,
-                    )
-                    .await;
+                        if Elon::has_elon_role(&ctx, guildid, &member).await {
+                            let gulag_length = 300;
+                            let channelid = msg.channel_id.0;
+
+                            match GulagHandler::find_gulag_role(ctx, guildid).await {
+                                None => println!("couldn't find gulag id"),
+                                Some(gulag_roleid) => {
+                                    println!("Send to gulag");
+                                    GulagHandler::add_to_gulag(
+                                        ctx,
+                                        guildid,
+                                        member.user.id.0,
+                                        gulag_roleid.id.0,
+                                        gulag_length,
+                                        channelid,
+                                    )
+                                    .await;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            _ => return,
         }
     }
 
-    pub async fn has_elon_role(ctx: &Context, guildid: u64, member: &PartialMember) -> bool {
+    pub async fn has_elon_role(ctx: &Context, guildid: u64, member: &Member) -> bool {
         match ctx.http.get_guild_roles(guildid).await {
             Err(_why) => false,
             Ok(roles) => {
