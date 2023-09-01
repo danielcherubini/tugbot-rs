@@ -12,30 +12,30 @@ impl Elon {
         match msg.content.to_lowercase().as_str() {
             "concerning" | "looking into it" => {
                 let guildid = msg.guild_id.unwrap().0;
-                let partial_member = msg.member.to_owned().unwrap();
-                let member = ctx
-                    .http
-                    .get_member(guildid, partial_member.user.unwrap().id.0)
-                    .await
-                    .unwrap();
+                match msg.member(&ctx.http).await {
+                    Err(_) => println!("no partial member"),
+                    Ok(member) => {
+                        println!("{:?}", member);
 
-                if Elon::has_elon_role(&ctx, guildid, &member).await {
-                    let gulag_length = 300;
-                    let channelid = msg.channel_id.0;
+                        if Elon::has_elon_role(&ctx, guildid, &member).await {
+                            let gulag_length = 300;
+                            let channelid = msg.channel_id.0;
 
-                    match GulagHandler::find_gulag_role(ctx, guildid).await {
-                        None => println!("couldn't find gulag id"),
-                        Some(gulag_roleid) => {
-                            println!("Send to gulag");
-                            GulagHandler::add_to_gulag(
-                                ctx,
-                                guildid,
-                                member.user.id.0,
-                                gulag_roleid.id.0,
-                                gulag_length,
-                                channelid,
-                            )
-                            .await;
+                            match GulagHandler::find_gulag_role(ctx, guildid).await {
+                                None => println!("couldn't find gulag id"),
+                                Some(gulag_roleid) => {
+                                    println!("Send to gulag");
+                                    GulagHandler::add_to_gulag(
+                                        ctx,
+                                        guildid,
+                                        member.user.id.0,
+                                        gulag_roleid.id.0,
+                                        gulag_length,
+                                        channelid,
+                                    )
+                                    .await;
+                                }
+                            }
                         }
                     }
                 }
