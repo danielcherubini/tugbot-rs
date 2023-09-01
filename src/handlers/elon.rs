@@ -34,6 +34,16 @@ impl Elon {
                                         channelid,
                                     )
                                     .await;
+
+                                    let content = format!(
+                                        "Sending {} to the Gulag for {} minutes",
+                                        member.user.to_string(),
+                                        gulag_length / 60,
+                                    );
+
+                                    if let Err(why) = msg.channel_id.say(ctx, content).await {
+                                        println!("Error Editing Message to Tweet {:?}", why);
+                                    }
                                 }
                             }
                         }
