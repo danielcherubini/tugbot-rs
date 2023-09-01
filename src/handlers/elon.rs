@@ -61,8 +61,6 @@ impl Elon {
         let clean =
             Regex::replace_all(&Regex::new(r"[^a-zA-Z0-9 ]").unwrap(), english.as_str(), "");
 
-        println!("{}", clean);
-
         match re.captures(&clean.to_lowercase()) {
             None => false,
             Some(_) => true,
