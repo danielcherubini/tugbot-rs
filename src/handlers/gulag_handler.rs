@@ -80,7 +80,7 @@ impl GulagHandler {
                     userid,
                     role.id.0,
                     gulaglength,
-                    messageid,
+                    channelid,
                 )
                 .await;
 
