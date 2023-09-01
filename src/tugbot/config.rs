@@ -21,7 +21,9 @@ impl Config {
             .parse()
             .expect("application id is not a valid id");
 
-        let intents = GatewayIntents::privileged().union(GatewayIntents::GUILD_MESSAGES);
+        let intents = GatewayIntents::privileged()
+            .union(GatewayIntents::GUILD_MESSAGES)
+            .union(GatewayIntents::GUILD_MESSAGE_REACTIONS);
         return Config {
             db_url,
             token,

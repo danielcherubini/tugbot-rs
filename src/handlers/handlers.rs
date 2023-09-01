@@ -8,14 +8,14 @@ use serenity::{
         gateway::Ready,
         id::GuildId,
         interactions::InteractionResponseType,
-        prelude::{Interaction, Member},
+        prelude::{Interaction, Member, Reaction},
     },
 };
 
 use super::{
     color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, elon::Elon,
-    game_handler::GameHandler, gulag_handler::GulagHandler, horny::Horny, phony::Phony,
-    twitter::Twitter,
+    game_handler::GameHandler, gulag_handler::GulagHandler, gulag_reaction::GulagReaction,
+    horny::Horny, phony::Phony, twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -29,10 +29,13 @@ pub struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    // Twitter Changer
     async fn message(&self, ctx: Context, msg: Message) {
         Twitter::handler(&ctx, &msg).await;
         Elon::handler(&ctx, &msg).await;
+    }
+
+    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
+        GulagReaction::handler(&ctx, &add_reaction).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {

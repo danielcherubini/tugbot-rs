@@ -62,6 +62,42 @@ impl GulagHandler {
         return mem;
     }
 
+    pub async fn send_to_gulag_and_message(
+        ctx: &Context,
+        guildid: u64,
+        userid: u64,
+        channelid: u64,
+        messageid: u64,
+    ) {
+        match GulagHandler::find_gulag_role(&ctx, guildid).await {
+            None => println!("Couldn't find gulag role"),
+            Some(role) => {
+                let gulaglength = 300;
+
+                let member = GulagHandler::add_to_gulag(
+                    &ctx,
+                    guildid,
+                    userid,
+                    role.id.0,
+                    gulaglength,
+                    messageid,
+                )
+                .await;
+
+                let content = format!(
+                    "Sending {} to the Gulag for {} minutes",
+                    member.user.to_string(),
+                    gulaglength / 60,
+                );
+                let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
+
+                if let Err(why) = msg.channel_id.say(ctx, content).await {
+                    println!("Error Editing Message to Tweet {:?}", why);
+                }
+            }
+        };
+    }
+
     async fn remove_from_gulag(
         http: Arc<Http>,
         userid: u64,
