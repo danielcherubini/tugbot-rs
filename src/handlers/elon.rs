@@ -71,7 +71,7 @@ impl Elon {
     }
 
     fn has_elon_words(msg: &str) -> bool {
-        let re = Regex::new(r"(concerning|looking.into.it)").unwrap();
+        let re = Regex::new(r"(concerning|looking.+into.+it)").unwrap();
 
         match re.captures(&msg.to_lowercase()) {
             None => false,
