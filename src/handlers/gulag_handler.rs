@@ -84,12 +84,14 @@ impl GulagHandler {
                 )
                 .await;
 
+                let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
+
                 let content = format!(
-                    "Sending {} to the Gulag for {} minutes",
+                    "Sending {} to the Gulag for {} minutes because of this {}",
                     member.user.to_string(),
                     gulaglength / 60,
+                    msg.link(),
                 );
-                let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
 
                 if let Err(why) = msg.channel_id.say(ctx, content).await {
                     println!("Error Editing Message to Tweet {:?}", why);
