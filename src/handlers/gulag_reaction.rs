@@ -1,5 +1,5 @@
 use serenity::{
-    model::prelude::{Emoji, MessageReaction, Reaction, ReactionType, RoleId},
+    model::prelude::{Emoji, MessageReaction, Reaction, ReactionType},
     prelude::Context,
 };
 

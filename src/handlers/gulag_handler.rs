@@ -5,7 +5,7 @@ use serenity::{
     client::Context,
     http::Http,
     model::{
-        guild::{Member, Role},
+        guild::Role,
         id::RoleId,
         interactions::application_command::{
             ApplicationCommandInteraction, ApplicationCommandInteractionDataOptionValue,
@@ -51,7 +51,11 @@ impl GulagHandler {
         let conn = &mut establish_connection();
 
         match GulagHandler::is_user_in_gulag(userid) {
-            Some(gulag_db_user) => add_time_to_gulag(conn, gulag_db_user.id, 300 as i32),
+            Some(gulag_db_user) => add_time_to_gulag(
+                conn,
+                gulag_db_user.id,
+                gulag_db_user.gulag_length + 300 as i32,
+            ),
             None => send_to_gulag(
                 conn,
                 userid as i64,
