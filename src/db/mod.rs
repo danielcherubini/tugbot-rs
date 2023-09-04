@@ -51,3 +51,14 @@ pub fn send_to_gulag(
         .get_result(conn)
         .expect("Error saving new User")
 }
+
+pub fn add_time_to_gulag(
+    conn: &mut PgConnection,
+    gulag_user_id: i32,
+    gulag_length: i32,
+) -> GulagUser {
+    diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
+        .set(gulag_users::gulag_length.eq(gulag_length))
+        .get_result(conn)
+        .expect("Error saving new User")
+}

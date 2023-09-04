@@ -1,5 +1,5 @@
 use serenity::{
-    model::prelude::{Emoji, MessageReaction, Reaction, ReactionType, RoleId},
+    model::prelude::{Emoji, MessageReaction, Reaction, ReactionType},
     prelude::Context,
 };
 
@@ -20,14 +20,7 @@ impl GulagReaction {
                     let messageid = add_reaction.message_id.0;
                     match ctx.http.get_message(channelid, messageid).await {
                         Ok(msg) => {
-                            if GulagReaction::can_gulag(
-                                &ctx,
-                                add_reaction,
-                                msg.reactions,
-                                &gulag_emoji,
-                            )
-                            .await
-                            {
+                            if GulagReaction::can_gulag(msg.reactions, &gulag_emoji) {
                                 GulagHandler::send_to_gulag_and_message(
                                     &ctx,
                                     guildid,
@@ -57,26 +50,9 @@ impl GulagReaction {
         None
     }
 
-    async fn can_gulag(
-        ctx: &Context,
-        add_reaction: &Reaction,
-        reactions: Vec<MessageReaction>,
-        gulag_emoji: &Emoji,
-    ) -> bool {
+    fn can_gulag(reactions: Vec<MessageReaction>, gulag_emoji: &Emoji) -> bool {
         for react in reactions {
             if react.reaction_type == ReactionType::from(gulag_emoji.to_owned()) {
-                let role_ids = add_reaction.member.clone().unwrap().roles;
-                let guild_id = add_reaction.guild_id.unwrap().0;
-                //Mods can insta-gulag
-                if GulagReaction::is_mod(&ctx, guild_id, &role_ids).await {
-                    return true;
-                };
-
-                //Bad take people
-                if GulagReaction::is_bad_boy(&ctx, guild_id, &role_ids).await {
-                    return true;
-                }
-
                 //gulag vote is over 0 and also divisible by 5
                 if react.count > 0 && react.count % 5 == 0 {
                     return true;
@@ -84,41 +60,5 @@ impl GulagReaction {
             }
         }
         false
-    }
-
-    async fn is_mod(ctx: &Context, guild_id: u64, role_ids: &Vec<RoleId>) -> bool {
-        match ctx.http.get_guild_roles(guild_id).await {
-            Ok(guild_roles) => {
-                for guild_role in guild_roles {
-                    if guild_role.name == "idiot-king" {
-                        for role_id in role_ids.to_owned() {
-                            if role_id == guild_role.id {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                false
-            }
-            Err(_) => false,
-        }
-    }
-
-    async fn is_bad_boy(ctx: &Context, guild_id: u64, role_ids: &Vec<RoleId>) -> bool {
-        match ctx.http.get_guild_roles(guild_id).await {
-            Ok(guild_roles) => {
-                for guild_role in guild_roles {
-                    if guild_role.name == "bad-take-machine" {
-                        for role_id in role_ids.to_owned() {
-                            if role_id == guild_role.id {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                false
-            }
-            Err(_) => false,
-        }
     }
 }

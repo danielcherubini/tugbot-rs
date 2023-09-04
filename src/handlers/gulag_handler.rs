@@ -5,7 +5,7 @@ use serenity::{
     client::Context,
     http::Http,
     model::{
-        guild::{Member, Role},
+        guild::Role,
         id::RoleId,
         interactions::application_command::{
             ApplicationCommandInteraction, ApplicationCommandInteractionDataOptionValue,
@@ -15,7 +15,7 @@ use serenity::{
 };
 use tokio::{task::spawn, time::sleep};
 
-use crate::db::schema::gulag_users::dsl::*;
+use crate::db::{add_time_to_gulag, schema::gulag_users::dsl::*};
 use crate::db::{establish_connection, models::GulagUser, send_to_gulag};
 use diesel::*;
 
@@ -45,21 +45,26 @@ impl GulagHandler {
         gulag_roleid: u64,
         gulaglength: u32,
         channelid: u64,
-    ) -> Member {
+    ) -> GulagUser {
         let mut mem = ctx.http.get_member(guildid, userid).await.unwrap();
         mem.add_role(&ctx.http, RoleId(gulag_roleid)).await.unwrap();
         let conn = &mut establish_connection();
 
-        send_to_gulag(
-            conn,
-            userid as i64,
-            guildid as i64,
-            gulag_roleid as i64,
-            gulaglength as i32,
-            channelid as i64,
-        );
-
-        return mem;
+        match GulagHandler::is_user_in_gulag(userid) {
+            Some(gulag_db_user) => add_time_to_gulag(
+                conn,
+                gulag_db_user.id,
+                gulag_db_user.gulag_length + 300 as i32,
+            ),
+            None => send_to_gulag(
+                conn,
+                userid as i64,
+                guildid as i64,
+                gulag_roleid as i64,
+                gulaglength as i32,
+                channelid as i64,
+            ),
+        }
     }
 
     pub async fn send_to_gulag_and_message(
@@ -74,7 +79,7 @@ impl GulagHandler {
             Some(role) => {
                 let gulaglength = 300;
 
-                let member = GulagHandler::add_to_gulag(
+                let gulag_user = GulagHandler::add_to_gulag(
                     &ctx,
                     guildid,
                     userid,
@@ -86,10 +91,12 @@ impl GulagHandler {
 
                 let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
 
+                let member = ctx.http.get_member(guildid, userid).await.unwrap();
+
                 let content = format!(
                     "Sending {} to the Gulag for {} minutes because of this {}",
                     member.user.to_string(),
-                    gulaglength / 60,
+                    gulag_user.gulag_length / 60,
                     msg.link(),
                 );
 
