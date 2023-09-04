@@ -66,11 +66,19 @@ impl GulagReaction {
         for react in reactions {
             if react.reaction_type == ReactionType::from(gulag_emoji.to_owned()) {
                 let role_ids = add_reaction.member.clone().unwrap().roles;
-                if GulagReaction::is_mod(&ctx, add_reaction.guild_id.unwrap().0, role_ids).await {
+                let guild_id = add_reaction.guild_id.unwrap().0;
+                //Mods can insta-gulag
+                if GulagReaction::is_mod(&ctx, guild_id, &role_ids).await {
                     return true;
                 };
 
-                if react.count > 5 {
+                //Bad take people
+                if GulagReaction::is_bad_boy(&ctx, guild_id, &role_ids).await {
+                    return true;
+                }
+
+                //gulag vote is over 0 and also divisible by 5
+                if react.count > 0 && react.count % 5 == 0 {
                     return true;
                 }
             }
@@ -78,11 +86,29 @@ impl GulagReaction {
         false
     }
 
-    async fn is_mod(ctx: &Context, guild_id: u64, role_ids: Vec<RoleId>) -> bool {
+    async fn is_mod(ctx: &Context, guild_id: u64, role_ids: &Vec<RoleId>) -> bool {
         match ctx.http.get_guild_roles(guild_id).await {
             Ok(guild_roles) => {
                 for guild_role in guild_roles {
                     if guild_role.name == "idiot-king" {
+                        for role_id in role_ids.to_owned() {
+                            if role_id == guild_role.id {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            }
+            Err(_) => false,
+        }
+    }
+
+    async fn is_bad_boy(ctx: &Context, guild_id: u64, role_ids: &Vec<RoleId>) -> bool {
+        match ctx.http.get_guild_roles(guild_id).await {
+            Ok(guild_roles) => {
+                for guild_role in guild_roles {
+                    if guild_role.name == "bad-take-machine" {
                         for role_id in role_ids.to_owned() {
                             if role_id == guild_role.id {
                                 return true;
