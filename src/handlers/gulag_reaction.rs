@@ -20,7 +20,10 @@ impl GulagReaction {
                     let messageid = add_reaction.message_id.0;
                     match ctx.http.get_message(channelid, messageid).await {
                         Ok(msg) => {
-                            if GulagReaction::can_gulag(msg.reactions, &gulag_emoji) {
+                            if GulagReaction::can_gulag(msg.reactions.to_owned(), &gulag_emoji) {
+                                msg.delete_reaction_emoji(&ctx.http, add_reaction.emoji.to_owned())
+                                    .await
+                                    .unwrap();
                                 GulagHandler::send_to_gulag_and_message(
                                     &ctx,
                                     guildid,
