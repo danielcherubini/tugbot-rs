@@ -12,6 +12,7 @@ use serenity::{
             ApplicationCommandOptionType,
         },
         prelude::GuildChannel,
+        user::User,
     },
 };
 use tokio::{task::spawn, time::sleep};
@@ -88,6 +89,7 @@ impl GulagHandler {
         userid: u64,
         channelid: u64,
         messageid: u64,
+        users: Option<Vec<User>>,
     ) {
         match GulagHandler::find_gulag_role(&ctx, guildid).await {
             None => println!("Couldn't find gulag role"),
@@ -111,11 +113,20 @@ impl GulagHandler {
                 let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
                 let member = ctx.http.get_member(guildid, userid).await.unwrap();
 
+                let mut user_string = "".to_string();
+                if users.is_some() {
+                    user_string = "\nThese people voted them in".to_string();
+                    for user in users.unwrap() {
+                        user_string.push_str(format!(", {}", user).as_str());
+                    }
+                }
+
                 let content = format!(
-                    "Sending {} to the Gulag for {} minutes because of this {}",
+                    "Sending {} to the Gulag for {} minutes because of this {}{}",
                     member.user.to_string(),
                     gulag_user.gulag_length / 60,
                     msg.link(),
+                    user_string,
                 );
 
                 if let Err(why) = gulag_channel.say(ctx, content).await {
