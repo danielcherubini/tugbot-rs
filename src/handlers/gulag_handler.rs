@@ -11,6 +11,7 @@ use serenity::{
             ApplicationCommandInteraction, ApplicationCommandInteractionDataOptionValue,
             ApplicationCommandOptionType,
         },
+        prelude::GuildChannel,
     },
 };
 use tokio::{task::spawn, time::sleep};
@@ -31,6 +32,20 @@ impl GulagHandler {
                 for role in roles {
                     if role.name == "gulag" {
                         return Some(role);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    pub async fn find_gulag_channel(http: &Arc<Http>, guildid: u64) -> Option<GuildChannel> {
+        match http.get_channels(guildid).await {
+            Err(_why) => None,
+            Ok(channels) => {
+                for channel in channels {
+                    if channel.name == "the-gulag" {
+                        return Some(channel);
                     }
                 }
                 None
@@ -79,18 +94,21 @@ impl GulagHandler {
             Some(role) => {
                 let gulaglength = 300;
 
+                let gulag_channel = GulagHandler::find_gulag_channel(&ctx.http, guildid)
+                    .await
+                    .unwrap();
+
                 let gulag_user = GulagHandler::add_to_gulag(
                     &ctx,
                     guildid,
                     userid,
                     role.id.0,
                     gulaglength,
-                    channelid,
+                    gulag_channel.id.0,
                 )
                 .await;
 
                 let msg = ctx.http.get_message(channelid, messageid).await.unwrap();
-
                 let member = ctx.http.get_member(guildid, userid).await.unwrap();
 
                 let content = format!(
@@ -100,29 +118,21 @@ impl GulagHandler {
                     msg.link(),
                 );
 
-                if let Err(why) = msg.channel_id.say(ctx, content).await {
+                if let Err(why) = gulag_channel.say(ctx, content).await {
                     println!("Error Editing Message to Tweet {:?}", why);
                 }
             }
         };
     }
 
-    async fn remove_from_gulag(
-        http: Arc<Http>,
-        userid: u64,
-        guildid: u64,
-        gulag_roleid: RoleId,
-        channelid: u64,
-    ) {
+    async fn remove_from_gulag(http: Arc<Http>, userid: u64, guildid: u64, gulag_roleid: RoleId) {
         let mut mem = http.get_member(guildid, userid).await.unwrap();
         mem.remove_role(&http, gulag_roleid).await.unwrap();
         let message = format!("Freeing {} from the gulag", mem.to_string());
-        let channel = http.get_channel(channelid).await.unwrap();
-        match channel
-            .id()
-            .send_message(http, |m| m.content(message))
+        let channel = GulagHandler::find_gulag_channel(&http, guildid)
             .await
-        {
+            .unwrap();
+        match channel.send_message(&http, |m| m.content(message)).await {
             Ok(_) => {
                 println!("Removed from gulag");
                 return;
@@ -163,7 +173,6 @@ impl GulagHandler {
                                 result.user_id as u64,
                                 result.guild_id as u64,
                                 RoleId(result.gulag_role_id as u64),
-                                result.channel_id as u64,
                             )
                             .await;
                         }
