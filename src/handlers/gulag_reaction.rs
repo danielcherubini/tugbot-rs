@@ -20,7 +20,20 @@ impl GulagReaction {
                     let messageid = add_reaction.message_id.0;
                     match ctx.http.get_message(channelid, messageid).await {
                         Ok(msg) => {
-                            if GulagReaction::can_gulag(msg.reactions.to_owned(), &gulag_emoji) {
+                            let message_reactions = msg.reactions.to_owned();
+                            let reaction_users = ctx
+                                .http
+                                .get_reaction_users(
+                                    channelid,
+                                    messageid,
+                                    &add_reaction.emoji,
+                                    30,
+                                    None,
+                                )
+                                .await
+                                .unwrap();
+
+                            if GulagReaction::can_gulag(message_reactions, &gulag_emoji) {
                                 msg.delete_reaction_emoji(&ctx.http, add_reaction.emoji.to_owned())
                                     .await
                                     .unwrap();
@@ -30,6 +43,7 @@ impl GulagReaction {
                                     msg.author.id.0,
                                     msg.channel_id.0,
                                     msg.id.0,
+                                    Some(reaction_users),
                                 )
                                 .await;
                             }
