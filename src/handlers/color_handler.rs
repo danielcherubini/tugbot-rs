@@ -5,7 +5,10 @@ use serenity::{
     },
     client::Context,
     http::CacheHttp,
-    model::{interactions::application_command::ApplicationCommandInteraction, prelude::RoleId},
+    model::{
+        application::interaction::application_command::ApplicationCommandInteraction,
+        prelude::RoleId,
+    },
 };
 
 use super::handlers::HandlerResponse;

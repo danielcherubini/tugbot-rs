@@ -4,10 +4,10 @@ use serenity::{
     builder::CreateComponents,
     client::{Context, EventHandler},
     model::{
+        application::interaction::InteractionResponseType,
         channel::Message,
         gateway::Ready,
         id::GuildId,
-        interactions::InteractionResponseType,
         prelude::{Interaction, Member, Reaction},
     },
 };
