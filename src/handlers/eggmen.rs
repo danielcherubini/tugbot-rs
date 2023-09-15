@@ -4,12 +4,10 @@ use serenity::{
     builder::CreateApplicationCommand,
     client::Context,
     model::{
+        application::interaction::application_command::ApplicationCommandInteraction,
         channel::ReactionType,
         guild::Role,
-        interactions::application_command::{
-            ApplicationCommandInteraction, ApplicationCommandInteractionDataOptionValue,
-            ApplicationCommandOptionType,
-        },
+        prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
     },
 };
 use tokio::{task::spawn, time::sleep};
@@ -40,7 +38,7 @@ impl Eggmen {
                 option
                     .name("user")
                     .description("The user to lookup")
-                    .kind(ApplicationCommandOptionType::User)
+                    .kind(CommandOptionType::User)
                     .required(true)
             });
     }
@@ -60,7 +58,7 @@ impl Eggmen {
 
         let channel_id = command.channel_id.0;
 
-        if let ApplicationCommandInteractionDataOptionValue::User(user, _member) = options {
+        if let CommandDataOptionValue::User(user, _member) = options {
             match command.guild_id {
                 None => {
                     return HandlerResponse {

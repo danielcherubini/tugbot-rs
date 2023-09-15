@@ -5,7 +5,7 @@ use serenity::{
     },
     client::Context,
     http::CacheHttp,
-    model::interactions::application_command::ApplicationCommandInteraction,
+    model::application::interaction::application_command::ApplicationCommandInteraction,
 };
 
 use super::handlers::HandlerResponse;

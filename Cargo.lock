@@ -831,6 +831,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+
+[[package]]
 name = "ryu"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -916,9 +922,9 @@ dependencies = [
 
 [[package]]
 name = "serenity"
-version = "0.11.1"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96455fdd03a3cb8c3270c47adf21d748b65067affc6c911ed4ed4ae05f097cab"
+checksum = "d007dc45584ecc47e791f2a9a7cf17bf98ac386728106f111159c846d624be3f"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -932,6 +938,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "reqwest",
+ "rustversion",
  "serde",
  "serde-value",
  "serde_json",

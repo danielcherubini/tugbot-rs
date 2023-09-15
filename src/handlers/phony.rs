@@ -1,6 +1,6 @@
 use serenity::{
     builder::CreateApplicationCommand, client::Context,
-    model::interactions::application_command::ApplicationCommandInteraction,
+    model::application::interaction::application_command::ApplicationCommandInteraction,
 };
 
 use super::{handlers::HandlerResponse, nickname::fix_nickname};

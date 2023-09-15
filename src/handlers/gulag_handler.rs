@@ -5,13 +5,12 @@ use serenity::{
     client::Context,
     http::Http,
     model::{
+        application::interaction::application_command::ApplicationCommandInteraction,
         guild::Role,
         id::RoleId,
-        interactions::application_command::{
-            ApplicationCommandInteraction, ApplicationCommandInteractionDataOptionValue,
-            ApplicationCommandOptionType,
+        prelude::{
+            application_command::CommandDataOptionValue, command::CommandOptionType, GuildChannel,
         },
-        prelude::GuildChannel,
         user::User,
     },
 };
@@ -224,7 +223,14 @@ impl GulagHandler {
                 option
                     .name("user")
                     .description("The user to lookup")
-                    .kind(ApplicationCommandOptionType::User)
+                    .kind(CommandOptionType::User)
+                    .required(true)
+            })
+            .create_option(|option| {
+                option
+                    .name("reason")
+                    .description("Why Are you sending them")
+                    .kind(CommandOptionType::String)
                     .required(true)
             });
     }
@@ -233,7 +239,7 @@ impl GulagHandler {
         ctx: &Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
-        let options = command
+        let user_options = command
             .data
             .options
             .get(0)
@@ -241,9 +247,18 @@ impl GulagHandler {
             .resolved
             .as_ref()
             .expect("Expected user object");
+        let reason_options = command
+            .data
+            .options
+            .get(1)
+            .expect("Expected reason option")
+            .resolved
+            .as_ref()
+            .expect("Expected reason object");
+
         let channelid = command.channel_id.0;
         let gulaglength = 300;
-        if let ApplicationCommandInteractionDataOptionValue::User(user, _member) = options {
+        if let CommandDataOptionValue::User(user, _member) = user_options {
             match command.guild_id {
                 None => {
                     return HandlerResponse {
@@ -271,16 +286,30 @@ impl GulagHandler {
                         )
                         .await;
 
-                        let content = format!(
-                            "Sending {} to the Gulag for {} minutes",
-                            user.to_string(),
-                            gulaglength / 60,
-                        );
-                        return HandlerResponse {
-                            content,
-                            components: None,
-                            ephemeral: false,
-                        };
+                        if let CommandDataOptionValue::String(reason) = reason_options {
+                            let content = format!(
+                                "Sending {} to the Gulag for {} minutes, because {}",
+                                user.to_string(),
+                                gulaglength / 60,
+                                reason,
+                            );
+                            return HandlerResponse {
+                                content,
+                                components: None,
+                                ephemeral: false,
+                            };
+                        } else {
+                            let content = format!(
+                                "Sending {} to the Gulag for {} minutes",
+                                user.to_string(),
+                                gulaglength / 60,
+                            );
+                            return HandlerResponse {
+                                content,
+                                components: None,
+                                ephemeral: false,
+                            };
+                        }
                     }
                 },
             }
