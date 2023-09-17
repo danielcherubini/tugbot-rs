@@ -276,7 +276,7 @@ impl GulagHandler {
                         }
                     }
                     Some(gulag_role) => {
-                        let _mem = GulagHandler::add_to_gulag(
+                        let gulag_user = GulagHandler::add_to_gulag(
                             ctx,
                             *guildid.as_u64(),
                             *user.id.as_u64(),
@@ -290,7 +290,7 @@ impl GulagHandler {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes, because {}",
                                 user.to_string(),
-                                gulaglength / 60,
+                                gulag_user.gulag_length / 60,
                                 reason,
                             );
                             return HandlerResponse {
@@ -302,7 +302,7 @@ impl GulagHandler {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes",
                                 user.to_string(),
-                                gulaglength / 60,
+                                gulag_user.gulag_length / 60,
                             );
                             return HandlerResponse {
                                 content,

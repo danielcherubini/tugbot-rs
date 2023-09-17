@@ -13,9 +13,9 @@ use serenity::{
 };
 
 use super::{
-    color_handler::ColorHandler, eggmen::Eggmen, elkmen::ElkMen, elon::Elon,
-    game_handler::GameHandler, gulag_handler::GulagHandler, gulag_reaction::GulagReaction,
-    horny::Horny, phony::Phony, twitter::Twitter,
+    color_handler::ColorHandler, elon::Elon, game_handler::GameHandler,
+    gulag_handler::GulagHandler, gulag_reaction::GulagReaction, horny::Horny, phony::Phony,
+    twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -69,8 +69,8 @@ impl EventHandler for Handler {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
-                "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
-                "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
+                // "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
+                // "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
                 "color" => ColorHandler::setup_interaction(&ctx, &command).await,
                 "game" => GameHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
@@ -164,8 +164,8 @@ impl EventHandler for Handler {
                         .create_application_command(|command| GulagHandler::setup_command(command));
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
-                    commands.create_application_command(|command| ElkMen::setup_command(command));
-                    commands.create_application_command(|command| Eggmen::setup_command(command));
+                    // commands.create_application_command(|command| ElkMen::setup_command(command));
+                    // commands.create_application_command(|command| Eggmen::setup_command(command));
                     commands
                         .create_application_command(|command| ColorHandler::setup_command(command));
                     commands
