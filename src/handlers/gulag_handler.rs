@@ -69,7 +69,7 @@ impl GulagHandler {
             Some(gulag_db_user) => add_time_to_gulag(
                 conn,
                 gulag_db_user.id,
-                gulag_db_user.gulag_length + 300 as i32,
+                gulag_db_user.gulag_length + gulaglength as i32,
             ),
             None => send_to_gulag(
                 conn,
@@ -276,6 +276,7 @@ impl GulagHandler {
         let mut gulaglength = 300;
         if let CommandDataOptionValue::Integer(length) = length_options {
             gulaglength = length * 60;
+            println!("{:?}", length);
         }
 
         if let CommandDataOptionValue::User(user, _member) = user_options {
