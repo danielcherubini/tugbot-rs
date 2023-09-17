@@ -265,7 +265,7 @@ impl GulagHandler {
         let length_options = command
             .data
             .options
-            .get(3)
+            .get(2)
             .expect("Expected length option")
             .resolved
             .as_ref()
