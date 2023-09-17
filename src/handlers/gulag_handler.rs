@@ -232,6 +232,13 @@ impl GulagHandler {
                     .description("Why Are you sending them")
                     .kind(CommandOptionType::String)
                     .required(true)
+            })
+            .create_option(|option| {
+                option
+                    .name("length")
+                    .description("How Long minutes")
+                    .kind(CommandOptionType::Integer)
+                    .required(true)
             });
     }
 
@@ -255,9 +262,22 @@ impl GulagHandler {
             .resolved
             .as_ref()
             .expect("Expected reason object");
+        let length_options = command
+            .data
+            .options
+            .get(3)
+            .expect("Expected length option")
+            .resolved
+            .as_ref()
+            .expect("Expected length object");
 
         let channelid = command.channel_id.0;
-        let gulaglength = 300;
+
+        let mut gulaglength = 300;
+        if let CommandDataOptionValue::Integer(length) = length_options {
+            gulaglength = length * 60;
+        }
+
         if let CommandDataOptionValue::User(user, _member) = user_options {
             match command.guild_id {
                 None => {
@@ -281,7 +301,7 @@ impl GulagHandler {
                             *guildid.as_u64(),
                             *user.id.as_u64(),
                             *gulag_role.id.as_u64(),
-                            gulaglength,
+                            gulaglength as u32,
                             channelid,
                         )
                         .await;
