@@ -165,7 +165,6 @@ impl GulagHandler {
                     .load::<GulagUser>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
-                    println!("There are {} users in the gulag", results.len());
                     for result in results {
                         let greater_than_5_minutes = result.created_at.elapsed().unwrap()
                             > Duration::from_secs(result.gulag_length as u64);
