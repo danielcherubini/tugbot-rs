@@ -14,8 +14,9 @@ use serenity::{
 
 use super::{
     color_handler::ColorHandler, elon::Elon, game_handler::GameHandler,
-    gulag_handler::GulagHandler, gulag_reaction::GulagReaction, horny::Horny, phony::Phony,
-    twitter::Twitter,
+    gulag_handler::GulagHandler, gulag_list_handler::GulagListHandler,
+    gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler, horny::Horny,
+    phony::Phony, twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -67,6 +68,8 @@ impl EventHandler for Handler {
         if let Interaction::ApplicationCommand(command) = interaction {
             let handler_response = match command.data.name.as_str() {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
+                "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
+                "gulag-list" => GulagListHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 // "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
@@ -162,6 +165,12 @@ impl EventHandler for Handler {
                 GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
                     commands
                         .create_application_command(|command| GulagHandler::setup_command(command));
+                    commands.create_application_command(|command| {
+                        GulagRemoveHandler::setup_command(command)
+                    });
+                    commands.create_application_command(|command| {
+                        GulagListHandler::setup_command(command)
+                    });
                     commands.create_application_command(|command| Horny::setup_command(command));
                     commands.create_application_command(|command| Phony::setup_command(command));
                     // commands.create_application_command(|command| ElkMen::setup_command(command));
@@ -173,7 +182,7 @@ impl EventHandler for Handler {
                 })
                 .await;
 
-            println!("I now have the following guild slash commands: ",);
+            println!("I now have the following guild slash commands:");
             match commands {
                 Ok(commandvec) => {
                     for command in commandvec {

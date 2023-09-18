@@ -57,11 +57,22 @@ impl Servers {
             }
         } else {
             println!("found in DB");
+
             for s in results {
-                serverss.push(Servers {
-                    guild_id: GuildId(s.guild_id as u64),
-                    gulag_id: RoleId(s.gulag_id as u64),
-                })
+                match ctx.http.get_guild(s.guild_id as u64).await {
+                    Ok(guildid) => {
+                        serverss.push(Servers {
+                            guild_id: guildid.id,
+                            gulag_id: RoleId(s.gulag_id as u64),
+                        });
+                    }
+                    Err(err) => {
+                        println!("Couldnt connect to server with guildid {:?}", err);
+                        diesel::delete(servers.filter(id.eq(s.id)))
+                            .execute(connection)
+                            .expect("delete server");
+                    }
+                }
             }
         }
 
