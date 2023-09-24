@@ -43,11 +43,8 @@ impl Servers {
 
                 for role in roles {
                     if role.name == "gulag" {
-                        create_server(
-                            connection,
-                            *guild_info.id.as_u64() as i64,
-                            *role.id.as_u64() as i64,
-                        );
+                        let _s =
+                            create_server(connection, guild_info.id.0 as i64, role.id.0 as i64);
                         serverss.push(Servers {
                             guild_id: guild_info.id,
                             gulag_id: role.id,

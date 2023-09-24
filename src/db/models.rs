@@ -17,7 +17,7 @@ pub struct NewServer {
     pub gulag_id: i64,
 }
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Debug)]
 #[diesel(table_name = gulag_users)]
 pub struct GulagUser {
     pub id: i32,
