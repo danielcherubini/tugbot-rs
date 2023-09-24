@@ -1,9 +1,8 @@
+use super::Gulag;
 use serenity::{
     model::prelude::{Emoji, MessageReaction, Reaction, ReactionType},
     prelude::Context,
 };
-
-use crate::handlers::gulag_handler::GulagHandler;
 
 pub struct GulagReaction;
 
@@ -37,15 +36,16 @@ impl GulagReaction {
                                 msg.delete_reaction_emoji(&ctx.http, add_reaction.emoji.to_owned())
                                     .await
                                     .unwrap();
-                                GulagHandler::send_to_gulag_and_message(
-                                    &ctx,
+                                Gulag::send_to_gulag_and_message(
+                                    &ctx.http,
                                     guildid,
                                     msg.author.id.0,
                                     msg.channel_id.0,
                                     msg.id.0,
                                     Some(reaction_users),
                                 )
-                                .await;
+                                .await
+                                .unwrap();
                             }
                         }
                         Err(why) => println!("{}", why),

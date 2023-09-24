@@ -7,8 +7,12 @@ use dotenv::dotenv;
 use std::{env, time::SystemTime};
 
 use self::{
-    models::{GulagUser, NewGulagUser, NewServer, Server},
-    schema::{gulag_users, servers},
+    models::{GulagUser, GulagVote, NewGulagUser, NewGulagVote, NewServer, Server},
+    schema::{
+        gulag_users,
+        gulag_votes::{self},
+        servers,
+    },
 };
 
 pub fn establish_connection() -> PgConnection {
@@ -61,4 +65,30 @@ pub fn add_time_to_gulag(
         .set(gulag_users::gulag_length.eq(gulag_length))
         .get_result(conn)
         .expect("Error saving new User")
+}
+
+pub fn new_gulag_vote(
+    conn: &mut PgConnection,
+    requester_id: i64,
+    sender_id: i64,
+    guild_id: i64,
+    gulag_role_id: i64,
+    message_id: i64,
+    channel_id: i64,
+) -> GulagVote {
+    let new_gulag_vote = NewGulagVote {
+        requester_id,
+        sender_id,
+        guild_id,
+        channel_id,
+        gulag_role_id,
+        processed: false,
+        message_id,
+        created_at: SystemTime::now(),
+    };
+    println!("inserting");
+    diesel::insert_into(gulag_votes::table)
+        .values(&new_gulag_vote)
+        .get_result(conn)
+        .expect("Error saving new gulag vote")
 }

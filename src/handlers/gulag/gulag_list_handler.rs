@@ -1,13 +1,11 @@
+use crate::db::schema::gulag_users::dsl::*;
+use crate::db::{establish_connection, models::GulagUser};
+use crate::handlers::handlers::HandlerResponse;
+use diesel::*;
 use serenity::{
     builder::CreateApplicationCommand, client::Context,
     model::application::interaction::application_command::ApplicationCommandInteraction,
 };
-
-use crate::db::schema::gulag_users::dsl::*;
-use crate::db::{establish_connection, models::GulagUser};
-use diesel::*;
-
-use super::handlers::HandlerResponse;
 
 pub struct GulagListHandler;
 

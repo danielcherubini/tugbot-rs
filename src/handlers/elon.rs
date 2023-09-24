@@ -4,7 +4,7 @@ use serenity::{
     prelude::Context,
 };
 
-use crate::handlers::gulag_handler::GulagHandler;
+use crate::handlers::gulag::Gulag;
 
 pub struct Elon;
 
@@ -20,15 +20,16 @@ impl Elon {
                     if Elon::has_elon_role(&ctx, guildid, &member).await {
                         let channelid = msg.channel_id.0;
 
-                        GulagHandler::send_to_gulag_and_message(
-                            &ctx,
+                        Gulag::send_to_gulag_and_message(
+                            &ctx.http,
                             guildid,
                             member.user.id.0,
                             channelid,
                             msg.id.0,
                             None,
                         )
-                        .await;
+                        .await
+                        .unwrap();
                     }
                 }
             }

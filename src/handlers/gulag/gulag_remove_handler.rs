@@ -1,3 +1,7 @@
+use super::Gulag;
+use crate::db::{establish_connection, schema::gulag_users::dsl::*};
+use crate::handlers::handlers::HandlerResponse;
+use diesel::*;
 use serenity::{
     builder::CreateApplicationCommand,
     client::Context,
@@ -6,12 +10,6 @@ use serenity::{
         prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
     },
 };
-
-use crate::db::{establish_connection, schema::gulag_users::dsl::*};
-
-use diesel::*;
-
-use super::{gulag_handler::GulagHandler, handlers::HandlerResponse};
 
 pub struct GulagRemoveHandler;
 
@@ -27,14 +25,6 @@ impl GulagRemoveHandler {
                     .kind(CommandOptionType::User)
                     .required(true)
             });
-    }
-
-    fn send_error(err: &str) -> HandlerResponse {
-        return HandlerResponse {
-            content: format!("Error: {}", err),
-            components: None,
-            ephemeral: true,
-        };
     }
 
     pub async fn setup_interaction(
@@ -60,14 +50,12 @@ impl GulagRemoveHandler {
                     }
                 }
                 Some(guildid) => {
-                    match GulagHandler::find_gulag_role(&ctx, *guildid.as_u64()).await {
+                    match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
                         Some(gulag_role) => {
-                            match GulagHandler::is_user_in_gulag(user.id.0) {
+                            match Gulag::is_user_in_gulag(user.id.0) {
                                 Some(db_gulag_user) => {
                                     // release
-                                    match GulagHandler::find_gulag_channel(&ctx.http, guildid.0)
-                                        .await
-                                    {
+                                    match Gulag::find_gulag_channel(&ctx.http, guildid.0).await {
                                         Some(gulag_channel) => {
                                             match ctx
                                                 .http
@@ -79,7 +67,7 @@ impl GulagRemoveHandler {
                                                         .remove_role(&ctx.http, gulag_role.id.0)
                                                         .await
                                                     {
-                                                        return GulagRemoveHandler::send_error(
+                                                        return Gulag::send_error(
                                                             "Couldn't remove role",
                                                         );
                                                     };
@@ -93,7 +81,7 @@ impl GulagRemoveHandler {
                                                         .send_message(ctx, |m| m.content(message))
                                                         .await
                                                     {
-                                                        return GulagRemoveHandler::send_error(
+                                                        return Gulag::send_error(
                                                             "Couldn't Send message to release",
                                                         );
                                                     };
@@ -112,22 +100,16 @@ impl GulagRemoveHandler {
                                                         ephemeral: true,
                                                     };
                                                 }
-                                                Err(_) => GulagRemoveHandler::send_error(
-                                                    "Couldn't get member",
-                                                ),
+                                                Err(_) => Gulag::send_error("Couldn't get member"),
                                             }
                                         }
-                                        None => GulagRemoveHandler::send_error(
-                                            "Couldn't find Gulag Channel",
-                                        ),
+                                        None => Gulag::send_error("Couldn't find Gulag Channel"),
                                     }
                                 }
-                                None => {
-                                    GulagRemoveHandler::send_error("Couldn't find user in Database")
-                                }
+                                None => Gulag::send_error("Couldn't find user in Database"),
                             }
                         }
-                        None => GulagRemoveHandler::send_error("Couldn't find gulag Role"),
+                        None => Gulag::send_error("Couldn't find gulag Role"),
                     }
                 }
             }
