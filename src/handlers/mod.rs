@@ -1,12 +1,6 @@
-pub mod color_handler;
-pub mod eggmen;
-pub mod elkmen;
+// pub mod elkmen;
 pub mod elon;
-pub mod game_handler;
-pub mod gulag_handler;
-pub mod gulag_list_handler;
-pub mod gulag_reaction;
-pub mod gulag_remove_handler;
+pub mod gulag;
 pub mod handlers;
 pub mod horny;
 pub mod nickname;

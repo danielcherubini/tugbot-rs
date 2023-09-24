@@ -1,3 +1,12 @@
+use super::{
+    elon::Elon,
+    gulag::gulag_handler::GulagHandler,
+    gulag::gulag_list_handler::GulagListHandler,
+    gulag::{gulag_remove_handler::GulagRemoveHandler, gulag_vote::GulagVoteHandler, Gulag},
+    horny::Horny,
+    phony::Phony,
+    twitter::Twitter,
+};
 use crate::tugbot::servers::Servers;
 use serenity::{
     async_trait,
@@ -8,15 +17,8 @@ use serenity::{
         channel::Message,
         gateway::Ready,
         id::GuildId,
-        prelude::{Interaction, Member, Reaction},
+        prelude::{Interaction, Member},
     },
-};
-
-use super::{
-    color_handler::ColorHandler, elon::Elon, game_handler::GameHandler,
-    gulag_handler::GulagHandler, gulag_list_handler::GulagListHandler,
-    gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler, horny::Horny,
-    phony::Phony, twitter::Twitter,
 };
 
 #[derive(Default)]
@@ -35,15 +37,15 @@ impl EventHandler for Handler {
         Elon::handler(&ctx, &msg).await;
     }
 
-    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction).await;
-    }
+    // async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
+    //     GulagReaction::handler(&ctx, &add_reaction).await;
+    // }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        match GulagHandler::is_user_in_gulag(*member.user.id.as_u64()) {
+        match Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
             Some(user) => {
-                GulagHandler::add_to_gulag(
-                    &ctx,
+                Gulag::add_to_gulag(
+                    &ctx.http,
                     user.guild_id as u64,
                     user.user_id as u64,
                     user.gulag_role_id as u64,
@@ -70,12 +72,9 @@ impl EventHandler for Handler {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
                 "gulag-list" => GulagListHandler::setup_interaction(&ctx, &command).await,
+                "gulag-vote" => GulagVoteHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
-                // "elk-invite" => ElkMen::setup_interaction(&ctx, &command).await,
-                // "egg-invite" => Eggmen::setup_interaction(&ctx, &command).await,
-                "color" => ColorHandler::setup_interaction(&ctx, &command).await,
-                "game" => GameHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
                     components: None,
@@ -83,7 +82,7 @@ impl EventHandler for Handler {
                 },
             };
 
-            command
+            match command
                 .create_interaction_response(&ctx.http, |r| {
                     r.kind(InteractionResponseType::ChannelMessageWithSource)
                         .interaction_response_data(|i| match handler_response.components {
@@ -97,60 +96,20 @@ impl EventHandler for Handler {
                         })
                 })
                 .await
-                .unwrap();
-
-            let response = command.get_interaction_response(&ctx.http).await;
-
-            match response {
-                Ok(r) => {
-                    let res = r.await_component_interaction(&ctx).await.unwrap();
-                    match res.data.custom_id.as_str() {
-                        "color_select" => {
-                            println!("Do Color Select");
-                            ColorHandler::swap_color_role(
-                                &ctx,
-                                *command.guild_id.unwrap().as_u64(),
-                                *command.user.id.as_u64(),
-                                res.data.values[0].parse::<u64>().unwrap(),
-                            )
-                            .await;
-
-                            res.create_interaction_response(&ctx.http, |r| {
-                                r.kind(InteractionResponseType::ChannelMessageWithSource)
-                                    .interaction_response_data(|data| {
-                                        data.content(format!("OK, done")).ephemeral(true)
-                                    })
-                            })
-                            .await
-                            .unwrap()
-                        }
-                        "game_select" => {
-                            println!("Do Game Select");
-                            GameHandler::add_or_remove_game_role(
-                                &ctx,
-                                *command.guild_id.unwrap().as_u64(),
-                                *command.user.id.as_u64(),
-                                res.data.values[0].parse::<u64>().unwrap(),
-                            )
-                            .await;
-
-                            res.create_interaction_response(&ctx.http, |r| {
-                                r.kind(InteractionResponseType::ChannelMessageWithSource)
-                                    .interaction_response_data(|data| {
-                                        data.content(format!("OK, done... if you want to add another game, please ignore the above message and do /game again")).ephemeral(true)
-                                    })
-                            })
-                            .await
-                            .unwrap()
-                        }
-                        _ => {
-                            println!("Select custom_id match was missing")
-                        }
+            {
+                Ok(()) => {
+                    let res = command.get_interaction_response(&ctx.http).await.unwrap();
+                    match res.interaction.to_owned() {
+                        Some(msg) => match msg.name.as_str() {
+                            "gulag-vote" => {
+                                GulagVoteHandler::do_followup(&ctx, &command, res).await
+                            }
+                            _ => {}
+                        },
+                        None => {}
                     }
                 }
-                Err(e) => {
-                    println!("Cannot respond to slash command: {}", e);
-                }
+                Err(why) => println!("Cannot respond to slash command: {}", why),
             }
         }
     }
@@ -158,29 +117,19 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         let servers = Servers::get_servers(&ctx).await;
-        GulagHandler::run_gulag_check(&ctx);
+        Gulag::run_gulag_check(&ctx.http);
+        Gulag::run_gulag_vote_check(&ctx.http);
 
         for server in servers {
-            let commands =
-                GuildId::set_application_commands(&server.guild_id, &ctx.http, |commands| {
-                    commands
-                        .create_application_command(|command| GulagHandler::setup_command(command));
-                    commands.create_application_command(|command| {
-                        GulagRemoveHandler::setup_command(command)
-                    });
-                    commands.create_application_command(|command| {
-                        GulagListHandler::setup_command(command)
-                    });
-                    commands.create_application_command(|command| Horny::setup_command(command));
-                    commands.create_application_command(|command| Phony::setup_command(command));
-                    // commands.create_application_command(|command| ElkMen::setup_command(command));
-                    // commands.create_application_command(|command| Eggmen::setup_command(command));
-                    commands
-                        .create_application_command(|command| ColorHandler::setup_command(command));
-                    commands
-                        .create_application_command(|command| GameHandler::setup_command(command))
-                })
-                .await;
+            let commands = GuildId::set_application_commands(&server.guild_id, &ctx.http, |c| {
+                c.create_application_command(|command| GulagHandler::setup_command(command));
+                c.create_application_command(|command| GulagRemoveHandler::setup_command(command));
+                c.create_application_command(|command| GulagListHandler::setup_command(command));
+                c.create_application_command(|command| GulagVoteHandler::setup_command(command));
+                c.create_application_command(|command| Horny::setup_command(command));
+                c.create_application_command(|command| Phony::setup_command(command))
+            })
+            .await;
 
             println!("I now have the following guild slash commands:");
             match commands {
