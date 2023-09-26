@@ -2,7 +2,10 @@ use super::{
     elon::Elon,
     gulag::gulag_handler::GulagHandler,
     gulag::gulag_list_handler::GulagListHandler,
-    gulag::{gulag_remove_handler::GulagRemoveHandler, gulag_vote::GulagVoteHandler, Gulag},
+    gulag::{
+        gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler,
+        gulag_vote::GulagVoteHandler, Gulag,
+    },
     horny::Horny,
     phony::Phony,
     twitter::Twitter,
@@ -17,7 +20,7 @@ use serenity::{
         channel::Message,
         gateway::Ready,
         id::GuildId,
-        prelude::{Interaction, Member},
+        prelude::{Interaction, Member, Reaction},
     },
 };
 
@@ -37,9 +40,9 @@ impl EventHandler for Handler {
         Elon::handler(&ctx, &msg).await;
     }
 
-    // async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-    //     GulagReaction::handler(&ctx, &add_reaction).await;
-    // }
+    async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
+        GulagReaction::handler(&ctx, &add_reaction).await;
+    }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
         match Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
