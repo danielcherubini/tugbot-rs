@@ -75,7 +75,7 @@ impl EventHandler for Handler {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
                 "gulag-list" => GulagListHandler::setup_interaction(&ctx, &command).await,
-                "gulag-vote" => GulagVoteHandler::setup_interaction(&ctx, &command).await,
+                // "gulag-vote" => GulagVoteHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
@@ -105,7 +105,7 @@ impl EventHandler for Handler {
                     match res.interaction.to_owned() {
                         Some(msg) => match msg.name.as_str() {
                             "gulag-vote" => {
-                                GulagVoteHandler::do_followup(&ctx, &command, res).await
+                                // GulagVoteHandler::do_followup(&ctx, &command, res).await
                             }
                             _ => {}
                         },
@@ -128,7 +128,7 @@ impl EventHandler for Handler {
                 c.create_application_command(|command| GulagHandler::setup_command(command));
                 c.create_application_command(|command| GulagRemoveHandler::setup_command(command));
                 c.create_application_command(|command| GulagListHandler::setup_command(command));
-                c.create_application_command(|command| GulagVoteHandler::setup_command(command));
+                // c.create_application_command(|command| GulagVoteHandler::setup_command(command));
                 c.create_application_command(|command| Horny::setup_command(command));
                 c.create_application_command(|command| Phony::setup_command(command))
             })

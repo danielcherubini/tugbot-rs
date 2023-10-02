@@ -63,32 +63,41 @@ impl GulagVoteHandler {
                     match command.guild_id {
                         None => return Gulag::send_error("no member"),
                         Some(guildid) => {
-                            match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
-                                None => return Gulag::send_error("Couldn't find gulag role"),
-                                Some(role) => {
-                                    let mem = ctx
-                                        .http
-                                        .get_member(*guildid.as_u64(), *user.id.as_u64())
-                                        .await
-                                        .unwrap();
-
-                                    let jury_duty_role =
-                                        GulagVoteHandler::find_jury_duty_role(&ctx.http, guildid.0)
+                            if Gulag::is_tugbot(&ctx.http, &user).await.unwrap() {
+                                return HandlerResponse {
+                                    content: format!("Sorry you can't add tugbot to the gulag"),
+                                    components: None,
+                                    ephemeral: true,
+                                };
+                            } else {
+                                match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
+                                    None => return Gulag::send_error("Couldn't find gulag role"),
+                                    Some(role) => {
+                                        let mem = ctx
+                                            .http
+                                            .get_member(*guildid.as_u64(), *user.id.as_u64())
                                             .await
                                             .unwrap();
 
-                                    let message = format!(
+                                        let jury_duty_role = GulagVoteHandler::find_jury_duty_role(
+                                            &ctx.http, guildid.0,
+                                        )
+                                        .await
+                                        .unwrap();
+
+                                        let message = format!(
                                         "Should we add {} to the {}?\n{} you have 10 mins to vote",
                                         mem.to_string(),
                                         role.to_string(),
                                         jury_duty_role.to_string(),
                                     );
 
-                                    return HandlerResponse {
-                                        content: message,
-                                        components: None,
-                                        ephemeral: false,
-                                    };
+                                        return HandlerResponse {
+                                            content: message,
+                                            components: None,
+                                            ephemeral: false,
+                                        };
+                                    }
                                 }
                             }
                         }
@@ -154,21 +163,23 @@ impl GulagVoteHandler {
         let conn = &mut establish_connection();
 
         if let CommandDataOptionValue::User(user, _member) = options {
-            let guildid = command.guild_id.unwrap();
-            let role = Gulag::find_gulag_role(&ctx.http, guildid.0).await.unwrap();
+            if !Gulag::is_tugbot(&ctx.http, &user).await.unwrap() {
+                let guildid = command.guild_id.unwrap();
+                let role = Gulag::find_gulag_role(&ctx.http, guildid.0).await.unwrap();
 
-            let _r = msg.react(&ctx, '👍').await.unwrap();
-            let _r = msg.react(&ctx, '👎').await.unwrap();
+                let _r = msg.react(&ctx, '👍').await.unwrap();
+                let _r = msg.react(&ctx, '👎').await.unwrap();
 
-            let _v = new_gulag_vote(
-                conn,
-                requesterid as i64,
-                user.id.0 as i64,
-                guildid.0 as i64,
-                role.id.0 as i64,
-                msg.id.0 as i64,
-                msg.channel_id.0 as i64,
-            );
+                let _v = new_gulag_vote(
+                    conn,
+                    requesterid as i64,
+                    user.id.0 as i64,
+                    guildid.0 as i64,
+                    role.id.0 as i64,
+                    msg.id.0 as i64,
+                    msg.channel_id.0 as i64,
+                );
+            }
         }
     }
 
