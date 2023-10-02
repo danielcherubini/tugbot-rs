@@ -65,6 +65,16 @@ impl Gulag {
         }
     }
 
+    pub async fn is_tugbot(http: &Arc<Http>, user: &User) -> Option<bool> {
+        match http.get_current_user().await {
+            Err(why) => {
+                eprintln!("{:#?}", why);
+                None
+            }
+            Ok(current_user) => Some(current_user.id.0 == user.id.0),
+        }
+    }
+
     pub async fn add_to_gulag(
         http: &Arc<Http>,
         guildid: u64,
