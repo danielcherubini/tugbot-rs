@@ -38,11 +38,15 @@ impl Gulag {
     }
 
     pub async fn find_gulag_role(http: &Arc<Http>, guildid: u64) -> Option<Role> {
+        Self::find_role(http, guildid, "gulag").await
+    }
+
+    pub async fn find_role(http: &Arc<Http>, guildid: u64, role_name: &str) -> Option<Role> {
         match http.get_guild_roles(guildid).await {
             Err(_why) => None,
             Ok(roles) => {
                 for role in roles {
-                    if role.name == "gulag" {
+                    if role.name == role_name {
                         return Some(role);
                     }
                 }
@@ -115,7 +119,13 @@ impl Gulag {
         let gulag_role = Gulag::find_gulag_role(&http, guildid)
             .await
             .with_context(|| format!("Couldn't find gulag role"))?;
-        let gulaglength = 300;
+        let mut gulaglength = 300;
+        let user = http.get_user(userid).await?;
+        let derpes_role = Self::find_role(http, guildid, "derpies").await.unwrap();
+        if user.has_role(http, guildid, derpes_role).await? {
+            gulaglength = 1800;
+        }
+
         let gulag_channel = Gulag::find_gulag_channel(http, guildid)
             .await
             .with_context(|| format!("Cant find gulag channel"))?;
