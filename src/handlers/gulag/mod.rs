@@ -123,7 +123,7 @@ impl Gulag {
         let user = http.get_user(userid).await?;
         let derpes_role = Self::find_role(http, guildid, "derpies").await.unwrap();
         if user.has_role(http, guildid, derpes_role).await? {
-            gulaglength = 1800;
+            gulaglength = 600;
         }
 
         let gulag_channel = Gulag::find_gulag_channel(http, guildid)
