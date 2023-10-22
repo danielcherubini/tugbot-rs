@@ -121,10 +121,14 @@ impl Gulag {
             .with_context(|| format!("Couldn't find gulag role"))?;
         let mut gulaglength = 300;
         let user = http.get_user(userid).await?;
-        let derpes_role = Self::find_role(http, guildid, "derpies").await.unwrap();
-        if user.has_role(http, guildid, derpes_role).await? {
-            gulaglength = 600;
-        }
+        match Self::find_role(http, guildid, "derpies").await {
+            Some(derpies_role) => {
+                if user.has_role(http, guildid, derpies_role).await? {
+                    gulaglength = 600;
+                }
+            }
+            None => {}
+        };
 
         let gulag_channel = Gulag::find_gulag_channel(http, guildid)
             .await
@@ -198,6 +202,11 @@ impl Gulag {
                                 "It's been 5 minutes, releasing {} from the gulag",
                                 result.id
                             );
+
+                            diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
+                                .set(in_gulag.eq(false))
+                                .execute(conn)
+                                .unwrap();
 
                             match Gulag::remove_from_gulag(
                                 http.to_owned(),
