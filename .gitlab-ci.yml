@@ -3,13 +3,26 @@ stages:
   - packer
   - terraform
 
+cache: &global_cache
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cargo/bin
+    - .cargo/registry/index
+    - .cargo/registry/cache
+    - target/debug/deps
+    - target/debug/build
+  policy: pull-push
+
+variables:
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+
 test:cargo:
   stage: test
   image: "rust:latest"
   tags:
     - rust
   script:
-    - rustc --version && cargo --version  # Print version info for debugging
+    - rustc --version && cargo --version
     - cargo test --workspace --verbose
 
 packer:
@@ -22,7 +35,10 @@ packer:
     - shell
   script:
     - packer init -upgrade packer/packer.pkr.hcl
-    - packer build -debug packer/packer.pkr.hcl 
+    - packer build -debug packer/packer.pkr.hcl
+  cache:
+    <<: *global_cache
+    policy: pull 
 
 terraform:
   image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
@@ -33,7 +49,7 @@ terraform:
   cache:
     key: example-production
     paths:
-    - ${TF_ROOT}/.terraform
+      - ${TF_ROOT}/.terraform
   only:
     - tags
     - main
