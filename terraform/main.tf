@@ -30,7 +30,7 @@ resource "proxmox_vm_qemu" "tugbot" {
     slot     = 0
     size     = "10G"
     type     = "scsi"
-    storage  = "nox"
+    storage  = "local-lvm"
     iothread = 1
   }
 
@@ -47,7 +47,7 @@ resource "proxmox_vm_qemu" "tugbot" {
   ipconfig0 = "ip=dhcp"
 
   sshkeys = <<EOF
-  ${var.ssh_key}
+${var.ssh_key}
   EOF
 }
 
