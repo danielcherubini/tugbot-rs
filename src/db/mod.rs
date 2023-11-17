@@ -4,12 +4,16 @@ pub mod schema;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenv::dotenv;
-use std::{env, time::SystemTime};
+use std::{
+    env,
+    ops::Add,
+    time::{Duration, SystemTime},
+};
 
 use self::{
     models::{GulagUser, GulagVote, NewGulagUser, NewGulagVote, NewServer, Server},
     schema::{
-        gulag_users,
+        gulag_users::{self},
         gulag_votes::{self},
         servers,
     },
@@ -40,6 +44,10 @@ pub fn send_to_gulag(
     gulag_length: i32,
     channel_id: i64,
 ) -> GulagUser {
+    let time_now = SystemTime::now();
+    let gulag_duration = Duration::from_secs(gulag_length as u64);
+    let release_time = time_now.add(gulag_duration);
+
     let new_user = NewGulagUser {
         user_id,
         guild_id,
@@ -47,7 +55,8 @@ pub fn send_to_gulag(
         channel_id,
         in_gulag: true,
         gulag_length,
-        created_at: SystemTime::now(),
+        created_at: time_now,
+        release_at: release_time,
     };
 
     diesel::insert_into(gulag_users::table)
@@ -60,9 +69,15 @@ pub fn add_time_to_gulag(
     conn: &mut PgConnection,
     gulag_user_id: i32,
     gulag_length: i32,
+    release_at: SystemTime,
 ) -> GulagUser {
+    let gulag_duration = Duration::from_secs(gulag_length as u64);
+    let new_release_time = release_at.add(gulag_duration);
     diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
-        .set(gulag_users::gulag_length.eq(gulag_length))
+        .set((
+            gulag_users::gulag_length.eq(gulag_length),
+            gulag_users::release_at.eq(new_release_time),
+        ))
         .get_result(conn)
         .expect("Error saving new User")
 }

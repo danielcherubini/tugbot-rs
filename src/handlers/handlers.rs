@@ -2,10 +2,7 @@ use super::{
     elon::Elon,
     gulag::gulag_handler::GulagHandler,
     gulag::gulag_list_handler::GulagListHandler,
-    gulag::{
-        gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler,
-        gulag_vote::GulagVoteHandler, Gulag,
-    },
+    gulag::{gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler, Gulag},
     horny::Horny,
     phony::Phony,
     twitter::Twitter,

@@ -10,6 +10,7 @@ diesel::table! {
         in_gulag -> Bool,
         gulag_length -> Int4,
         created_at -> Timestamp,
+        release_at -> Timestamp,
     }
 }
 

@@ -17,7 +17,10 @@ use serenity::{
     http::Http,
     model::{guild::Role, id::RoleId, prelude::GuildChannel, user::User},
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 use tokio::{task::spawn, time::sleep};
 
 pub mod gulag_handler;
@@ -96,6 +99,7 @@ impl Gulag {
                 conn,
                 gulag_db_user.id,
                 gulag_db_user.gulag_length + gulaglength as i32,
+                gulag_db_user.release_at,
             ),
             None => send_to_gulag(
                 conn,
@@ -191,54 +195,51 @@ impl Gulag {
                 sleep(Duration::from_secs(1)).await;
                 let results = gulag_users
                     .filter(gulag_users::in_gulag.eq(true))
+                    .filter(gulag_users::release_at.le(SystemTime::now()))
                     .load::<GulagUser>(conn)
                     .expect("Error loading Servers");
+                // println!("{}", results.len());
                 if results.len() > 0 {
                     for result in results {
-                        let greater_than_5_minutes = result.created_at.elapsed().unwrap()
-                            > Duration::from_secs(result.gulag_length as u64);
-                        if greater_than_5_minutes {
-                            println!(
-                                "It's been 5 minutes, releasing {} from the gulag",
-                                result.id
-                            );
+                        println!(
+                            "It's been {} minutes, releasing {} from the gulag",
+                            result.gulag_length / 60,
+                            result.id
+                        );
 
-                            diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
-                                .set(in_gulag.eq(false))
-                                .execute(conn)
-                                .unwrap();
+                        diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
+                            .set(in_gulag.eq(false))
+                            .execute(conn)
+                            .unwrap();
 
-                            match Gulag::remove_from_gulag(
-                                http.to_owned(),
-                                result.user_id as u64,
-                                result.guild_id as u64,
-                                RoleId(result.gulag_role_id as u64),
-                            )
-                            .await
-                            {
-                                Ok(_) => {
+                        match Gulag::remove_from_gulag(
+                            http.to_owned(),
+                            result.user_id as u64,
+                            result.guild_id as u64,
+                            RoleId(result.gulag_role_id as u64),
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                diesel::delete(gulag_users.filter(gulag_users::id.eq(result.id)))
+                                    .execute(conn)
+                                    .expect("delete user");
+                                println!("Removed from database");
+                            }
+                            Err(why) => match why.to_string().as_str() {
+                                "Unknown Guild" | "Unknown Message" => {
                                     diesel::delete(
                                         gulag_users.filter(gulag_users::id.eq(result.id)),
                                     )
                                     .execute(conn)
                                     .expect("delete user");
-                                    println!("Removed from database");
+                                    println!("Removed from database due to error {}", why);
                                 }
-                                Err(why) => match why.to_string().as_str() {
-                                    "Unknown Guild" | "Unknown Message" => {
-                                        diesel::delete(
-                                            gulag_users.filter(gulag_users::id.eq(result.id)),
-                                        )
-                                        .execute(conn)
-                                        .expect("delete user");
-                                        println!("Removed from database due to error {}", why);
-                                    }
-                                    _ => {
-                                        println!("Error run_gulag_check: {:?}", why.to_string());
-                                    }
-                                },
-                            };
-                        }
+                                _ => {
+                                    println!("Error run_gulag_check: {:?}", why.to_string());
+                                }
+                            },
+                        };
                     }
                 }
             }
@@ -335,6 +336,7 @@ impl Gulag {
                 gulag_length: user.gulag_length,
                 created_at: user.created_at,
                 in_gulag: user.in_gulag,
+                release_at: user.release_at,
             })
         } else {
             None
