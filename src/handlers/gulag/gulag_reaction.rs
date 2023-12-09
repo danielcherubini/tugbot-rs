@@ -69,6 +69,7 @@ impl GulagReaction {
 
     fn can_gulag(reactions: Vec<MessageReaction>, gulag_emoji: &Emoji) -> bool {
         for react in reactions {
+            println!("There is now {} gulag reactions", react.count);
             if react.reaction_type == ReactionType::from(gulag_emoji.to_owned()) {
                 //gulag vote is over 0 and also divisible by 5
                 if react.count > 0 && react.count % 5 == 0 {
