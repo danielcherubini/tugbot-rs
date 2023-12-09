@@ -41,6 +41,10 @@ impl EventHandler for Handler {
         GulagReaction::handler(&ctx, &add_reaction).await;
     }
 
+    async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
+        GulagReaction::handler(&ctx, &add_reaction).await;
+    }
+
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
         match Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
             Some(user) => {
