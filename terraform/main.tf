@@ -24,11 +24,11 @@ resource "proxmox_vm_qemu" "tugbot" {
   sockets     = 1
   cpu         = "host"
   memory      = 2048
-  scsihw      = "virtio-scsi-pci"
+  scsihw      = "virtio-scsi-single"
   bootdisk    = "scsi0"
   disk {
     slot     = 0
-    size     = "10G"
+    size     = "30G"
     type     = "scsi"
     storage  = "local-lvm"
     iothread = 1
