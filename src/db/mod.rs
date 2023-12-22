@@ -69,9 +69,10 @@ pub fn add_time_to_gulag(
     conn: &mut PgConnection,
     gulag_user_id: i32,
     gulag_length: i32,
+    gulag_duration: i32,
     release_at: SystemTime,
 ) -> GulagUser {
-    let gulag_duration = Duration::from_secs(gulag_length as u64);
+    let gulag_duration = Duration::from_secs(gulag_duration as u64);
     let new_release_time = release_at.add(gulag_duration);
     diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
         .set((

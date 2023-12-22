@@ -99,6 +99,7 @@ impl Gulag {
                 conn,
                 gulag_db_user.id,
                 gulag_db_user.gulag_length + gulaglength as i32,
+                gulaglength as i32,
                 gulag_db_user.release_at,
             ),
             None => send_to_gulag(
