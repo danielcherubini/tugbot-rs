@@ -15,7 +15,7 @@ provider "proxmox" {
 }
 resource "proxmox_vm_qemu" "tugbot" {
   count       = 1
-  name        = "tugbot"
+  name        = "tugbot-new"
   target_node = var.node.jove
   clone       = var.template
   agent       = 1

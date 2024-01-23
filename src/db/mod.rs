@@ -1,14 +1,6 @@
+pub mod message_vote;
 pub mod models;
 pub mod schema;
-
-use diesel::pg::PgConnection;
-use diesel::prelude::*;
-use dotenv::dotenv;
-use std::{
-    env,
-    ops::Add,
-    time::{Duration, SystemTime},
-};
 
 use self::{
     models::{GulagUser, GulagVote, NewGulagUser, NewGulagVote, NewServer, Server},
@@ -17,6 +9,14 @@ use self::{
         gulag_votes::{self},
         servers,
     },
+};
+use diesel::pg::PgConnection;
+use diesel::prelude::*;
+use dotenv::dotenv;
+use std::{
+    env,
+    ops::Add,
+    time::{Duration, SystemTime},
 };
 
 pub fn establish_connection() -> PgConnection {

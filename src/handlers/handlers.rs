@@ -1,8 +1,13 @@
 use super::{
     elon::Elon,
-    gulag::gulag_handler::GulagHandler,
-    gulag::gulag_list_handler::GulagListHandler,
-    gulag::{gulag_reaction::GulagReaction, gulag_remove_handler::GulagRemoveHandler, Gulag},
+    gulag::{
+        gulag_handler::GulagHandler,
+        gulag_list_handler::GulagListHandler,
+        gulag_message_command::GulagMessageCommandHandler,
+        gulag_reaction::{GulagReaction, GulagReactionType},
+        gulag_remove_handler::GulagRemoveHandler,
+        Gulag,
+    },
     horny::Horny,
     phony::Phony,
     twitter::Twitter,
@@ -38,11 +43,11 @@ impl EventHandler for Handler {
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction).await;
+        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
     }
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction).await;
+        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::REMOVED).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
@@ -76,7 +81,9 @@ impl EventHandler for Handler {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
                 "gulag-list" => GulagListHandler::setup_interaction(&ctx, &command).await,
-                // "gulag-vote" => GulagVoteHandler::setup_interaction(&ctx, &command).await,
+                "Add Gulag Vote" => {
+                    GulagMessageCommandHandler::setup_interaction(&ctx, &command).await
+                }
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
@@ -129,7 +136,9 @@ impl EventHandler for Handler {
                 c.create_application_command(|command| GulagHandler::setup_command(command));
                 c.create_application_command(|command| GulagRemoveHandler::setup_command(command));
                 c.create_application_command(|command| GulagListHandler::setup_command(command));
-                // c.create_application_command(|command| GulagVoteHandler::setup_command(command));
+                c.create_application_command(|command| {
+                    GulagMessageCommandHandler::setup_command(command)
+                });
                 c.create_application_command(|command| Horny::setup_command(command));
                 c.create_application_command(|command| Phony::setup_command(command))
             })

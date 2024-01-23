@@ -17,5 +17,5 @@ variable "node" {
 }
 
 variable "template" {
-  default = "tugbot-template"
+  default = "tugbot-template-new"
 }

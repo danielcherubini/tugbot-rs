@@ -84,3 +84,25 @@ pub struct NewReversalOfFortune {
     pub user_id: i64,
     pub current_percentage: i64,
 }
+
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = message_votes)]
+pub struct MessageVotes {
+    pub message_id: i64,
+    pub channel_id: i64,
+    pub guild_id: i64,
+    pub user_id: i64,
+    pub vote_tally: i32,
+    pub voters: Vec<Option<i64>>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = message_votes)]
+pub struct NewMessageVotes {
+    pub message_id: i64,
+    pub channel_id: i64,
+    pub guild_id: i64,
+    pub user_id: i64,
+    pub vote_tally: i32,
+    pub voters: Vec<Option<i64>>,
+}
