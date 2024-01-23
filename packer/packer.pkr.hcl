@@ -53,7 +53,7 @@ source "proxmox-clone" "tugbot" {
   sockets              = 1
   ssh_username         = "root"
   template_description = "image made from cloud-init image"
-  template_name        = "tugbot-template"
+  template_name        = "tugbot-template-new"
   token                = "${var.proxmox_token}"
   username             = "${var.proxmox_username}"
 }

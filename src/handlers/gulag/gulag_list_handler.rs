@@ -43,14 +43,13 @@ impl GulagListHandler {
                         .get_user(gulaguser.user_id as u64)
                         .await
                         .expect("Couldn't get user");
+                    let time_remaining = gulaguser
+                        .release_at
+                        .duration_since(SystemTime::now())
+                        .unwrap();
                     userlist.push_str(&format!(
                         "{}\n{} release in {:?}",
-                        userlist,
-                        user,
-                        gulaguser
-                            .release_at
-                            .duration_since(SystemTime::now())
-                            .unwrap()
+                        userlist, user, time_remaining
                     ));
                 }
                 let content = format!("Here are the users in the Gulag:{}", userlist);

@@ -29,6 +29,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    message_votes (message_id) {
+        message_id -> Int8,
+        channel_id -> Int8,
+        guild_id -> Int8,
+        user_id -> Int8,
+        vote_tally -> Int4,
+        voters -> Array<Nullable<Int8>>,
+    }
+}
+
+diesel::table! {
     reversal_of_fortunes (user_id) {
         user_id -> Int8,
         current_percentage -> Int8,
@@ -46,6 +57,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     gulag_users,
     gulag_votes,
+    message_votes,
     reversal_of_fortunes,
     servers,
 );

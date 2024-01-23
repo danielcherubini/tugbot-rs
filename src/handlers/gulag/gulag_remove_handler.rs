@@ -55,7 +55,13 @@ impl GulagRemoveHandler {
                             match Gulag::is_user_in_gulag(user.id.0) {
                                 Some(db_gulag_user) => {
                                     // release
-                                    match Gulag::find_gulag_channel(&ctx.http, guildid.0).await {
+                                    match Gulag::find_channel(
+                                        &ctx.http,
+                                        guildid.0,
+                                        "the-gulag".to_string(),
+                                    )
+                                    .await
+                                    {
                                         Some(gulag_channel) => {
                                             match ctx
                                                 .http

@@ -1,15 +1,12 @@
 use super::handlers::HandlerResponse;
-use crate::{
-    db::{
-        add_time_to_gulag, establish_connection,
-        models::{GulagUser, GulagVote},
-        schema::{
-            gulag_users::{self, dsl::*},
-            gulag_votes::{self, dsl::*},
-        },
-        send_to_gulag,
+use crate::db::{
+    add_time_to_gulag, establish_connection,
+    models::{GulagUser, MessageVotes},
+    schema::{
+        gulag_users::{self, dsl::*},
+        message_votes::{self, dsl::*},
     },
-    handlers::gulag::gulag_vote::GulagVoteHandler,
+    send_to_gulag,
 };
 use anyhow::{Context, Result};
 use diesel::*;
@@ -25,6 +22,7 @@ use tokio::{task::spawn, time::sleep};
 
 pub mod gulag_handler;
 pub mod gulag_list_handler;
+pub mod gulag_message_command;
 pub mod gulag_reaction;
 pub mod gulag_remove_handler;
 pub mod gulag_vote;
@@ -58,12 +56,16 @@ impl Gulag {
         }
     }
 
-    pub async fn find_gulag_channel(http: &Arc<Http>, guildid: u64) -> Option<GuildChannel> {
+    pub async fn find_channel(
+        http: &Arc<Http>,
+        guildid: u64,
+        channel_name: String,
+    ) -> Option<GuildChannel> {
         match http.get_channels(guildid).await {
             Err(_why) => None,
             Ok(channels) => {
                 for channel in channels {
-                    if channel.name == "the-gulag" {
+                    if channel.name == channel_name {
                         return Some(channel);
                     }
                 }
@@ -135,7 +137,7 @@ impl Gulag {
             None => {}
         };
 
-        let gulag_channel = Gulag::find_gulag_channel(http, guildid)
+        let gulag_channel = Gulag::find_channel(http, guildid, "the-gulag".to_string())
             .await
             .with_context(|| format!("Cant find gulag channel"))?;
         let gulag_user = Gulag::add_to_gulag(
@@ -179,7 +181,7 @@ impl Gulag {
     ) -> Result<()> {
         let mut mem = http.get_member(guildid, userid).await?;
         mem.remove_role(&http, gulag_roleid).await?;
-        let channel = Gulag::find_gulag_channel(&http, guildid)
+        let channel = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
             .await
             .with_context(|| format!("Couldn't find gulag channel"))?;
         let message = format!("Freeing {} from the gulag", mem.to_string());
@@ -197,6 +199,8 @@ impl Gulag {
                 let results = gulag_users
                     .filter(gulag_users::in_gulag.eq(true))
                     .filter(gulag_users::release_at.le(SystemTime::now()))
+                    .for_update()
+                    .skip_locked()
                     .load::<GulagUser>(conn)
                     .expect("Error loading Servers");
                 // println!("{}", results.len());
@@ -253,67 +257,46 @@ impl Gulag {
             let conn = &mut establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
-                let results = gulag_votes
-                    .filter(gulag_votes::processed.eq(false))
-                    .load::<GulagVote>(conn)
+                let results = message_votes
+                    .filter(message_votes::vote_tally.ge(5))
+                    .for_update()
+                    .skip_locked()
+                    .load::<MessageVotes>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
                     for result in results {
-                        let greater_than_10_minutes =
-                            result.created_at.elapsed().unwrap() > Duration::from_secs(600);
-                        if greater_than_10_minutes {
-                            println!("It's been 10 minutes, processing gulag {}", result.id);
-
-                            // Process the gulag votes here
-                            match GulagVoteHandler::process_gulag_votes(
-                                &http,
-                                result.channel_id as u64,
-                                result.message_id as u64,
-                            )
+                        // Remove all gulag emoji's from gulag_reaction
+                        let message = http
+                            .get_message(result.channel_id as u64, result.message_id as u64)
                             .await
-                            {
-                                Ok(passed) => {
-                                    let who_to_gulag: u64;
-                                    if passed {
-                                        who_to_gulag = result.sender_id as u64;
-                                    } else {
-                                        who_to_gulag = result.requester_id as u64;
-                                    }
-
-                                    if let Err(why) = Gulag::send_to_gulag_and_message(
-                                        &http,
-                                        result.guild_id as u64,
-                                        who_to_gulag,
-                                        result.channel_id as u64,
-                                        result.message_id as u64,
-                                        None,
-                                    )
+                            .unwrap();
+                        for reaction in message.reactions.to_owned() {
+                            if reaction.reaction_type.to_string().contains(":gulag") {
+                                message
+                                    .delete_reaction_emoji(http.to_owned(), reaction.reaction_type)
                                     .await
-                                    {
-                                        println!("Error running gulag vote {:?}", why);
-                                    }
-                                    let _result = diesel::update(gulag_votes.find(result.id))
-                                        .set(gulag_votes::processed.eq(true))
-                                        .returning(GulagVote::as_returning())
-                                        .get_result(conn)
-                                        .unwrap();
-                                    println!("Removed from database");
-                                }
-                                Err(why) => match why.to_string().as_str() {
-                                    "Unknown Guild" | "Unknown Message" => {
-                                        diesel::delete(
-                                            gulag_votes.filter(gulag_votes::id.eq(result.id)),
-                                        )
-                                        .execute(conn)
-                                        .expect("delete user");
-                                        println!("Removed from database Due to error {}", why);
-                                    }
-                                    _ => {
-                                        println!("Error run_gulag_check: {:?}", why.to_string());
-                                    }
-                                },
+                                    .unwrap();
                             }
                         }
+                        // send to gulag and message
+                        if let Err(why) = Gulag::send_to_gulag_and_message(
+                            &http,
+                            result.guild_id as u64,
+                            result.user_id as u64,
+                            result.channel_id as u64,
+                            result.message_id as u64,
+                            None,
+                        )
+                        .await
+                        {
+                            println!("Error running gulag vote {:?}", why);
+                        }
+
+                        // Delete the vote from the database
+                        let _result = diesel::delete(message_votes.find(result.message_id))
+                            .execute(conn)
+                            .unwrap();
+                        println!("Removed from database");
                     }
                 }
             }
