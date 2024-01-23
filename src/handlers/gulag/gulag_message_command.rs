@@ -62,7 +62,7 @@ impl GulagMessageCommandHandler {
                 return HandlerResponse {
                     content,
                     components: None,
-                    ephemeral: false,
+                    ephemeral: true,
                 };
             }
             Err(err) => {
