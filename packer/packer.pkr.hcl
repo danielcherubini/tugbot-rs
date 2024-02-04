@@ -37,6 +37,11 @@ variable "proxmox_username" {
   default = "${env("PROXMOX_USERNAME")}"
 }
 
+variable "version" {
+  type    = string
+  default = "${env("CI_COMMIT_TAG")}"
+}
+
 source "proxmox-clone" "tugbot" {
   clone_vm                 = "debian-11"
   cores                    = 4
@@ -53,7 +58,7 @@ source "proxmox-clone" "tugbot" {
   sockets              = 1
   ssh_username         = "root"
   template_description = "image made from cloud-init image"
-  template_name        = "tugbot-template-new"
+  template_name        = "tugbot-template-${var.version}"
   token                = "${var.proxmox_token}"
   username             = "${var.proxmox_username}"
 }
