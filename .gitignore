@@ -38,3 +38,4 @@ terraform.rc
 
 terraform/dothis.sh
 terraform/plan
+.env.local
