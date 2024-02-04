@@ -1,5 +1,13 @@
 // @generated automatically by Diesel CLI.
 
+pub mod sql_types {
+    use diesel::QueryId;
+
+    #[derive(diesel::sql_types::SqlType, QueryId)]
+    #[diesel(postgres_type(name = "job_status"))]
+    pub struct JobStatus;
+}
+
 diesel::table! {
     gulag_users (id) {
         id -> Int4,
@@ -29,6 +37,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::JobStatus;
+
     message_votes (message_id) {
         message_id -> Int8,
         channel_id -> Int8,
@@ -36,6 +47,7 @@ diesel::table! {
         user_id -> Int8,
         vote_tally -> Int4,
         voters -> Array<Nullable<Int8>>,
+        job_status -> JobStatus,
     }
 }
 

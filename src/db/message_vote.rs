@@ -1,5 +1,5 @@
 use super::{
-    models::{MessageVotes, NewMessageVotes},
+    models::{JobStatus, MessageVotes, NewMessageVotes},
     schema::message_votes::{self},
 };
 use anyhow::{anyhow, Result};
@@ -62,6 +62,7 @@ impl MessageVoteHandler {
                     user_id: user_id as i64,
                     vote_tally: 1,
                     voters: [Some(voter_id as i64)].to_vec(),
+                    job_status: JobStatus::Created,
                 };
                 match diesel::insert_into(message_votes::table)
                     .values(&new_message_vote)
