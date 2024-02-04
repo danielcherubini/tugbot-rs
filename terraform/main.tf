@@ -15,9 +15,9 @@ provider "proxmox" {
 }
 resource "proxmox_vm_qemu" "tugbot" {
   count       = 1
-  name        = "tugbot-${var.version}"
+  name        = "tugbot-${var.tag_version}"
   target_node = var.node.jove
-  clone       = "${var.template}-${var.version}
+  clone       = "${var.template}-${var.tag_version}"
   agent       = 1
   os_type     = "cloud-init"
   cores       = 2

@@ -2,7 +2,7 @@ variable "pm_api_url" {}
 variable "pm_api_token_id" {}
 variable "pm_api_token_secret" {}
 variable "ssh_key" {}
-variable "version" {}
+variable "tag_version" {}
 
 variable "node" {
   type = object({
