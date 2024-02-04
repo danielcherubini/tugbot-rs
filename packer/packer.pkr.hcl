@@ -37,13 +37,8 @@ variable "proxmox_username" {
   default = "${env("PROXMOX_USERNAME")}"
 }
 
-variable "git_version" {
-  type    = string
-  default = "${env("CI_COMMIT_TAG")}"
-}
-
 locals {
-  template_name = "tugbot-template-${var.git_version}"
+  template_name = "tugbot-template-${env("CI_COMMIT_TAG")}"
 }
 
 source "proxmox-clone" "tugbot" {
