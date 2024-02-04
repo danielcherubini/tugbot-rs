@@ -18,7 +18,7 @@ variables:
 
 test:cargo:
   stage: test
-  image: "rust:latest"
+  image: "rust:1.75.0"
   tags:
     - rust
   script:
