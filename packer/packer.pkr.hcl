@@ -19,14 +19,14 @@ source "proxmox-clone" "tugbot" {
   onboot               = true
   os                   = "l26"
   proxmox_url          = "${var.proxmox_url}"
+  token                = "${var.proxmox_token}"
+  username             = "${var.proxmox_username}"
   qemu_agent           = true
   sockets              = 1
   ssh_username         = "root"
   template_description = "image made from cloud-init image"
   template_name        = "${local.template_name}"
-  token                = "${var.proxmox_token}"
-  username             = "${var.proxmox_username}"
-}
+ }
 
 build {
   description = "Tugbot template build"
