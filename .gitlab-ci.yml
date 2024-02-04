@@ -34,6 +34,7 @@ packer:
   tags:
     - shell
   script:
+    - env
     - packer init -upgrade packer
     - packer build -debug packer
   cache:
