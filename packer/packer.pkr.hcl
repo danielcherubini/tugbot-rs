@@ -42,6 +42,10 @@ variable "git_version" {
   default = "${env("CI_COMMIT_TAG")}"
 }
 
+locals {
+  template_name = "tugbot-template-${var.git_version}"
+}
+
 source "proxmox-clone" "tugbot" {
   clone_vm                 = "debian-11"
   cores                    = 4
@@ -58,7 +62,7 @@ source "proxmox-clone" "tugbot" {
   sockets              = 1
   ssh_username         = "root"
   template_description = "image made from cloud-init image"
-  template_name        = "tugbot-template-${var.git_version}"
+  template_name        = "${local.template_name}"
   token                = "${var.proxmox_token}"
   username             = "${var.proxmox_username}"
 }
