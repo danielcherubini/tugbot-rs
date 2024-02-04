@@ -36,6 +36,7 @@ jobs:
           target/debug/deps
           target/debug/build
         key: "${{ github.ref }}"
+    - run: apt-get update && apt-get install git-lfs
     - run: rustc --version && cargo --version
     - run: cargo test --workspace --verbose
   packer:
