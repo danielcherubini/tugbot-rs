@@ -256,7 +256,7 @@ impl Gulag {
         spawn(async move {
             let conn = &mut establish_connection();
             loop {
-                sleep(Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(2)).await;
                 let results = message_votes
                     .filter(message_votes::vote_tally.ge(5))
                     .for_update()
