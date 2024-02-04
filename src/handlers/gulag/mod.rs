@@ -1,7 +1,7 @@
 use super::handlers::HandlerResponse;
 use crate::db::{
     add_time_to_gulag, establish_connection,
-    models::{GulagUser, MessageVotes},
+    models::{GulagUser, JobStatus, MessageVotes},
     schema::{
         gulag_users::{self, dsl::*},
         message_votes::{self, dsl::*},
@@ -256,51 +256,80 @@ impl Gulag {
         spawn(async move {
             let conn = &mut establish_connection();
             loop {
-                sleep(Duration::from_secs(2)).await;
+                sleep(Duration::from_secs(1)).await;
                 let results = message_votes
                     .filter(message_votes::vote_tally.ge(5))
+                    .filter(message_votes::job_status.eq(JobStatus::Created))
                     .for_update()
                     .skip_locked()
                     .load::<MessageVotes>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
                     for result in results {
-                        // Remove all gulag emoji's from gulag_reaction
-                        let message = http
-                            .get_message(result.channel_id as u64, result.message_id as u64)
-                            .await
-                            .unwrap();
-                        for reaction in message.reactions.to_owned() {
-                            if reaction.reaction_type.to_string().contains(":gulag") {
-                                message
-                                    .delete_reaction_emoji(http.to_owned(), reaction.reaction_type)
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                        // send to gulag and message
-                        if let Err(why) = Gulag::send_to_gulag_and_message(
-                            &http,
-                            result.guild_id as u64,
-                            result.user_id as u64,
-                            result.channel_id as u64,
-                            result.message_id as u64,
-                            None,
-                        )
-                        .await
+                        if let Err(err) =
+                            Self::gulag_check_handler(http.to_owned(), conn, &result).await
                         {
-                            println!("Error running gulag vote {:?}", why);
+                            println!("Error running gulag vote {:?}", err);
+                            let _result = diesel::update(message_votes.find(result.message_id))
+                                .set(message_votes::job_status.eq(JobStatus::Failure))
+                                .execute(conn)
+                                .unwrap();
                         }
-
-                        // Delete the vote from the database
-                        let _result = diesel::delete(message_votes.find(result.message_id))
-                            .execute(conn)
-                            .unwrap();
-                        println!("Removed from database");
                     }
                 }
             }
         });
+    }
+
+    async fn gulag_check_handler(
+        http: Arc<Http>,
+        conn: &mut PgConnection,
+        result: &MessageVotes,
+    ) -> Result<(), anyhow::Error> {
+        // Set the vote to running in the database
+        let _result = diesel::update(message_votes.find(result.message_id))
+            .set(message_votes::job_status.eq(JobStatus::Running))
+            .execute(conn)
+            .with_context(|| format!("Failed to update message_vote_id {}", result.message_id))?;
+
+        println!("Updated Gulag Vote Check Item to Running");
+
+        // Remove all gulag emoji's from gulag_reaction
+        let message = http
+            .get_message(result.channel_id as u64, result.message_id as u64)
+            .await
+            .with_context(|| "Failed to get Message")?;
+
+        // Iterate throught the message reactions and find the gulag type and remove it
+        for reaction in message.reactions.to_owned() {
+            if reaction.reaction_type.to_string().contains(":gulag") {
+                message
+                    .delete_reaction_emoji(http.to_owned(), reaction.reaction_type)
+                    .await
+                    .with_context(|| "Failed to delete reaction emoji")?;
+            }
+        }
+
+        // send to gulag and message
+        Gulag::send_to_gulag_and_message(
+            &http,
+            result.guild_id as u64,
+            result.user_id as u64,
+            result.channel_id as u64,
+            result.message_id as u64,
+            None,
+        )
+        .await?;
+
+        // Done the vote from the database
+        let _result = diesel::update(message_votes.find(result.message_id))
+            .set(message_votes::job_status.eq(JobStatus::Done))
+            .execute(conn)
+            .with_context(|| format!("failed to done message_vote_id {}", result.message_id))?;
+
+        println!("Updated Gulag Vote Check Item to Done");
+
+        Ok(())
     }
 
     pub fn is_user_in_gulag(userid: u64) -> Option<GulagUser> {

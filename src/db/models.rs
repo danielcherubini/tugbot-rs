@@ -1,7 +1,10 @@
-use std::time::SystemTime;
-
 use crate::db::schema::*;
-use diesel::prelude::*;
+use diesel::{
+    pg::{Pg, PgValue},
+    prelude::*,
+    AsExpression, FromSqlRow,
+};
+use std::{io::Write, time::SystemTime};
 
 #[derive(Queryable)]
 pub struct Server {
@@ -85,6 +88,42 @@ pub struct NewReversalOfFortune {
     pub current_percentage: i64,
 }
 
+#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[diesel(sql_type = sql_types::JobStatus)]
+pub enum JobStatus {
+    Created,
+    Running,
+    Done,
+    Failure,
+}
+
+impl diesel::serialize::ToSql<sql_types::JobStatus, Pg> for JobStatus {
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, Pg>,
+    ) -> diesel::serialize::Result {
+        match *self {
+            JobStatus::Created => out.write_all(b"created")?,
+            JobStatus::Running => out.write_all(b"running")?,
+            JobStatus::Done => out.write_all(b"done")?,
+            JobStatus::Failure => out.write_all(b"failure")?,
+        }
+        Ok(diesel::serialize::IsNull::No)
+    }
+}
+
+impl diesel::deserialize::FromSql<sql_types::JobStatus, Pg> for JobStatus {
+    fn from_sql(bytes: PgValue<'_>) -> diesel::deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"created" => Ok(JobStatus::Created),
+            b"running" => Ok(JobStatus::Running),
+            b"done" => Ok(JobStatus::Done),
+            b"failure" => Ok(JobStatus::Failure),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
 #[derive(Queryable, Selectable, Debug)]
 #[diesel(table_name = message_votes)]
 pub struct MessageVotes {
@@ -94,6 +133,7 @@ pub struct MessageVotes {
     pub user_id: i64,
     pub vote_tally: i32,
     pub voters: Vec<Option<i64>>,
+    pub job_status: JobStatus,
 }
 
 #[derive(Insertable)]
@@ -105,4 +145,5 @@ pub struct NewMessageVotes {
     pub user_id: i64,
     pub vote_tally: i32,
     pub voters: Vec<Option<i64>>,
+    pub job_status: JobStatus,
 }
