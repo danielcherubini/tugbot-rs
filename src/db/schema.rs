@@ -1,9 +1,7 @@
 // @generated automatically by Diesel CLI.
 
 pub mod sql_types {
-    use diesel::QueryId;
-
-    #[derive(diesel::sql_types::SqlType, QueryId)]
+    #[derive(diesel::query_builder::QueryId, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "job_status"))]
     pub struct JobStatus;
 }
