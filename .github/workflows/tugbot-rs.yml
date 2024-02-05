@@ -29,13 +29,13 @@ jobs:
         lfs: true
     - uses: actions/cache@v3.3.2
       with:
-        path: |-
-          .cargo/bin
-          .cargo/registry/index
-          .cargo/registry/cache
-          target/debug/deps
-          target/debug/build
-        key: "${{ github.ref }}"
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - run: rustc --version && cargo --version
     - run: cargo test --workspace --verbose
   packer:
@@ -57,13 +57,13 @@ jobs:
       run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - uses: actions/cache@v3.3.2
       with:
-        path: |-
-          .cargo/bin
-          .cargo/registry/index
-          .cargo/registry/cache
-          target/debug/deps
-          target/debug/build
-        key: "${{ github.ref }}"
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - run: packer init -upgrade packer
     - run: packer build -debug packer
   terraform:
@@ -89,9 +89,9 @@ jobs:
         lfs: true
     - uses: actions/cache@v3.3.2
       with:
-        path: "${TF_ROOT}/.terraform"
+        path: "${{ env.TF_ROOT }}/.terraform"
         key: example-production
-    - run: cd ${TF_ROOT}
+    - run: cd ${{ env.TF_ROOT }}
     - run: terraform init
     - run: terraform plan
     - run: terraform apply
