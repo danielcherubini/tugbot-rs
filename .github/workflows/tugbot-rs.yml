@@ -95,5 +95,5 @@ jobs:
         key: example-production
     - run: cd ${{ env.TF_ROOT }}
     - run: terraform init
-    - run: terraform plan -out=tfplan
-    - run: terraform apply
+    - run: terraform plan -out=/tmp/tfplan
+    - run: terraform apply /tmp/tfplan
