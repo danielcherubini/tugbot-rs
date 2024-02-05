@@ -71,7 +71,6 @@ jobs:
     needs: packer
     runs-on:
       - self-hosted
-      - terraform
     container:
       image: registry.gitlab.com/gitlab-org/terraform-images/stable:latest
     if: startsWith(github.ref, 'refs/tags')
@@ -84,7 +83,7 @@ jobs:
       TF_VAR_pm_api_token_id: "${PROXMOX_USERNAME}"
       TF_VAR_pm_api_token_secret: "${PROXMOX_TOKEN}"
       TF_VAR_ssh_key: "${SSH_KEY}"
-      TF_VAR_version: "${{ github.ref }}"
+      TF_VAR_tag_version: "${{ github.ref_name }}"
     steps:
     - uses: actions/checkout@v4.1.0
       with:
