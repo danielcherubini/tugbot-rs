@@ -95,5 +95,5 @@ jobs:
         key: example-production
     - run: cd ${{ env.TF_ROOT }}
     - run: terraform init
-    - run: terraform plan
-    - run: terraform apply -auto-approve
+    - run: terraform plan -out=tfplan
+    - run: terraform apply
