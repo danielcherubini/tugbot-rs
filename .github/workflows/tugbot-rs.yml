@@ -72,15 +72,17 @@ jobs:
     runs-on:
       - self-hosted
     if: startsWith(github.ref, 'refs/tags')
+    defaults:
+      run:
+        working-directory: "${{ github.workspace }}/terraform"
     timeout-minutes: 60
     env:
       CARGO_HOME: "${{ github.workspace }}/.cargo"
       TF_ROOT: "${{ github.workspace }}/terraform"
-      TF_ADDRESS: "${{ github.api_url }}/projects/${{ github.repository }}/terraform/state/tugstate"
-      TF_VAR_pm_api_url: "${PROXMOX_URL}"
-      TF_VAR_pm_api_token_id: "${PROXMOX_USERNAME}"
-      TF_VAR_pm_api_token_secret: "${PROXMOX_TOKEN}"
-      TF_VAR_ssh_key: "${SSH_KEY}"
+      TF_VAR_pm_api_url: "${{ secrets.PROXMOX_URL }}"
+      TF_VAR_pm_api_token_id: "${{ secrets.PROXMOX_USERNAME }}"
+      TF_VAR_pm_api_token_secret: "${{ secrets.PROXMOX_TOKEN }}"
+      TF_VAR_ssh_key: "${{ secrets.SSH_KEY }}"
       TF_VAR_tag_version: "${{ github.ref_name }}"
     steps:
     - uses: actions/checkout@v4.1.0
