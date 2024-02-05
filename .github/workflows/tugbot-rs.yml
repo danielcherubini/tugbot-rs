@@ -39,6 +39,7 @@ jobs:
     - run: rustc --version && cargo --version
     - run: cargo test --workspace --verbose
   packer:
+    environment: prod
     needs: test-cargo
     runs-on:
       - self-hosted
@@ -63,6 +64,7 @@ jobs:
     - run: packer init -upgrade packer
     - run: packer build -debug packer
   terraform:
+    environment: prod
     needs: packer
     runs-on:
       - self-hosted
