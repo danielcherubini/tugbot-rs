@@ -47,6 +47,7 @@ jobs:
     timeout-minutes: 60
     env:
       CARGO_HOME: "${{ github.workspace }}/.cargo"
+      CI_COMMIT_TAG: "${{ github.ref }}"
     steps:
     - uses: actions/checkout@v4.1.0
       with:
