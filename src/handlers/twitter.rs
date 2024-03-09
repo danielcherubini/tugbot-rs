@@ -1,5 +1,4 @@
 use regex::Regex;
-
 use serenity::{model::channel::Message, prelude::Context};
 
 pub struct Twitter;
