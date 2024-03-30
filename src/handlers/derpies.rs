@@ -55,7 +55,7 @@ impl Derpies {
                     add_reaction.channel_id.0,
                     add_reaction.message_id.0,
                     Some(user_id),
-                    &hotdog_reaction,
+                    &add_reaction.emoji,
                 )
                 .await;
         }
