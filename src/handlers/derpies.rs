@@ -38,27 +38,26 @@ impl Derpies {
             .unwrap();
         let reaction_member = ctx.http.get_member(guild_id, user_id).await.unwrap();
 
-        if Gulag::member_has_role(&ctx.http, guild_id, &reaction_member, "derpies").await {
-            if Gulag::member_has_role(
-                &ctx.http,
-                guild_id,
-                &message_member,
-                "spreading-slurping-wriggling",
-            )
-            .await
-            {
-                if add_reaction.emoji == hotdog_reaction {
-                    let _ = ctx
-                        .http
-                        .delete_reaction(
-                            add_reaction.channel_id.0,
-                            add_reaction.message_id.0,
-                            Some(user_id),
-                            &hotdog_reaction,
-                        )
-                        .await;
-                }
-            }
+        let has_derpies_role =
+            Gulag::member_has_role(&ctx.http, guild_id, &reaction_member, "derpies").await;
+        let has_kovbasa_role = Gulag::member_has_role(
+            &ctx.http,
+            guild_id,
+            &message_member,
+            "spreading-slurping-wriggling",
+        )
+        .await;
+
+        if has_derpies_role & has_kovbasa_role {
+            let _ = ctx
+                .http
+                .delete_reaction(
+                    add_reaction.channel_id.0,
+                    add_reaction.message_id.0,
+                    Some(user_id),
+                    &hotdog_reaction,
+                )
+                .await;
         }
     }
 }
