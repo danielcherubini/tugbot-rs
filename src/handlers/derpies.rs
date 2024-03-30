@@ -25,30 +25,30 @@ impl Derpies {
         let user_id = add_reaction.user_id.unwrap().0;
         let hotdog_reaction = ReactionType::Unicode("🌭".to_string());
 
-        let message = ctx
-            .http
-            .get_message(add_reaction.channel_id.0, add_reaction.message_id.0)
-            .await
-            .unwrap();
-
-        let message_member = ctx
-            .http
-            .get_member(guild_id, message.author.id.0)
-            .await
-            .unwrap();
         let reaction_member = ctx.http.get_member(guild_id, user_id).await.unwrap();
 
         let has_derpies_role =
             Gulag::member_has_role(&ctx.http, guild_id, &reaction_member, "derpies").await;
-        let has_kovbasa_role = Gulag::member_has_role(
-            &ctx.http,
-            guild_id,
-            &message_member,
-            "spreading-slurping-wriggling",
-        )
-        .await;
 
-        if has_derpies_role & has_kovbasa_role {
+        // let message = ctx
+        //     .http
+        //     .get_message(add_reaction.channel_id.0, add_reaction.message_id.0)
+        //     .await
+        //     .unwrap();
+        // let message_member = ctx
+        //     .http
+        //     .get_member(guild_id, message.author.id.0)
+        //     .await
+        //     .unwrap();
+        // let has_kovbasa_role = Gulag::member_has_role(
+        //     &ctx.http,
+        //     guild_id,
+        //     &message_member,
+        //     "spreading-slurping-wriggling",
+        // )
+        // .await;
+
+        if has_derpies_role {
             let _ = ctx
                 .http
                 .delete_reaction(
