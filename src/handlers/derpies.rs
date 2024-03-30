@@ -1,5 +1,5 @@
 use serenity::{
-    model::channel::{Message, Reaction, ReactionType},
+    model::channel::{Message, Reaction},
     prelude::Context,
 };
 
@@ -23,7 +23,6 @@ impl Derpies {
     pub async fn reaction_add_handler(ctx: &Context, add_reaction: &Reaction) {
         let guild_id = add_reaction.guild_id.unwrap().0;
         let user_id = add_reaction.user_id.unwrap().0;
-        let hotdog_reaction = ReactionType::Unicode("🌭".to_string());
 
         let reaction_member = ctx.http.get_member(guild_id, user_id).await.unwrap();
 
