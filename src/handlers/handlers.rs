@@ -1,4 +1,5 @@
 use super::{
+    derpies::Derpies,
     elon::Elon,
     gulag::{
         gulag_handler::GulagHandler,
@@ -10,7 +11,6 @@ use super::{
     },
     horny::Horny,
     phony::Phony,
-    twitter::Twitter,
 };
 use crate::tugbot::servers::Servers;
 use serenity::{
@@ -38,12 +38,13 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        // Twitter::handler(&ctx, &msg).await;
+        // Derpies::message_handler(&ctx, &msg).await;
         Elon::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
+        Derpies::reaction_add_handler(&ctx, &add_reaction).await;
     }
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {

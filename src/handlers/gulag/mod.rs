@@ -12,7 +12,12 @@ use anyhow::{Context, Result};
 use diesel::*;
 use serenity::{
     http::Http,
-    model::{guild::Role, id::RoleId, prelude::GuildChannel, user::User},
+    model::{
+        guild::{Member, Role},
+        id::RoleId,
+        prelude::GuildChannel,
+        user::User,
+    },
 };
 use std::{
     sync::Arc,
@@ -36,6 +41,25 @@ impl Gulag {
             components: None,
             ephemeral: true,
         };
+    }
+
+    pub async fn member_has_role(
+        http: &Arc<Http>,
+        guildid: u64,
+        member: &Member,
+        role_name: &str,
+    ) -> bool {
+        match Self::find_role(&http, guildid, role_name).await {
+            Some(derpies_role) => {
+                for member_role in member.roles.to_owned() {
+                    if member_role.0 == derpies_role.id.0 {
+                        return true;
+                    };
+                }
+                return false;
+            }
+            None => false,
+        }
     }
 
     pub async fn find_gulag_role(http: &Arc<Http>, guildid: u64) -> Option<Role> {
