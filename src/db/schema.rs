@@ -43,9 +43,10 @@ diesel::table! {
         channel_id -> Int8,
         guild_id -> Int8,
         user_id -> Int8,
-        vote_tally -> Int4,
+        current_vote_tally -> Int4,
         voters -> Array<Nullable<Int8>>,
         job_status -> JobStatus,
+        total_vote_tally -> Int4,
     }
 }
 
