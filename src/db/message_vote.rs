@@ -38,10 +38,10 @@ impl MessageVoteHandler {
                     return Err(anyhow!("You have already Voted"));
                 } else {
                     message.voters.push(Some(voter_id as i64));
-                    message.vote_tally += 1;
+                    message.current_vote_tally += 1;
                     match diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                         .set((
-                            message_votes::vote_tally.eq(message.vote_tally),
+                            message_votes::current_vote_tally.eq(message.current_vote_tally),
                             message_votes::voters.eq(message.voters),
                         ))
                         .get_result(conn)
@@ -60,7 +60,8 @@ impl MessageVoteHandler {
                     channel_id: channel_id as i64,
                     guild_id: guild_id as i64,
                     user_id: user_id as i64,
-                    vote_tally: 1,
+                    current_vote_tally: 1,
+                    total_vote_tally: 0,
                     voters: [Some(voter_id as i64)].to_vec(),
                     job_status: JobStatus::Created,
                 };
@@ -103,10 +104,10 @@ impl MessageVoteHandler {
                         .position(|x| *x == Some(voter_id as i64))
                         .unwrap();
                     message.voters.remove(index);
-                    message.vote_tally -= 1;
+                    message.current_vote_tally -= 1;
                     match diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                         .set((
-                            message_votes::vote_tally.eq(message.vote_tally),
+                            message_votes::current_vote_tally.eq(message.current_vote_tally),
                             message_votes::voters.eq(message.voters),
                         ))
                         .get_result(conn)

@@ -131,9 +131,10 @@ pub struct MessageVotes {
     pub channel_id: i64,
     pub guild_id: i64,
     pub user_id: i64,
-    pub vote_tally: i32,
+    pub current_vote_tally: i32,
     pub voters: Vec<Option<i64>>,
     pub job_status: JobStatus,
+    pub total_vote_tally: i32,
 }
 
 #[derive(Insertable)]
@@ -143,7 +144,8 @@ pub struct NewMessageVotes {
     pub channel_id: i64,
     pub guild_id: i64,
     pub user_id: i64,
-    pub vote_tally: i32,
+    pub current_vote_tally: i32,
     pub voters: Vec<Option<i64>>,
     pub job_status: JobStatus,
+    pub total_vote_tally: i32,
 }

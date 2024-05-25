@@ -281,26 +281,26 @@ impl Gulag {
             let conn = &mut establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
+                let job_status_predicate = message_votes::job_status
+                    .ne(JobStatus::Running)
+                    .or(message_votes::job_status.ne(JobStatus::Failure));
                 let results = message_votes
-                    .filter(message_votes::vote_tally.ge(5))
+                    .filter(message_votes::current_vote_tally.ge(5))
+                    .filter(job_status_predicate)
                     .for_update()
                     .skip_locked()
                     .load::<MessageVotes>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
                     for result in results {
-                        if result.job_status == JobStatus::Created
-                            || (result.job_status == JobStatus::Done && result.vote_tally % 5 == 0)
+                        if let Err(err) =
+                            Self::gulag_check_handler(http.to_owned(), conn, &result).await
                         {
-                            if let Err(err) =
-                                Self::gulag_check_handler(http.to_owned(), conn, &result).await
-                            {
-                                println!("Error running gulag vote {:?}", err);
-                                let _result = diesel::update(message_votes.find(result.message_id))
-                                    .set(message_votes::job_status.eq(JobStatus::Failure))
-                                    .execute(conn)
-                                    .unwrap();
-                            }
+                            println!("Error running gulag vote {:?}", err);
+                            let _result = diesel::update(message_votes.find(result.message_id))
+                                .set(message_votes::job_status.eq(JobStatus::Failure))
+                                .execute(conn)
+                                .unwrap();
                         }
                     }
                 }
@@ -350,7 +350,12 @@ impl Gulag {
 
         // Done the vote from the database
         let _result = diesel::update(message_votes.find(result.message_id))
-            .set(message_votes::job_status.eq(JobStatus::Done))
+            .set((
+                message_votes::job_status.eq(JobStatus::Done),
+                message_votes::total_vote_tally
+                    .eq(result.current_vote_tally + result.total_vote_tally),
+                message_votes::current_vote_tally.eq(0),
+            ))
             .execute(conn)
             .with_context(|| format!("failed to done message_vote_id {}", result.message_id))?;
 

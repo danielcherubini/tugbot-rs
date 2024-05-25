@@ -48,14 +48,14 @@ impl GulagMessageCommandHandler {
                         content = format!(
                             "A gulag vote has been added to {}\nThere are now {} unique votes total",
                             message.link(),
-                            message_vote.content.vote_tally
+                            message_vote.content.current_vote_tally
                         );
                     }
                     MessageVoteHanderResponseType::REMOVED => {
                         content = format!(
                             "A gulag vote has been removed from {}\nThere are now {} unique votes total",
                             message.link(),
-                            message_vote.content.vote_tally
+                            message_vote.content.current_vote_tally
                         )
                     }
                 }
