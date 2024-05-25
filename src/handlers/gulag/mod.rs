@@ -283,21 +283,24 @@ impl Gulag {
                 sleep(Duration::from_secs(1)).await;
                 let results = message_votes
                     .filter(message_votes::vote_tally.ge(5))
-                    .filter(message_votes::job_status.eq(JobStatus::Created))
                     .for_update()
                     .skip_locked()
                     .load::<MessageVotes>(conn)
                     .expect("Error loading Servers");
                 if results.len() > 0 {
                     for result in results {
-                        if let Err(err) =
-                            Self::gulag_check_handler(http.to_owned(), conn, &result).await
+                        if result.job_status == JobStatus::Created
+                            || (result.job_status == JobStatus::Done && result.vote_tally % 5 == 0)
                         {
-                            println!("Error running gulag vote {:?}", err);
-                            let _result = diesel::update(message_votes.find(result.message_id))
-                                .set(message_votes::job_status.eq(JobStatus::Failure))
-                                .execute(conn)
-                                .unwrap();
+                            if let Err(err) =
+                                Self::gulag_check_handler(http.to_owned(), conn, &result).await
+                            {
+                                println!("Error running gulag vote {:?}", err);
+                                let _result = diesel::update(message_votes.find(result.message_id))
+                                    .set(message_votes::job_status.eq(JobStatus::Failure))
+                                    .execute(conn)
+                                    .unwrap();
+                            }
                         }
                     }
                 }
