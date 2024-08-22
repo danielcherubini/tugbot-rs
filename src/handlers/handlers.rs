@@ -11,6 +11,7 @@ use super::{
     },
     horny::Horny,
     phony::Phony,
+    twitter::Twitter,
 };
 use crate::tugbot::servers::Servers;
 use serenity::{
@@ -40,6 +41,7 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         // Derpies::message_handler(&ctx, &msg).await;
         Elon::handler(&ctx, &msg).await;
+        Twitter::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
