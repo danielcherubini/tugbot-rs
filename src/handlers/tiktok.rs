@@ -23,7 +23,7 @@ impl TikTok {
     }
 
     fn fx_rewriter(url: &str) -> Option<String> {
-        let re = Regex::new(r"https://(tiktok.com)/.+").unwrap();
+        let re = Regex::new(r"https://((www.)?tiktok.com)/.+").unwrap();
 
         match re.captures(&url) {
             None => None,
@@ -45,6 +45,13 @@ mod tests {
     #[test]
     fn rewrite() {
         match TikTok::fx_rewriter("https://tiktok.com/t/7m4Kxl") {
+            None => assert!(false),
+            Some(url) => assert_eq!(url, "https://vm.offtiktok.com/t/7m4Kxl",),
+        }
+    }
+    #[test]
+    fn with_www() {
+        match TikTok::fx_rewriter("https://www.tiktok.com/t/7m4Kxl") {
             None => assert!(false),
             Some(url) => assert_eq!(url, "https://vm.offtiktok.com/t/7m4Kxl",),
         }
