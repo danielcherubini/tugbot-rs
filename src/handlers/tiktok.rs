@@ -31,7 +31,7 @@ impl TikTok {
                 None => None,
                 Some(full) => match caps.get(1) {
                     None => None,
-                    Some(short) => Some(full.as_str().replace(short.as_str(), "offtiktok.com")),
+                    Some(short) => Some(full.as_str().replace(short.as_str(), "vm.offtiktok.com")),
                 },
             },
         }
@@ -44,9 +44,9 @@ mod tests {
 
     #[test]
     fn rewrite() {
-        match TikTok::fx_rewriter("https://tiktok.com/7m4Kxl") {
+        match TikTok::fx_rewriter("https://tiktok.com/t/7m4Kxl") {
             None => assert!(false),
-            Some(url) => assert_eq!(url, "https://offtiktok.com/7m4Kxl",),
+            Some(url) => assert_eq!(url, "https://vm.offtiktok.com/t/7m4Kxl",),
         }
     }
 }
