@@ -1,0 +1,40 @@
+name: Test 
+on:
+  push:
+  workflow_dispatch:
+concurrency:
+  group: "${{ github.ref }}"
+  cancel-in-progress: true
+env:
+  PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
+  PROXMOX_USERNAME: ${{ secrets.PROXMOX_USERNAME }}
+  PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
+  DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+  DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+  SSH_KEY: ${{ secrets.SSH_KEY }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+jobs:
+  test-cargo:
+    runs-on:
+      - self-hosted
+    container:
+      image: rust:1.81.0
+    timeout-minutes: 60
+    env:
+      CARGO_HOME: "${{ github.workspace }}/.cargo"
+    steps:
+    - uses: actions/checkout@v4.1.0
+      with:
+        fetch-depth: 50
+        lfs: false
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - run: rustc --version && cargo --version
+    - run: cargo test --workspace --verbose
