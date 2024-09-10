@@ -2,6 +2,7 @@ name: danielcherubini/tugbot-rs
 on:
   push:
   workflow_dispatch:
+
 concurrency:
   group: "${{ github.ref }}"
   cancel-in-progress: true
@@ -16,65 +17,41 @@ env:
 jobs:
   deploy:
     name: Deploy
+    if: startsWith(github.ref, 'refs/tags')
+    environment: prod
     runs-on:
       - self-hosted
     steps:
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: false
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: test
         container:
           image: rust:1.81.0
         timeout-minutes: 60
         env:
           CARGO_HOME: "${{ github.workspace }}/.cargo"
-        steps:
-        - uses: actions/checkout@v4.1.0
-          with:
-            fetch-depth: 50
-            lfs: false
-        - uses: actions/cache@v4
-          with:
-            path: |
-              ~/.cargo/bin/
-              ~/.cargo/registry/index/
-              ~/.cargo/registry/cache/
-              ~/.cargo/git/db/
-              target/
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         - run: rustc --version && cargo --version
         - run: cargo test --workspace --verbose
       - name: Packer
         environment: prod
-        needs: test-cargo
-        runs-on:
-          - self-hosted
-        if: startsWith(github.ref, 'refs/tags')
         timeout-minutes: 60
         env:
           CARGO_HOME: "${{ github.workspace }}/.cargo"
           CI_COMMIT_TAG: "${{ github.ref_name }}"
-        steps:
-        - uses: actions/checkout@v4.1.0
-          with:
-            fetch-depth: 50
-            lfs: true
-        - name: "Set env"
-          run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-        - uses: actions/cache@v3.3.2
-          with:
-            path: |
-              ~/.cargo/bin/
-              ~/.cargo/registry/index/
-              ~/.cargo/registry/cache/
-              ~/.cargo/git/db/
-              target/
-            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         - run: packer init -upgrade packer
         - run: packer build -debug packer
       - name: Terraform
-        environment: prod
-        needs: packer
-        runs-on:
-          - self-hosted
-        if: startsWith(github.ref, 'refs/tags')
         defaults:
           run:
             working-directory: "${{ github.workspace }}/terraform"
