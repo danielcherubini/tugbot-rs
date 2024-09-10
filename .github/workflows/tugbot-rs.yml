@@ -27,7 +27,7 @@ jobs:
       with:
         fetch-depth: 50
         lfs: false
-    - uses: actions/cache@v3.3.2
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
