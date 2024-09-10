@@ -16,6 +16,7 @@ env:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+    # container: rust:1.85.0
     timeout-minutes: 180
     env:
       CARGO_HOME: "${{ github.workspace }}/.cargo"
@@ -44,8 +45,10 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Check Rust and Cargo versions
+        run: rustc --version && cargo --version
+
       - name: Run cargo tests
-        uses: docker://rust:1.85.0
         run: cargo test --workspace --verbose
 
       - name: Checkout code for packer
@@ -68,9 +71,10 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Initialize Packer and build
-        uses: docker://packer:latest
+      - name: Initialize Packer
         run: packer init -upgrade packer
+
+      - name: Build with Packer
         run: packer build -debug packer
 
       - name: Checkout code for terraform
@@ -85,11 +89,14 @@ jobs:
           path: "${{ env.TF_ROOT }}/.terraform"
           key: example-production
 
-      # - name: Change directory to Terraform root
-      #   run: cd ${{ env.TF_ROOT }}
+      - name: Change directory to Terraform root
+        run: cd ${{ env.TF_ROOT }}
 
-      - name: Terraform
-        uses: docker://terraform:latest
+      - name: Initialize Terraform
         run: terraform init
+
+      - name: Plan Terraform deployment
         run: terraform plan -out=/tmp/tfplan
+
+      - name: Apply Terraform plan
         run: terraform apply /tmp/tfplan
