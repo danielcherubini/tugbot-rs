@@ -36,6 +36,7 @@ jobs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - run: . "$HOME/.cargo/env"
     - run: rustc --version && cargo --version
     - run: cargo test --workspace --verbose
   packer:
@@ -64,6 +65,7 @@ jobs:
           ~/.cargo/git/db/
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - run: . "$HOME/.cargo/env"
     - run: packer init -upgrade packer
     - run: packer build -debug packer
   terraform:
