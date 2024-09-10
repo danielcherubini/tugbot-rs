@@ -1,7 +1,7 @@
 name: danielcherubini/tugbot-rs
 on:
-  push:
-  workflow_dispatch:
+  release:
+    types: [published]
 concurrency:
   group: "${{ github.ref }}"
   cancel-in-progress: true
