@@ -1,4 +1,4 @@
-name: danielcherubini/tugbot-rs
+name: Deploy
 on:
   release:
     types: [published]
