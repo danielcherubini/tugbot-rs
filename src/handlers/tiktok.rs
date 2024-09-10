@@ -25,13 +25,18 @@ impl TikTok {
 
     async fn fx_rewriter(url: &str) -> Option<String> {
         let re = Regex::new(r"https://((www.)?tiktok.com)/.+").unwrap();
-
+        let re_redirect = Regex::new(r"NEXT_REDIRECT;replace;(/post/\d+);").unwrap();
         match re.captures(url) {
             None => None,
             Some(caps) => match caps.get(0) {
                 None => None,
                 Some(full) => match Self::get_url(full.as_str()).await {
-                    Ok(off_tiktok) => Some(off_tiktok),
+                    Ok(off_tiktok) => match re_redirect.captures(&off_tiktok) {
+                        Some(final_url_caps) => final_url_caps
+                            .get(1)
+                            .map(|f| "https://offtiktok.com".to_owned() + f.as_str()),
+                        None => None,
+                    },
                     Err(_e) => None,
                 },
             },
@@ -39,11 +44,9 @@ impl TikTok {
     }
 
     async fn get_url(url: &str) -> Result<String> {
-        let base_url = "https://offtiktok.com/api/by_id/".to_owned();
+        let base_url = "https://offtiktok.com/api/by_url/".to_owned();
         let full_url = base_url + url;
-        let response = reqwest::get(full_url).await?.text().await;
-        println!("{:?}", response);
-        Ok("foo".to_string())
+        reqwest::get(full_url).await?.text().await
     }
 }
 
@@ -59,7 +62,7 @@ mod tests {
         .await
         {
             None => panic!(),
-            Some(url) => assert_eq!(url, "https://vm.offtiktok.com/t/7m4Kxl",),
+            Some(url) => assert_eq!(url, "https://offtiktok.com/post/6760",),
         }
     }
 }
