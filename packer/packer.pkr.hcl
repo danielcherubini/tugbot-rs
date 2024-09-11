@@ -38,7 +38,7 @@ build {
     max_retries = 5
     inline = [
       "sleep 30",
-      "sudo apt-get -y install git build-essential libpq-dev pkg-config",
+      "sudo apt-get -y install git build-essential libpq-dev pkg-config libssl-dev",
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
       ". $HOME/.cargo/env",
       "mkdir -p /usr/src/tugbot",
