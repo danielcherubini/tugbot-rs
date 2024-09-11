@@ -34,7 +34,7 @@ build {
   sources = ["source.proxmox-clone.tugbot"]
 
   provisioner "shell" {
-    pause_before = "30s"
+    pause_before = "40s"
     max_retries = 5
     inline = [
       "sleep 30",
