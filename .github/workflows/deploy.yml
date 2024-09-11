@@ -91,14 +91,17 @@ jobs:
           path: "${{ env.TF_ROOT }}/.terraform"
           key: example-production
 
-      - name: Change directory to Terraform root
-        run: cd ${{ env.TF_ROOT }}
+      # - name: Terraform
+      #   run: cd ${{ env.TF_ROOT }}
 
       - name: Initialize Terraform
+        working-directory: ${{ env.TF_ROOT }}
         run: terraform init
 
       - name: Plan Terraform deployment
+        working-directory: ${{ env.TF_ROOT }}
         run: terraform plan -out=/tmp/tfplan
 
       - name: Apply Terraform plan
+        working-directory: ${{ env.TF_ROOT }}
         run: terraform apply /tmp/tfplan
