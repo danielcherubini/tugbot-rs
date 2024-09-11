@@ -42,7 +42,7 @@ build {
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
       ". $HOME/.cargo/env",
       "mkdir -p /usr/src/tugbot",
-      "git clone https://gitlab.com/danielcherubini/tugbot-rs.git /usr/src/tugbot",
+      "git clone https://github.com/danielcherubini/tugbot-rs.git /usr/src/tugbot",
       "cd /usr/src/tugbot",
       "cargo install --path .",
       "echo 'DISCORD_TOKEN=${var.discord_token}\nAPPLICATION_ID=${var.discord_application_id}\nDATABASE_URL=${var.database_url}' > .env",
