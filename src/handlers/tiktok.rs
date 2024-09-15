@@ -1,5 +1,5 @@
+use anyhow::{anyhow, Result};
 use regex::Regex;
-use reqwest::Result;
 use serenity::{model::channel::Message, prelude::Context};
 
 pub struct TikTok;
@@ -7,8 +7,8 @@ pub struct TikTok;
 impl TikTok {
     pub async fn handler(ctx: &Context, msg: &Message) {
         match Self::fx_rewriter(&msg.content.to_owned()).await {
-            None => (),
-            Some(fixed_message) => {
+            Err(e) => println!("Error in fx_rewriter {:?}", e),
+            Ok(fixed_message) => {
                 if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
                     println!("Error supressing embeds {:?}", why);
                 }
@@ -23,27 +23,28 @@ impl TikTok {
         }
     }
 
-    async fn fx_rewriter(url: &str) -> Option<String> {
+    async fn fx_rewriter(url: &str) -> Result<String> {
         let re = Regex::new(r"https://((www.)?tiktok.com)/.+").unwrap();
         let re_redirect = Regex::new(r"NEXT_REDIRECT;replace;(/post/\d+);").unwrap();
         match re.captures(url) {
-            None => None,
+            None => Err(anyhow!("No Matches")),
             Some(caps) => match caps.get(0) {
-                None => None,
+                None => Err(anyhow!("No Match inner")),
                 Some(full) => match Self::get_url(full.as_str()).await {
                     Ok(off_tiktok) => match re_redirect.captures(&off_tiktok) {
-                        Some(final_url_caps) => final_url_caps
+                        Some(final_url_caps) => Ok(final_url_caps
                             .get(1)
-                            .map(|f| "https://offtiktok.com".to_owned() + f.as_str()),
-                        None => None,
+                            .map(|f| "https://offtiktok.com".to_owned() + f.as_str())
+                            .unwrap()),
+                        None => Err(anyhow!("No redirect regex match")),
                     },
-                    Err(_e) => None,
+                    Err(e) => Err(anyhow!("Error with request {:?}", e.to_string())),
                 },
             },
         }
     }
 
-    async fn get_url(url: &str) -> Result<String> {
+    async fn get_url(url: &str) -> reqwest::Result<String> {
         let base_url = "https://offtiktok.com/api/by_url/".to_owned();
         let full_url = base_url + url;
         reqwest::get(full_url).await?.text().await
@@ -61,8 +62,8 @@ mod tests {
         )
         .await
         {
-            None => panic!(),
-            Some(url) => assert_eq!(url, "https://offtiktok.com/post/6760",),
+            Err(e) => panic!("{:?}", e),
+            Ok(url) => assert_eq!(url, "https://offtiktok.com/post/6760",),
         }
     }
 }
