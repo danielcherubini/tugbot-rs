@@ -56,27 +56,24 @@ impl EventHandler for Handler {
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        match Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
-            Some(user) => {
-                Gulag::add_to_gulag(
-                    &ctx.http,
-                    user.guild_id as u64,
-                    user.user_id as u64,
-                    user.gulag_role_id as u64,
-                    user.gulag_length as u32,
-                    user.channel_id as u64,
-                )
-                .await;
+        if let Some(user) = Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
+            Gulag::add_to_gulag(
+                &ctx.http,
+                user.guild_id as u64,
+                user.user_id as u64,
+                user.gulag_role_id as u64,
+                user.gulag_length as u32,
+                user.channel_id as u64,
+            )
+            .await;
 
-                let message = format!("You can't escape so easly {}", member.to_string());
-                let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
-                channel
-                    .id()
-                    .send_message(ctx.http, |m| m.content(message))
-                    .await
-                    .unwrap();
-            }
-            None => {}
+            let message = format!("You can't escape so easly {}", member);
+            let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
+            channel
+                .id()
+                .send_message(ctx.http, |m| m.content(message))
+                .await
+                .unwrap();
         }
     }
 
@@ -115,14 +112,10 @@ impl EventHandler for Handler {
             {
                 Ok(()) => {
                     let res = command.get_interaction_response(&ctx.http).await.unwrap();
-                    match res.interaction.to_owned() {
-                        Some(msg) => match msg.name.as_str() {
-                            "gulag-vote" => {
-                                // GulagVoteHandler::do_followup(&ctx, &command, res).await
-                            }
-                            _ => {}
-                        },
-                        None => {}
+                    if let Some(msg) = res.interaction.to_owned() {
+                        if msg.name.as_str() == "gulag-vote" {
+                            // GulagVoteHandler::do_followup(&ctx, &command, res).await
+                        }
                     }
                 }
                 Err(why) => println!("Cannot respond to slash command: {}", why),
