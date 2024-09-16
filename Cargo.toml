@@ -1,6 +1,6 @@
 [package]
 name = "tugbot"
-version = "1.7.11"
+version = "1.7.12"
 edition = "2021"
 description = "A bot for a crappy discord"
 license = "MIT OR Apache-2.0"
