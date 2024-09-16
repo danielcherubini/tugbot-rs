@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use regex::Regex;
 use serenity::{model::channel::Message, prelude::Context};
 
@@ -6,47 +5,47 @@ pub struct TikTok;
 
 impl TikTok {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        match Self::fx_rewriter(&msg.content.to_owned()).await {
-            Err(e) => println!("Error in fx_rewriter {:?}", e),
-            Ok(fixed_message) => {
-                if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
-                    println!("Error supressing embeds {:?}", why);
-                }
-
-                println!("Suppressed Embed");
-                if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                    println!("Error Editing Message to Tweet {:?}", why);
-                }
-
-                println!("Posted Tickeytackey");
+        if let Some(fixed_message) = Self::fx_rewriter(&msg.content.to_owned()).await {
+            if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
+                println!("Error supressing embeds {:?}", why);
             }
+
+            println!("Suppressed Embed");
+            if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
+                println!("Error Editing Message to Tweet {:?}", why);
+            }
+
+            println!("Posted Tickeytackey");
         }
     }
 
-    async fn fx_rewriter(url: &str) -> Result<String> {
+    async fn fx_rewriter(url: &str) -> Option<String> {
         let re = Regex::new(r"https://((www.)?tiktok.com)/.+").unwrap();
         let re_redirect = Regex::new(r"NEXT_REDIRECT;replace;(/post/\d+);").unwrap();
+
+        // Get matches for the original tiktok url
         match re.captures(url) {
-            None => Err(anyhow!("No Matches")),
+            None => None,
             Some(caps) => match caps.get(0) {
-                None => Err(anyhow!("No Match inner")),
+                None => None,
                 Some(full) => match Self::get_url(full.as_str()).await {
                     Ok(off_tiktok) => match re_redirect.captures(&off_tiktok) {
-                        Some(final_url_caps) => Ok(final_url_caps
+                        Some(final_url_caps) => final_url_caps
                             .get(1)
-                            .map(|f| "https://offtiktok.com".to_owned() + f.as_str())
-                            .unwrap()),
-                        None => Err(anyhow!("No redirect regex match")),
+                            .map(|f| "https://offtiktok.com".to_owned() + f.as_str()),
+                        None => None,
                     },
-                    Err(e) => Err(anyhow!("Error with request {:?}", e.to_string())),
+                    Err(e) => {
+                        println!("Error with get request for tiktok {:?}", e);
+                        None
+                    }
                 },
             },
         }
     }
 
     async fn get_url(url: &str) -> reqwest::Result<String> {
-        let base_url = "https://offtiktok.com/api/by_url/".to_owned();
-        let full_url = base_url + url;
+        let full_url = url.replace("tiktok", "offtiktok");
         reqwest::get(full_url).await?.text().await
     }
 }
@@ -62,8 +61,8 @@ mod tests {
         )
         .await
         {
-            Err(e) => panic!("{:?}", e),
-            Ok(url) => assert_eq!(url, "https://offtiktok.com/post/6760",),
+            None => panic!("No URL Found"),
+            Some(url) => assert_eq!(url, "https://offtiktok.com/post/6760",),
         }
     }
 }
