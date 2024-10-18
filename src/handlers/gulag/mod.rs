@@ -36,11 +36,11 @@ pub struct Gulag;
 
 impl Gulag {
     fn send_error(err: &str) -> HandlerResponse {
-        return HandlerResponse {
+        HandlerResponse {
             content: format!("Error: {}", err),
             components: None,
             ephemeral: true,
-        };
+        }
     }
 
     pub async fn member_has_role(
@@ -49,14 +49,14 @@ impl Gulag {
         member: &Member,
         role_name: &str,
     ) -> bool {
-        match Self::find_role(&http, guildid, role_name).await {
+        match Self::find_role(http, guildid, role_name).await {
             Some(derpies_role) => {
-                for member_role in member.roles.to_owned() {
+                for member_role in member.roles.iter().copied() {
                     if member_role.0 == derpies_role.id.0 {
                         return true;
                     };
                 }
-                return false;
+                false
             }
             None => false,
         }
@@ -147,23 +147,20 @@ impl Gulag {
         messageid: u64,
         users: Option<Vec<User>>,
     ) -> Result<()> {
-        let gulag_role = Gulag::find_gulag_role(&http, guildid)
+        let gulag_role = Gulag::find_gulag_role(http, guildid)
             .await
-            .with_context(|| format!("Couldn't find gulag role"))?;
+            .with_context(|| "Couldn't find gulag role".to_string())?;
         let mut gulaglength = 300;
         let user = http.get_user(userid).await?;
-        match Self::find_role(http, guildid, "derpies").await {
-            Some(derpies_role) => {
-                if user.has_role(http, guildid, derpies_role).await? {
-                    gulaglength = 600;
-                }
+        if let Some(derpies_role) = Self::find_role(http, guildid, "derpies").await {
+            if user.has_role(http, guildid, derpies_role).await? {
+                gulaglength = 600;
             }
-            None => {}
         };
 
         let gulag_channel = Gulag::find_channel(http, guildid, "the-gulag".to_string())
             .await
-            .with_context(|| format!("Cant find gulag channel"))?;
+            .with_context(|| "Cant find gulag channel".to_string())?;
         let gulag_user = Gulag::add_to_gulag(
             http,
             guildid,
@@ -187,7 +184,7 @@ impl Gulag {
 
         let content = format!(
             "Sending {} to the Gulag for {} minutes because of this {}{}",
-            member.user.to_string(),
+            member.user,
             gulag_user.gulag_length / 60,
             msg.link(),
             user_string,
@@ -207,15 +204,15 @@ impl Gulag {
         mem.remove_role(&http, gulag_roleid).await?;
         let channel = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
             .await
-            .with_context(|| format!("Couldn't find gulag channel"))?;
-        let message = format!("Freeing {} from the gulag", mem.to_string());
+            .with_context(|| "Couldn't find gulag channel".to_string())?;
+        let message = format!("Freeing {} from the gulag", mem);
         channel.send_message(&http, |m| m.content(message)).await?;
         println!("Removed from gulag");
-        return Ok(());
+        Ok(())
     }
 
     pub fn run_gulag_check(http: &Arc<Http>) {
-        let http = Arc::clone(&http);
+        let http = Arc::clone(http);
         spawn(async move {
             let conn = &mut establish_connection();
             loop {
@@ -228,7 +225,7 @@ impl Gulag {
                     .load::<GulagUser>(conn)
                     .expect("Error loading Servers");
                 // println!("{}", results.len());
-                if results.len() > 0 {
+                if !results.is_empty() {
                     for result in results {
                         println!(
                             "It's been {} minutes, releasing {} from the gulag",
@@ -276,7 +273,7 @@ impl Gulag {
     }
 
     pub fn run_gulag_vote_check(http: &Arc<Http>) {
-        let http = Arc::clone(&http);
+        let http = Arc::clone(http);
         spawn(async move {
             let conn = &mut establish_connection();
             loop {
@@ -291,7 +288,7 @@ impl Gulag {
                     .skip_locked()
                     .load::<MessageVotes>(conn)
                     .expect("Error loading Servers");
-                if results.len() > 0 {
+                if !results.is_empty() {
                     for result in results {
                         if let Err(err) =
                             Self::gulag_check_handler(http.to_owned(), conn, &result).await
@@ -314,52 +311,64 @@ impl Gulag {
         result: &MessageVotes,
     ) -> Result<(), anyhow::Error> {
         // Set the vote to running in the database
-        let _result = diesel::update(message_votes.find(result.message_id))
+        let updated_result: MessageVotes = diesel::update(message_votes.find(result.message_id))
             .set(message_votes::job_status.eq(JobStatus::Running))
-            .execute(conn)
+            .get_result(conn)
             .with_context(|| format!("Failed to update message_vote_id {}", result.message_id))?;
 
-        println!("Updated Gulag Vote Check Item to Running");
+        if updated_result.job_status == JobStatus::Running {
+            println!("Updated Gulag Vote Check Item to Running");
+            // Remove all gulag emoji's from gulag_reaction
+            let message = http
+                .get_message(result.channel_id as u64, result.message_id as u64)
+                .await
+                .with_context(|| "Failed to get Message")?;
 
-        // Remove all gulag emoji's from gulag_reaction
-        let message = http
-            .get_message(result.channel_id as u64, result.message_id as u64)
-            .await
-            .with_context(|| "Failed to get Message")?;
+            // Iterate throught the message reactions and find the gulag type and remove it
+            for reaction in message.reactions.iter().cloned() {
+                if reaction.reaction_type.to_string().contains(":gulag") {
+                    message
+                        .delete_reaction_emoji(http.to_owned(), reaction.reaction_type)
+                        .await
+                        .with_context(|| "Failed to delete reaction emoji")?;
+                }
+            }
 
-        // Iterate throught the message reactions and find the gulag type and remove it
-        for reaction in message.reactions.to_owned() {
-            if reaction.reaction_type.to_string().contains(":gulag") {
-                message
-                    .delete_reaction_emoji(http.to_owned(), reaction.reaction_type)
-                    .await
-                    .with_context(|| "Failed to delete reaction emoji")?;
+            // send to gulag and message
+            Gulag::send_to_gulag_and_message(
+                &http,
+                updated_result.guild_id as u64,
+                updated_result.user_id as u64,
+                updated_result.channel_id as u64,
+                updated_result.message_id as u64,
+                None,
+            )
+            .await?;
+
+            // Done the vote from the database
+            let done_result: MessageVotes =
+                diesel::update(message_votes.find(updated_result.message_id))
+                    .set(
+                        (
+                            message_votes::job_status.eq(JobStatus::Done),
+                            message_votes::total_vote_tally
+                                .eq(updated_result.current_vote_tally
+                                    + updated_result.total_vote_tally),
+                            message_votes::current_vote_tally.eq(0),
+                        ),
+                    )
+                    .get_result(conn)
+                    .with_context(|| {
+                        format!(
+                            "failed to done message_vote_id {}",
+                            updated_result.message_id
+                        )
+                    })?;
+
+            if done_result.job_status == JobStatus::Done {
+                println!("Updated Gulag Vote Check Item to Done");
             }
         }
-
-        // send to gulag and message
-        Gulag::send_to_gulag_and_message(
-            &http,
-            result.guild_id as u64,
-            result.user_id as u64,
-            result.channel_id as u64,
-            result.message_id as u64,
-            None,
-        )
-        .await?;
-
-        // Done the vote from the database
-        let _result = diesel::update(message_votes.find(result.message_id))
-            .set((
-                message_votes::job_status.eq(JobStatus::Done),
-                message_votes::total_vote_tally
-                    .eq(result.current_vote_tally + result.total_vote_tally),
-                message_votes::current_vote_tally.eq(0),
-            ))
-            .execute(conn)
-            .with_context(|| format!("failed to done message_vote_id {}", result.message_id))?;
-
-        println!("Updated Gulag Vote Check Item to Done");
 
         Ok(())
     }
@@ -370,7 +379,7 @@ impl Gulag {
             .filter(gulag_users::user_id.eq(userid as i64))
             .load::<GulagUser>(conn)
             .expect("Error loading Servers");
-        if results.len() > 0 {
+        if !results.is_empty() {
             let user = results.first().unwrap();
             Some(GulagUser {
                 id: user.id,
