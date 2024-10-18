@@ -43,6 +43,7 @@ pub fn send_to_gulag(
     gulag_role_id: i64,
     gulag_length: i32,
     channel_id: i64,
+    message_id: i64,
 ) -> GulagUser {
     let time_now = SystemTime::now();
     let gulag_duration = Duration::from_secs(gulag_length as u64);
@@ -57,6 +58,7 @@ pub fn send_to_gulag(
         gulag_length,
         created_at: time_now,
         release_at: release_time,
+        message_id,
     };
 
     diesel::insert_into(gulag_users::table)

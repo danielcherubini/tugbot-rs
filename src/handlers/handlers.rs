@@ -1,5 +1,4 @@
 use super::{
-    derpies::Derpies,
     elon::Elon,
     gulag::{
         gulag_handler::GulagHandler,
@@ -40,7 +39,6 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        // Derpies::message_handler(&ctx, &msg).await;
         Elon::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         TikTok::handler(&ctx, &msg).await;
@@ -48,7 +46,6 @@ impl EventHandler for Handler {
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
-        Derpies::reaction_add_handler(&ctx, &add_reaction).await;
     }
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
@@ -56,27 +53,25 @@ impl EventHandler for Handler {
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        match Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
-            Some(user) => {
-                Gulag::add_to_gulag(
-                    &ctx.http,
-                    user.guild_id as u64,
-                    user.user_id as u64,
-                    user.gulag_role_id as u64,
-                    user.gulag_length as u32,
-                    user.channel_id as u64,
-                )
-                .await;
+        if let Some(user) = Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
+            Gulag::add_to_gulag(
+                &ctx.http,
+                user.guild_id as u64,
+                user.user_id as u64,
+                user.gulag_role_id as u64,
+                user.gulag_length as u32,
+                user.channel_id as u64,
+                0,
+            )
+            .await;
 
-                let message = format!("You can't escape so easly {}", member.to_string());
-                let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
-                channel
-                    .id()
-                    .send_message(ctx.http, |m| m.content(message))
-                    .await
-                    .unwrap();
-            }
-            None => {}
+            let message = format!("You can't escape so easly {}", member);
+            let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
+            channel
+                .id()
+                .send_message(ctx.http, |m| m.content(message))
+                .await
+                .unwrap();
         }
     }
 
@@ -115,14 +110,10 @@ impl EventHandler for Handler {
             {
                 Ok(()) => {
                     let res = command.get_interaction_response(&ctx.http).await.unwrap();
-                    match res.interaction.to_owned() {
-                        Some(msg) => match msg.name.as_str() {
-                            "gulag-vote" => {
-                                // GulagVoteHandler::do_followup(&ctx, &command, res).await
-                            }
-                            _ => {}
-                        },
-                        None => {}
+                    if let Some(msg) = res.interaction.to_owned() {
+                        if msg.name.as_str() == "gulag-vote" {
+                            // GulagVoteHandler::do_followup(&ctx, &command, res).await
+                        }
                     }
                 }
                 Err(why) => println!("Cannot respond to slash command: {}", why),

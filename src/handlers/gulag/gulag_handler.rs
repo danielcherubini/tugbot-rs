@@ -47,7 +47,7 @@ impl GulagHandler {
         let user_options = command
             .data
             .options
-            .get(0)
+            .first()
             .expect("Expected user option")
             .resolved
             .as_ref()
@@ -78,21 +78,17 @@ impl GulagHandler {
 
         if let CommandDataOptionValue::User(user, _member) = user_options {
             match command.guild_id {
-                None => {
-                    return HandlerResponse {
-                        content: "no member".to_string(),
+                None => HandlerResponse {
+                    content: "no member".to_string(),
+                    components: None,
+                    ephemeral: false,
+                },
+                Some(guildid) => match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
+                    None => HandlerResponse {
+                        content: "couldn't find gulag role".to_string(),
                         components: None,
                         ephemeral: false,
-                    }
-                }
-                Some(guildid) => match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
-                    None => {
-                        return HandlerResponse {
-                            content: "couldn't find gulag role".to_string(),
-                            components: None,
-                            ephemeral: false,
-                        }
-                    }
+                    },
                     Some(gulag_role) => {
                         let gulag_user = Gulag::add_to_gulag(
                             &ctx.http,
@@ -101,42 +97,43 @@ impl GulagHandler {
                             *gulag_role.id.as_u64(),
                             gulaglength as u32,
                             channelid,
+                            0,
                         )
                         .await;
 
                         if let CommandDataOptionValue::String(reason) = reason_options {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes, because {}",
-                                user.to_string(),
+                                user,
                                 gulag_user.gulag_length / 60,
                                 reason,
                             );
-                            return HandlerResponse {
+                            HandlerResponse {
                                 content,
                                 components: None,
                                 ephemeral: false,
-                            };
+                            }
                         } else {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes",
-                                user.to_string(),
+                                user,
                                 gulag_user.gulag_length / 60,
                             );
-                            return HandlerResponse {
+                            HandlerResponse {
                                 content,
                                 components: None,
                                 ephemeral: false,
-                            };
+                            }
                         }
                     }
                 },
             }
         } else {
-            return HandlerResponse {
+            HandlerResponse {
                 content: "Please provide a valid user".to_string(),
                 components: None,
                 ephemeral: false,
-            };
-        };
+            }
+        }
     }
 }

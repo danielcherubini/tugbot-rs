@@ -42,36 +42,33 @@ impl GulagMessageCommandHandler {
             command.user.id.0,
         ) {
             Ok(message_vote) => {
-                let content;
-                match message_vote.response_type {
+                let content = match message_vote.response_type {
                     MessageVoteHanderResponseType::ADDED => {
-                        content = format!(
+                        format!(
                             "A gulag vote has been added to {}\nThere are now {} unique votes total",
                             message.link(),
                             message_vote.content.current_vote_tally
-                        );
+                        )
                     }
                     MessageVoteHanderResponseType::REMOVED => {
-                        content = format!(
+                        format!(
                             "A gulag vote has been removed from {}\nThere are now {} unique votes total",
                             message.link(),
                             message_vote.content.current_vote_tally
                         )
                     }
-                }
-                return HandlerResponse {
+                };
+                HandlerResponse {
                     content,
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
-            Err(err) => {
-                return HandlerResponse {
-                    content: err.to_string(),
-                    components: None,
-                    ephemeral: true,
-                };
-            }
-        };
+            Err(err) => HandlerResponse {
+                content: err.to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        }
     }
 }

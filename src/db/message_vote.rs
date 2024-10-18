@@ -31,11 +31,13 @@ impl MessageVoteHandler {
             .first(conn)
             .optional();
 
+        println!("{:?}", message);
         match message {
             Ok(Some(mut message)) => {
                 // Check if the voter_id has already voted
-                if message.voters.contains(&Some(voter_id as i64)) {
-                    return Err(anyhow!("You have already Voted"));
+                if message.current_vote_tally < 6 && message.voters.contains(&Some(voter_id as i64))
+                {
+                    Err(anyhow!("You have already Voted"))
                 } else {
                     message.voters.push(Some(voter_id as i64));
                     message.current_vote_tally += 1;
@@ -96,7 +98,7 @@ impl MessageVoteHandler {
             Ok(Some(mut message)) => {
                 // Check if the voter_id has already voted
                 if !message.voters.contains(&Some(voter_id as i64)) {
-                    return Err(anyhow!("Not Found in Database"));
+                    Err(anyhow!("Not Found in Database"))
                 } else {
                     let index = message
                         .voters
@@ -104,7 +106,11 @@ impl MessageVoteHandler {
                         .position(|x| *x == Some(voter_id as i64))
                         .unwrap();
                     message.voters.remove(index);
-                    message.current_vote_tally -= 1;
+                    if message.current_vote_tally == 0 {
+                        message.current_vote_tally = 0;
+                    } else {
+                        message.current_vote_tally -= 1;
+                    }
                     match diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                         .set((
                             message_votes::current_vote_tally.eq(message.current_vote_tally),

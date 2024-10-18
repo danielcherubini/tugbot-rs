@@ -23,13 +23,11 @@ impl GulagListHandler {
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
         match command.guild_id {
-            None => {
-                return HandlerResponse {
-                    content: "no member".to_string(),
-                    components: None,
-                    ephemeral: false,
-                }
-            }
+            None => HandlerResponse {
+                content: "no member".to_string(),
+                components: None,
+                ephemeral: false,
+            },
             Some(_guildid) => {
                 let conn = &mut establish_connection();
                 let gulagusers = gulag_users
@@ -53,12 +51,12 @@ impl GulagListHandler {
                     ));
                 }
                 let content = format!("Here are the users in the Gulag:{}", userlist);
-                return HandlerResponse {
+                HandlerResponse {
                     content,
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
-        };
+        }
     }
 }

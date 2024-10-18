@@ -17,6 +17,7 @@ diesel::table! {
         gulag_length -> Int4,
         created_at -> Timestamp,
         release_at -> Timestamp,
+        message_id -> Int8,
     }
 }
 
@@ -43,10 +44,10 @@ diesel::table! {
         channel_id -> Int8,
         guild_id -> Int8,
         user_id -> Int8,
-        current_vote_tally -> Int4,
+        total_vote_tally -> Int4,
         voters -> Array<Nullable<Int8>>,
         job_status -> JobStatus,
-        total_vote_tally -> Int4,
+        current_vote_tally -> Int4,
     }
 }
 
