@@ -61,6 +61,7 @@ impl EventHandler for Handler {
                 user.gulag_role_id as u64,
                 user.gulag_length as u32,
                 user.channel_id as u64,
+                0,
             )
             .await;
 

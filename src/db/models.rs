@@ -32,6 +32,7 @@ pub struct GulagUser {
     pub gulag_length: i32,
     pub created_at: SystemTime,
     pub release_at: SystemTime,
+    pub message_id: i64,
 }
 
 #[derive(Insertable)]
@@ -45,6 +46,7 @@ pub struct NewGulagUser {
     pub gulag_length: i32,
     pub created_at: SystemTime,
     pub release_at: SystemTime,
+    pub message_id: i64,
 }
 
 #[derive(Queryable, Selectable)]

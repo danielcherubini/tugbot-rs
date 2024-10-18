@@ -35,7 +35,8 @@ impl MessageVoteHandler {
         match message {
             Ok(Some(mut message)) => {
                 // Check if the voter_id has already voted
-                if message.voters.contains(&Some(voter_id as i64)) {
+                if message.current_vote_tally < 6 && message.voters.contains(&Some(voter_id as i64))
+                {
                     Err(anyhow!("You have already Voted"))
                 } else {
                     message.voters.push(Some(voter_id as i64));

@@ -97,6 +97,7 @@ impl GulagHandler {
                             *gulag_role.id.as_u64(),
                             gulaglength as u32,
                             channelid,
+                            0,
                         )
                         .await;
 

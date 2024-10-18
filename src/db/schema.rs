@@ -17,7 +17,7 @@ diesel::table! {
         gulag_length -> Int4,
         created_at -> Timestamp,
         release_at -> Timestamp,
-        remod -> Bool,
+        message_id -> Int8,
     }
 }
 

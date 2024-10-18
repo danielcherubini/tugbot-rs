@@ -115,6 +115,7 @@ impl Gulag {
         gulag_roleid: u64,
         gulaglength: u32,
         channelid: u64,
+        messageid: u64,
     ) -> GulagUser {
         let mut mem = http.get_member(guildid, userid).await.unwrap();
         mem.add_role(http, RoleId(gulag_roleid)).await.unwrap();
@@ -135,6 +136,7 @@ impl Gulag {
                 gulag_roleid as i64,
                 gulaglength as i32,
                 channelid as i64,
+                messageid as i64,
             ),
         }
     }
@@ -162,6 +164,7 @@ impl Gulag {
             gulag_role.id.0,
             gulaglength,
             gulag_channel.id.0,
+            messageid,
         )
         .await;
 
@@ -246,20 +249,25 @@ impl Gulag {
                                     .expect("delete user");
                                 println!("Removed from database");
 
-                                // Done the vote from the database
-                                let done_result: MessageVotes =
-                                    diesel::update(message_votes.find(result.message_id))
+                                if result.message_id != 0 {
+                                    // Done the vote from the database
+                                    let done_result: MessageVotes =
+                                        diesel::update(message_votes.filter(
+                                            message_votes::message_id.eq(result.message_id),
+                                        ))
                                         .set(message_votes::job_status.eq(JobStatus::Done))
                                         .get_result(conn)
                                         .with_context(|| {
                                             format!(
                                                 "failed to done message_vote_id {}",
-                                                updated_result.message_id
+                                                result.message_id
                                             )
-                                        })?;
+                                        })
+                                        .unwrap();
 
-                                if done_result.job_status == JobStatus::Done {
-                                    println!("Updated Gulag Vote Check Item to Done");
+                                    if done_result.job_status == JobStatus::Done {
+                                        println!("Updated Gulag Vote Check Item to Done");
+                                    }
                                 }
                             }
                             Err(why) => match why.to_string().as_str() {
@@ -292,7 +300,7 @@ impl Gulag {
                     .eq(JobStatus::Created)
                     .or(message_votes::job_status.eq(JobStatus::Done));
                 let results = message_votes
-                    .filter(message_votes::current_vote_tally.ge(1))
+                    .filter(message_votes::current_vote_tally.ge(5))
                     .filter(job_status_predicate)
                     .for_update()
                     .skip_locked()
@@ -381,6 +389,7 @@ impl Gulag {
                 created_at: user.created_at,
                 in_gulag: user.in_gulag,
                 release_at: user.release_at,
+                message_id: user.message_id,
             })
         } else {
             None
