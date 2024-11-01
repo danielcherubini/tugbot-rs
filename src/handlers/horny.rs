@@ -3,7 +3,7 @@ use serenity::{
     model::application::interaction::application_command::ApplicationCommandInteraction,
 };
 
-use super::{handlers::HandlerResponse, nickname::fix_nickname};
+use super::{eventhandlers::HandlerResponse, nickname::fix_nickname};
 
 pub struct Horny;
 

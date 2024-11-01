@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::db::schema::gulag_users::dsl::*;
 use crate::db::{establish_connection, models::GulagUser};
-use crate::handlers::handlers::HandlerResponse;
+use crate::handlers::eventhandlers::HandlerResponse;
 use diesel::*;
 use serenity::{
     builder::CreateApplicationCommand, client::Context,

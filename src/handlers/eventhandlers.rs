@@ -1,5 +1,4 @@
 use super::{
-    elon::Elon,
     gulag::{
         gulag_handler::GulagHandler,
         gulag_list_handler::GulagListHandler,
@@ -10,6 +9,7 @@ use super::{
     },
     horny::Horny,
     phony::Phony,
+    teh::Teh,
     tiktok::TikTok,
     twitter::Twitter,
 };
@@ -39,7 +39,7 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        Elon::handler(&ctx, &msg).await;
+        Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         TikTok::handler(&ctx, &msg).await;
     }
