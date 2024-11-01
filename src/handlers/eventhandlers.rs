@@ -10,7 +10,6 @@ use super::{
     horny::Horny,
     phony::Phony,
     teh::Teh,
-    tiktok::TikTok,
     twitter::Twitter,
 };
 use crate::tugbot::servers::Servers;
@@ -41,7 +40,7 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
-        TikTok::handler(&ctx, &msg).await;
+        //TikTok::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
