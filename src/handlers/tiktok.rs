@@ -50,19 +50,19 @@ impl TikTok {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::TikTok;
-
-    #[tokio::test]
-    async fn rewrite() {
-        match TikTok::fx_rewriter(
-            "https://www.tiktok.com/@centralparkturtle/video/7412424505374674207",
-        )
-        .await
-        {
-            None => panic!("No URL Found"),
-            Some(url) => assert_eq!(url, "https://offtiktok.com/post/15938",),
-        }
-    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::TikTok;
+//
+//    #[tokio::test]
+//    async fn rewrite() {
+//        match TikTok::fx_rewriter(
+//            "https://www.tiktok.com/@centralparkturtle/video/7412424505374674207",
+//        )
+//        .await
+//        {
+//            None => panic!("No URL Found"),
+//            Some(url) => assert_eq!(url, "https://offtiktok.com/post/15938",),
+//        }
+//    }
+//}

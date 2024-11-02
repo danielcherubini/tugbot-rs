@@ -3,7 +3,7 @@ use crate::{
         establish_connection,
         message_vote::{MessageVoteHanderResponseType, MessageVoteHandler},
     },
-    handlers::handlers::HandlerResponse,
+    handlers::eventhandlers::HandlerResponse,
 };
 use serenity::{
     builder::CreateApplicationCommand,

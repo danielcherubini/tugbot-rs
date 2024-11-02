@@ -1,10 +1,11 @@
 // pub mod elkmen;
 pub mod derpies;
 pub mod elon;
+pub mod eventhandlers;
 pub mod gulag;
-pub mod handlers;
 pub mod horny;
 pub mod nickname;
 pub mod phony;
+pub mod teh;
 pub mod tiktok;
 pub mod twitter;

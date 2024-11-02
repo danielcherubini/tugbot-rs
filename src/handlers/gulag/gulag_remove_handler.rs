@@ -1,6 +1,6 @@
 use super::Gulag;
 use crate::db::{establish_connection, schema::gulag_users::dsl::*};
-use crate::handlers::handlers::HandlerResponse;
+use crate::handlers::eventhandlers::HandlerResponse;
 use diesel::*;
 use serenity::{
     builder::CreateApplicationCommand,
