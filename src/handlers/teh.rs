@@ -6,7 +6,7 @@ use serenity::{
 pub struct Teh;
 impl Teh {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if msg.content.contains("teh") {
+        if msg.content.to_lowercase().contains("teh") {
             // React with "🇹"
             if let Err(why) = msg.react(ctx, ReactionType::Unicode("🇹".to_string())).await {
                 println!("Error reacting with emoji T: {:?}", why);
