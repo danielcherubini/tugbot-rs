@@ -13,20 +13,14 @@ env:
   DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
   SSH_KEY: ${{ secrets.SSH_KEY }}
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
 jobs:
-  build-and-deploy:
+  test:
     runs-on: self-hosted
     # container: rust:1.85.0
-    timeout-minutes: 180
+    timeout-minutes: 30
     env:
       CARGO_HOME: "${{ github.workspace }}/.cargo"
-      TF_ROOT: "${{ github.workspace }}/terraform"
-      TF_VAR_pm_api_url: "${{ secrets.PROXMOX_URL }}"
-      TF_VAR_pm_api_token_id: "${{ secrets.PROXMOX_USERNAME }}"
-      TF_VAR_pm_api_token_secret: "${{ secrets.PROXMOX_TOKEN }}"
-      TF_VAR_ssh_key: "${{ secrets.SSH_KEY }}"
-      TF_VAR_tag_version: "${{ github.ref_name }}"
-      CI_COMMIT_TAG: "${{ github.ref_name }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.0
@@ -53,7 +47,12 @@ jobs:
       - name: Run cargo tests
         run: cargo test --workspace --verbose
 
-      - name: Checkout code for packer
+  build:
+    runs-on: self-hosted
+    needs: test
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
         uses: actions/checkout@v4.1.0
         with:
           fetch-depth: 50
@@ -62,7 +61,7 @@ jobs:
       - name: Set environment variables
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-      - name: Cache cargo for packer
+      - name: Cache cargo
         uses: actions/cache@v3.3.2
         with:
           path: |
@@ -79,7 +78,20 @@ jobs:
       - name: Build with Packer
         run: packer build -debug packer
 
-      - name: Checkout code for terraform
+  deploy:
+    runs-on: self-hosted
+    needs: build
+    timeout-minutes: 60
+    env:
+      TF_ROOT: "${{ github.workspace }}/terraform"
+      TF_VAR_pm_api_url: "${{ secrets.PROXMOX_URL }}"
+      TF_VAR_pm_api_token_id: "${{ secrets.PROXMOX_USERNAME }}"
+      TF_VAR_pm_api_token_secret: "${{ secrets.PROXMOX_TOKEN }}"
+      TF_VAR_ssh_key: "${{ secrets.SSH_KEY }}"
+      TF_VAR_tag_version: "${{ github.ref_name }}"
+      CI_COMMIT_TAG: "${{ github.ref_name }}"
+    steps:
+      - name: Checkout code
         uses: actions/checkout@v4.1.0
         with:
           fetch-depth: 50
@@ -90,9 +102,6 @@ jobs:
         with:
           path: "${{ env.TF_ROOT }}/.terraform"
           key: example-production
-
-      # - name: Terraform
-      #   run: cd ${{ env.TF_ROOT }}
 
       - name: Initialize Terraform
         working-directory: ${{ env.TF_ROOT }}
