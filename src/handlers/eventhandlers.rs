@@ -9,7 +9,6 @@ use super::{
     },
     horny::Horny,
     phony::Phony,
-    teh::Teh,
     twitter::Twitter,
 };
 use crate::tugbot::servers::Servers;
@@ -38,7 +37,7 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        Teh::handler(&ctx, &msg).await;
+        //Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
     }
