@@ -51,6 +51,14 @@ jobs:
     runs-on: self-hosted
     needs: test
     timeout-minutes: 30
+    env:
+      TF_ROOT: "${{ github.workspace }}/terraform"
+      TF_VAR_pm_api_url: "${{ secrets.PROXMOX_URL }}"
+      TF_VAR_pm_api_token_id: "${{ secrets.PROXMOX_USERNAME }}"
+      TF_VAR_pm_api_token_secret: "${{ secrets.PROXMOX_TOKEN }}"
+      TF_VAR_ssh_key: "${{ secrets.SSH_KEY }}"
+      TF_VAR_tag_version: "${{ github.ref_name }}"
+      CI_COMMIT_TAG: "${{ github.ref_name }}"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.0
