@@ -1,4 +1,5 @@
 use super::{
+    bsky::Bsky,
     gulag::{
         gulag_handler::GulagHandler,
         gulag_list_handler::GulagListHandler,
@@ -40,6 +41,7 @@ impl EventHandler for Handler {
         //Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
+        Bsky::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
