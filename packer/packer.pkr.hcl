@@ -31,15 +31,14 @@ source "proxmox-iso" "tugbot" {
     bridge = "vmbr1"
   }
   node                 = "jove"
-  proxmox_url          = "https://my-proxmox.my-domain:8006/api2/json"
-  ssh_password         = "packer"
-  ssh_timeout          = "15m"
-  ssh_username         = "root"
-  template_description = "tugbot, generated on ${timestamp()}"
-  template_name        = "tugbot"
   token                = "${var.proxmox_token}"
   username             = "${var.proxmox_username}"
   proxmox_url          = "${var.proxmox_url}"
+  ssh_username         = "root"
+  ssh_password         = "packer"
+  ssh_timeout          = "15m"
+  template_description = "tugbot, generated on ${timestamp()}"
+  template_name        = "tugbot"
 
   //ssh_password            = "YOUR_PASSWORD_HERE"
   network_adapters {
