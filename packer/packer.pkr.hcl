@@ -27,7 +27,7 @@ source "proxmox-iso" "tugbot" {
   insecure_skip_tls_verify = true
   boot_iso {
     type = "scsi"
-    iso_file = "backup:iso/debian-12-8.0-amd64-netinst.iso"
+    iso_file = "backup:iso/debian-12.8.0-amd64-netinst.iso"
     unmount = true
     iso_checksum = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
   }
