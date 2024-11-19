@@ -1,43 +1,73 @@
 packer {
   required_plugins {
     proxmox = {
-      version = ">= 1.1.0"
+      version = "~> 1"
       source  = "github.com/hashicorp/proxmox"
     }
   }
 }
 
-source "proxmox-clone" "tugbot" {
-  clone_vm                 = "tugbot-base"
-  cores                    = 4
+source "proxmox-iso" "tugbot" {
+  boot_command   = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
+  boot_wait    = "10s"
+
+  disks {
+    disk_size    = "5G"
+    storage_pool = "local-lvm"
+    type         = "scsi"
+    format       = "raw"
+  }
+  efi_config {
+    efi_storage_pool  = "local-lvm"
+    efi_type          = "4m"
+    pre_enrolled_keys = true
+  }
+
+  http_directory      = "packer/config"
   insecure_skip_tls_verify = true
-  memory                   = 4096
+  boot_iso {
+    type = "scsi"
+    iso_file = "backup:iso/debian-12.8.0-amd64-netinst.iso"
+    unmount = true
+    iso_checksum = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
+  }
+
   network_adapters {
     bridge = "vmbr1"
   }
+
   node                 = "jove"
-  onboot               = true
-  os                   = "l26"
   proxmox_url          = "${var.proxmox_url}"
-  token                = "${var.proxmox_token}"
   username             = "${var.proxmox_username}"
-  qemu_agent           = true
-  sockets              = 1
+  token                = "${var.proxmox_token}"
   ssh_username         = "root"
-  template_description = "image made from cloud-init image"
-  template_name        = "${local.template_name}"
- }
+  ssh_password         = "packer"
+  ssh_timeout          = "15m"
+  template_description = "tugbot, generated on ${timestamp()}"
+  template_name        = "tugbot-base"
+
+  vm_name              = "tugbot-base"
+  vm_id                = 1000
+
+  cores = 2
+  memory = "2048"
+}
 
 build {
   description = "Tugbot template build"
 
-  sources = ["source.proxmox-clone.tugbot"]
+  sources = ["source.proxmox-iso.tugbot"]
 
   provisioner "shell" {
     max_retries = 5
     inline = [
+      "apt-get -y install git build-essential libpq-dev pkg-config libssl-dev curl",
+      "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
+      ". $HOME/.cargo/env",
+      "mkdir -p /usr/src/tugbot",
+      "git config --global http.sslVerify false",
+      "git clone https://github.com/danielcherubini/tugbot-rs.git /usr/src/tugbot",
       "cd /usr/src/tugbot",
-      "git pull",
       "cargo install --path .",
       "echo 'DISCORD_TOKEN=${var.discord_token}\nAPPLICATION_ID=${var.discord_application_id}\nDATABASE_URL=${var.database_url}' > .env",
       "cp systemd/tugbot.service /etc/systemd/system",
