@@ -59,11 +59,9 @@ build {
   sources = ["source.proxmox-iso.tugbot"]
 
   provisioner "shell" {
-    pause_before = "40s"
     max_retries = 5
     inline = [
-      "sleep 30",
-      "apt-get -y install git build-essential libpq-dev pkg-config libssl-dev",
+      "apt-get -y install git build-essential libpq-dev pkg-config libssl-dev curl",
       "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
       ". $HOME/.cargo/env",
       "mkdir -p /usr/src/tugbot",
