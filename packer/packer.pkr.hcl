@@ -13,12 +13,12 @@ source "proxmox-iso" "tugbot" {
 
   disks {
     disk_size    = "5G"
-    storage_pool = "nfs-nox"
+    storage_pool = "local-lvm"
     type         = "scsi"
-    format       = "raw"
+    format       = "qcow"
   }
   efi_config {
-    efi_storage_pool  = "nfs-nox"
+    efi_storage_pool  = "local-lvm"
     efi_type          = "4m"
     pre_enrolled_keys = true
   }
