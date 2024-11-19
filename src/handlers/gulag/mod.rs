@@ -1,6 +1,6 @@
 use super::eventhandlers::HandlerResponse;
 use crate::db::{
-    add_time_to_gulag, establish_connection,
+    add_time_to_gulag, establish_connection, message_vote,
     models::{GulagUser, JobStatus, MessageVotes},
     schema::{
         gulag_users::{self, dsl::*},
@@ -329,12 +329,14 @@ impl Gulag {
         result: &MessageVotes,
     ) -> Result<(), anyhow::Error> {
         // Set the vote to running in the database
+        let empty_vec: Vec<i64> = vec![];
         let updated_result: MessageVotes = diesel::update(message_votes.find(result.message_id))
             .set((
                 message_votes::job_status.eq(JobStatus::Running),
                 message_votes::total_vote_tally
                     .eq(result.current_vote_tally + result.total_vote_tally),
                 message_votes::current_vote_tally.eq(0),
+                message_votes::voters.eq(empty_vec),
             ))
             .get_result(conn)
             .with_context(|| format!("Failed to update message_vote_id {}", result.message_id))?;
