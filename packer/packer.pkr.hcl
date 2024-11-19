@@ -23,7 +23,7 @@ source "proxmox-iso" "tugbot" {
     pre_enrolled_keys = true
   }
 
-  http_directory      = "config"
+  http_directory      = "http"
   insecure_skip_tls_verify = true
   boot_iso {
     type = "scsi"
