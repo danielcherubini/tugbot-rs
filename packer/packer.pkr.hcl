@@ -22,35 +22,33 @@ source "proxmox-iso" "tugbot" {
     efi_type          = "4m"
     pre_enrolled_keys = true
   }
-
-  http_directory      = "http"
-  insecure_skip_tls_verify = true
   boot_iso {
     type = "scsi"
     iso_file = "backup:iso/debian-12.8.0-amd64-netinst.iso"
     unmount = true
     iso_checksum = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
   }
-
   network_adapters {
     bridge = "vmbr1"
   }
 
-  node                 = "jove"
-  proxmox_url          = "${var.proxmox_url}"
-  username             = "${var.proxmox_username}"
-  token                = "${var.proxmox_token}"
-  ssh_username         = "root"
-  ssh_password         = "packer"
-  ssh_timeout          = "15m"
-  template_description = "tugbot, generated on ${timestamp()}"
-  template_name        = "tugbot"
 
-  vm_name              = "tugbot-packer"
-  vm_id                = 110
-
-  cores = 2
-  memory = "2048"
+  http_directory           = "packer/config"
+  insecure_skip_tls_verify = true
+  node                     = "jove"
+  proxmox_url              = "${var.proxmox_url}"
+  username                 = "${var.proxmox_username}"
+  token                    = "${var.proxmox_token}"
+  ssh_username             = "root"
+  ssh_password             = "packer"
+  ssh_timeout              = "15m"
+  template_description     = "tugbot, generated on ${timestamp()}"
+  template_name            = "tugbot-base"
+  qemu_agent               = true
+  cloud_init               = true
+  cloud_init_storage_pool  = var.storage_pool
+  cores                    = 4
+  memory                   = "4096"
 }
 
 build {
@@ -74,5 +72,11 @@ build {
       "systemctl daemon-reload",
       "systemctl enable tugbot.service"
     ]
+  }
+
+  # Copy default cloud-init config
+  provisioner "file" {
+    destination = "/etc/cloud/cloud.cfg"
+    source      = "packer/config/cloud.cfg"
   }
 }
