@@ -8,7 +8,7 @@ packer {
 }
 
 source "proxmox-iso" "tugbot" {
-  boot_command = ["<up><tab> ip=dhcp inst.cmdline inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter>"]
+  boot_command   = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
   boot_wait    = "10s"
 
   disks {
