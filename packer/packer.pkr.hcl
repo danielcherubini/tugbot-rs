@@ -27,8 +27,6 @@ source "proxmox-iso" "tugbot" {
   insecure_skip_tls_verify = true
   boot_iso {
     type = "scsi"
-    memory = "2048"
-    cores = 2
     iso_file = "backup:iso/debian-12.8.0-amd64-netinst.iso"
     unmount = true
     iso_checksum = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
@@ -47,6 +45,9 @@ source "proxmox-iso" "tugbot" {
   template_description = "tugbot, generated on ${timestamp()}"
   template_name        = "tugbot"
 
+  cores = 2
+  memory = "2048"
+  
   network_adapters {
     bridge = "vmbr1"
   }
