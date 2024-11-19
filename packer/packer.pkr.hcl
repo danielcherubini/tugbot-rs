@@ -15,7 +15,7 @@ source "proxmox-iso" "tugbot" {
     disk_size    = "5G"
     storage_pool = "local-lvm"
     type         = "scsi"
-    format       = "qcow"
+    format       = "raw"
   }
   efi_config {
     efi_storage_pool  = "local-lvm"
