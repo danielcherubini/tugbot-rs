@@ -35,6 +35,7 @@ source "proxmox-iso" "tugbot" {
   network_adapters {
     bridge = "vmbr1"
   }
+
   node                 = "jove"
   proxmox_url          = "${var.proxmox_url}"
   username             = "${var.proxmox_username}"
@@ -47,10 +48,6 @@ source "proxmox-iso" "tugbot" {
 
   cores = 2
   memory = "2048"
-  
-  network_adapters {
-    bridge = "vmbr1"
-  }
 }
 
 build {
