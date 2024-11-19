@@ -7,31 +7,33 @@ packer {
   }
 }
 
-source "proxmox-clone" "tugbot" {
-  clone_vm                 = "debian-11"
-  cores                    = 4
-  insecure_skip_tls_verify = true
-  memory                   = 4096
+source "proxmox-iso" "tugbot" {
+  iso_storage             = "local"
+  iso_url                 = "http://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.8.0-amd64-netinst.iso"
+  iso_checksum            = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
+  iso_checksum_type       = "sha256"
+  vm_name                 = "tugbot"
+  node                    = "jove"
+  storage_pool            = "local-lvm"
+  cores                   = 4
+  memory                  = 4096
+  ssh_username            = "root"
+  //ssh_password            = "YOUR_PASSWORD_HERE"
   network_adapters {
     bridge = "vmbr1"
   }
-  node                 = "jove"
-  onboot               = true
-  os                   = "l26"
-  proxmox_url          = "${var.proxmox_url}"
-  token                = "${var.proxmox_token}"
-  username             = "${var.proxmox_username}"
-  qemu_agent           = true
-  sockets              = 1
-  ssh_username         = "root"
-  template_description = "image made from cloud-init image"
-  template_name        = "${local.template_name}"
- }
+  proxmox_url             = "${var.proxmox_url}"
+  token                   = "${var.proxmox_token}"
+  username                = "${var.proxmox_username}"
+  os                      = "l26"
+  qemu_agent              = true
+  insecure_skip_tls_verify = true
+}
 
 build {
   description = "Tugbot template build"
 
-  sources = ["source.proxmox-clone.tugbot"]
+  sources = ["source.proxmox-iso.tugbot"]
 
   provisioner "shell" {
     pause_before = "40s"

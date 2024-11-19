@@ -13,14 +13,15 @@ provider "proxmox" {
   pm_api_token_secret = var.pm_api_token_secret
   pm_tls_insecure     = true
 }
+
 resource "proxmox_vm_qemu" "tugbot" {
   count       = 1
   name        = "tugbot-${var.tag_version}"
   target_node = var.node.jove
-  clone       = "${var.template}-${var.tag_version}"
   agent       = 1
-  os_type     = "cloud-init"
-  cores       = 2
+  os_type     = "l26"
+  iso         = "local:iso/debian-12.8.0-amd64-netinst.iso"  # Use the correct path to your ISO
+  cores       = 1
   sockets     = 1
   cpu         = "host"
   memory      = 2048
@@ -50,4 +51,3 @@ resource "proxmox_vm_qemu" "tugbot" {
 ${var.ssh_key}
   EOF
 }
-
