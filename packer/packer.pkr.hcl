@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     proxmox = {
-      version = ">= 1.1.0"
+      version = "~> 1"
       source  = "github.com/hashicorp/proxmox"
     }
   }
@@ -28,6 +28,7 @@ source "proxmox-iso" "tugbot" {
     type = "scsi"
     iso_file = "local:iso/debian-12-8.0-amd64-netinst.iso"
     unmount = true
+    iso_checksum = "04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
   }
 
   network_adapters {
