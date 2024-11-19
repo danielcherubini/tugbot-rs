@@ -8,26 +8,43 @@ packer {
 }
 
 source "proxmox-iso" "tugbot" {
-  iso_storage             = "local"
-  iso_url                 = "http://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.8.0-amd64-netinst.iso"
-  iso_checksum            = "sha256:04396d12b0f377958a070c38a923c227832fa3b3e18ddc013936ecf492e9fbb3"
-  iso_checksum_type       = "sha256"
-  vm_name                 = "tugbot"
-  node                    = "jove"
-  storage_pool            = "local-lvm"
-  cores                   = 4
-  memory                  = 4096
-  ssh_username            = "root"
+  boot_command = ["<up><tab> ip=dhcp inst.cmdline inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter>"]
+  boot_wait    = "10s"
+
+  disks {
+    disk_size         = "5G"
+    storage_pool      = "local-lvm"
+    type              = "scsi"
+  }
+  efi_config {
+    efi_storage_pool  = "local-lvm"
+    efi_type          = "4m"
+    pre_enrolled_keys = true
+  }
+
+  http_directory      = "config"
+  insecure_skip_tls_verify = true
+  iso {
+    iso_file          = "local:iso/debian-12-8.0-amd64-netinst.iso"
+  }
+  network_adapters {
+    bridge = "vmbr1"
+  }
+  node                 = "jove"
+  proxmox_url          = "https://my-proxmox.my-domain:8006/api2/json"
+  ssh_password         = "packer"
+  ssh_timeout          = "15m"
+  ssh_username         = "root"
+  template_description = "tugbot, generated on ${timestamp()}"
+  template_name        = "tugbot"
+  token                = "${var.proxmox_token}"
+  username             = "${var.proxmox_username}"
+  proxmox_url          = "${var.proxmox_url}"
+
   //ssh_password            = "YOUR_PASSWORD_HERE"
   network_adapters {
     bridge = "vmbr1"
   }
-  proxmox_url             = "${var.proxmox_url}"
-  token                   = "${var.proxmox_token}"
-  username                = "${var.proxmox_username}"
-  os                      = "l26"
-  qemu_agent              = true
-  insecure_skip_tls_verify = true
 }
 
 build {
