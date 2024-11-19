@@ -8,7 +8,7 @@ packer {
 }
 
 source "proxmox-clone" "tugbot" {
-  clone_vm                 = "debian-11"
+  clone_vm                 = "tugbot-base"
   cores                    = 4
   insecure_skip_tls_verify = true
   memory                   = 4096
@@ -34,17 +34,10 @@ build {
   sources = ["source.proxmox-clone.tugbot"]
 
   provisioner "shell" {
-    pause_before = "40s"
     max_retries = 5
     inline = [
-      "sleep 30",
-      "sudo apt-get -y install git build-essential libpq-dev pkg-config libssl-dev",
-      "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile minimal -y",
-      ". $HOME/.cargo/env",
-      "mkdir -p /usr/src/tugbot",
-      "git config --global http.sslVerify false",
-      "git clone https://github.com/danielcherubini/tugbot-rs.git /usr/src/tugbot",
       "cd /usr/src/tugbot",
+      "git pull",
       "cargo install --path .",
       "echo 'DISCORD_TOKEN=${var.discord_token}\nAPPLICATION_ID=${var.discord_application_id}\nDATABASE_URL=${var.database_url}' > .env",
       "cp systemd/tugbot.service /etc/systemd/system",
