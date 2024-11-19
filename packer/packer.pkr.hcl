@@ -46,6 +46,9 @@ source "proxmox-iso" "tugbot" {
   template_description = "tugbot, generated on ${timestamp()}"
   template_name        = "tugbot"
 
+  vm_name              = "tugbot-packer"
+  vm_id                = 110
+
   cores = 2
   memory = "2048"
 }
