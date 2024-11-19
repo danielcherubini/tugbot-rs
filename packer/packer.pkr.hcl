@@ -24,7 +24,12 @@ source "proxmox-iso" "tugbot" {
 
   http_directory      = "config"
   insecure_skip_tls_verify = true
-  iso_file          = "local:iso/debian-12-8.0-amd64-netinst.iso"
+  boot_iso {
+    type = "scsi"
+    iso_file = "local:iso/debian-12-8.0-amd64-netinst.iso"
+    unmount = true
+  }
+
   network_adapters {
     bridge = "vmbr1"
   }
