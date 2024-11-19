@@ -12,9 +12,10 @@ source "proxmox-iso" "tugbot" {
   boot_wait    = "10s"
 
   disks {
-    disk_size         = "5G"
-    storage_pool      = "local-lvm"
-    type              = "scsi"
+    disk_size    = "5G"
+    storage_pool = "local-lvm"
+    type         = "scsi"
+    format       = "qcow"
   }
   efi_config {
     efi_storage_pool  = "local-lvm"
