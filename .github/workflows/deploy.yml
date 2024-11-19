@@ -2,6 +2,7 @@ name: Deploy
 on:
   release:
     types: [published]
+  workflow-dispatch:
 concurrency:
   group: "${{ github.ref }}"
   cancel-in-progress: true
