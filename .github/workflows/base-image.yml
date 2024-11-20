@@ -1,0 +1,92 @@
+name: Base Image
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "What version"
+        required: true
+        type: string
+concurrency:
+  group: "${{ github.ref }}"
+  cancel-in-progress: true
+env:
+  PROXMOX_URL: ${{ secrets.PROXMOX_URL }}
+  PROXMOX_USERNAME: ${{ secrets.PROXMOX_USERNAME }}
+  PROXMOX_TOKEN: ${{ secrets.PROXMOX_TOKEN }}
+  DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+  DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+  SSH_KEY: ${{ secrets.SSH_KEY }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+jobs:
+  test:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    env:
+      CARGO_HOME: "${{ github.workspace }}/.cargo"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: false
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Check Rust and Cargo versions
+        run: rustc --version && cargo --version
+
+      - name: Run cargo tests
+        run: cargo test --workspace --verbose
+
+  build:
+    runs-on: self-hosted
+    needs: test
+    timeout-minutes: 30
+    env:
+      TF_ROOT: "${{ github.workspace }}/terraform"
+      TF_VAR_pm_api_url: "${{ secrets.PROXMOX_URL }}"
+      TF_VAR_pm_api_token_id: "${{ secrets.PROXMOX_USERNAME }}"
+      TF_VAR_pm_api_token_secret: "${{ secrets.PROXMOX_TOKEN }}"
+      TF_VAR_ssh_key: "${{ secrets.SSH_KEY }}"
+      TF_VAR_tag_version: "${{ inputs.version }}"
+      CI_COMMIT_TAG: "${{ inputs.version }}"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 50
+          lfs: true
+
+      - name: Set environment variables
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+
+      - name: Cache cargo
+        uses: actions/cache@v3.3.2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Initialize Packer
+        run: packer init -upgrade packer
+      - name: Install Plugins
+        run: packer plugins install github.com/hashicorp/proxmox
+      - name: Build with Packer
+        run: packer build -debug packer
+
