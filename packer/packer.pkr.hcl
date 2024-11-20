@@ -48,9 +48,6 @@ source "proxmox-iso" "tugbot" {
   cloud_init_storage_pool  = var.storage_pool
   cores                    = 4
   memory                   = "4096"
-
-  cores = 4
-  memory = "4096"
 }
 
 build {
