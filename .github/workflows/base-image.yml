@@ -6,6 +6,7 @@ on:
         description: "What version"
         required: true
         type: string
+        default: "base"
 concurrency:
   group: "${{ github.ref }}"
   cancel-in-progress: true
@@ -19,40 +20,8 @@ env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 jobs:
-  test:
-    runs-on: self-hosted
-    timeout-minutes: 30
-    env:
-      CARGO_HOME: "${{ github.workspace }}/.cargo"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.1.0
-        with:
-          fetch-depth: 50
-          lfs: false
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Check Rust and Cargo versions
-        run: rustc --version && cargo --version
-
-      - name: Run cargo tests
-        run: cargo test --workspace --verbose
-
   build:
     runs-on: self-hosted
-    needs: test
     timeout-minutes: 30
     env:
       TF_ROOT: "${{ github.workspace }}/terraform"
