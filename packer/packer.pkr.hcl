@@ -35,7 +35,7 @@ source "proxmox-clone" "tugbot" {
 build {
   description = "Tugbot template build"
 
-  sources = ["source.proxmox-iso.tugbot"]
+  sources = ["source.proxmox-clone.tugbot"]
 
   provisioner "shell" {
     max_retries = 5
