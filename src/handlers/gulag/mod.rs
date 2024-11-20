@@ -1,6 +1,6 @@
 use super::eventhandlers::HandlerResponse;
 use crate::db::{
-    add_time_to_gulag, establish_connection, message_vote,
+    add_time_to_gulag, establish_connection,
     models::{GulagUser, JobStatus, MessageVotes},
     schema::{
         gulag_users::{self, dsl::*},
