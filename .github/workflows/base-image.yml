@@ -6,6 +6,7 @@ on:
         description: "What version"
         required: true
         type: string
+        default: "base"
 concurrency:
   group: "${{ github.ref }}"
   cancel-in-progress: true
