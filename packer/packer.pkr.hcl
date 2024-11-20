@@ -18,7 +18,6 @@ source "proxmox-clone" "tugbot" {
   }
 
   http_directory           = "packer/config"
-  insecure_skip_tls_verify = true
   node                     = "jove"
   proxmox_url              = "${var.proxmox_url}"
   username                 = "${var.proxmox_username}"
@@ -31,8 +30,6 @@ source "proxmox-clone" "tugbot" {
   qemu_agent               = true
   cloud_init               = true
   cloud_init_storage_pool  = "backup"
-  cores                    = 4
-  memory                   = "4096"
 }
 
 build {
