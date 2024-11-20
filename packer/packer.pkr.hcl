@@ -42,10 +42,10 @@ source "proxmox-iso" "tugbot" {
   ssh_password             = "packer"
   ssh_timeout              = "15m"
   template_description     = "tugbot, generated on ${timestamp()}"
-  template_name            = var.template_name
+  template_name            = local.template_name
   qemu_agent               = true
   cloud_init               = true
-  cloud_init_storage_pool  = var.storage_pool
+  cloud_init_storage_pool  = "backup"
   cores                    = 4
   memory                   = "4096"
 }
