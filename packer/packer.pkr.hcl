@@ -28,8 +28,6 @@ source "proxmox-clone" "tugbot" {
   template_description     = "tugbot, generated on ${timestamp()}"
   template_name            = local.template_name
   qemu_agent               = true
-  cloud_init               = true
-  cloud_init_storage_pool  = "backup"
 }
 
 build {
