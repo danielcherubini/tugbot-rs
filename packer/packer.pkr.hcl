@@ -1,7 +1,7 @@
 packer {
   required_plugins {
     proxmox = {
-      version = ">= 1.1.0"
+      version = "~> 1"
       source  = "github.com/hashicorp/proxmox"
     }
   }
@@ -12,26 +12,33 @@ source "proxmox-clone" "tugbot" {
   cores                    = 4
   insecure_skip_tls_verify = true
   memory                   = 4096
+
   network_adapters {
     bridge = "vmbr1"
   }
-  node                 = "jove"
-  onboot               = true
-  os                   = "l26"
-  proxmox_url          = "${var.proxmox_url}"
-  token                = "${var.proxmox_token}"
-  username             = "${var.proxmox_username}"
-  qemu_agent           = true
-  sockets              = 1
-  ssh_username         = "root"
-  template_description = "image made from cloud-init image"
-  template_name        = "${local.template_name}"
- }
+
+  http_directory           = "packer/config"
+  insecure_skip_tls_verify = true
+  node                     = "jove"
+  proxmox_url              = "${var.proxmox_url}"
+  username                 = "${var.proxmox_username}"
+  token                    = "${var.proxmox_token}"
+  ssh_username             = "root"
+  ssh_password             = "packer"
+  ssh_timeout              = "15m"
+  template_description     = "tugbot, generated on ${timestamp()}"
+  template_name            = local.template_name
+  qemu_agent               = true
+  cloud_init               = true
+  cloud_init_storage_pool  = "backup"
+  cores                    = 4
+  memory                   = "4096"
+}
 
 build {
   description = "Tugbot template build"
 
-  sources = ["source.proxmox-clone.tugbot"]
+  sources = ["source.proxmox-iso.tugbot"]
 
   provisioner "shell" {
     max_retries = 5
