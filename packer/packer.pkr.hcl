@@ -32,6 +32,22 @@ source "proxmox-iso" "tugbot" {
     bridge = "vmbr1"
   }
 
+  http_directory           = "packer/config"
+  insecure_skip_tls_verify = true
+  node                     = "jove"
+  proxmox_url              = "${var.proxmox_url}"
+  username                 = "${var.proxmox_username}"
+  token                    = "${var.proxmox_token}"
+  ssh_username             = "root"
+  ssh_password             = "packer"
+  ssh_timeout              = "15m"
+  template_description     = "tugbot, generated on ${timestamp()}"
+  template_name            = var.template_name
+  qemu_agent               = true
+  cloud_init               = true
+  cloud_init_storage_pool  = var.storage_pool
+  cores                    = 4
+  memory                   = "4096"
 
   cores = 4
   memory = "4096"
