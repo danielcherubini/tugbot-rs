@@ -1,4 +1,4 @@
-use super::eventhandlers::HandlerResponse;
+use super::HandlerResponse;
 use crate::db::{
     add_time_to_gulag, establish_connection,
     models::{GulagUser, JobStatus, MessageVotes},

@@ -7,6 +7,15 @@ pub mod sql_types {
 }
 
 diesel::table! {
+    features (id) {
+        id -> Int4,
+        #[max_length = 255]
+        name -> Varchar,
+        enabled -> Bool,
+    }
+}
+
+diesel::table! {
     gulag_users (id) {
         id -> Int4,
         user_id -> Int8,
@@ -67,6 +76,7 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    features,
     gulag_users,
     gulag_votes,
     message_votes,

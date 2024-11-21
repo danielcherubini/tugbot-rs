@@ -4,6 +4,7 @@ use diesel::{
     prelude::*,
     AsExpression, FromSqlRow,
 };
+use serde::{Deserialize, Serialize};
 use std::{io::Write, time::SystemTime};
 
 #[derive(Queryable)]
@@ -150,4 +151,12 @@ pub struct NewMessageVotes {
     pub voters: Vec<Option<i64>>,
     pub job_status: JobStatus,
     pub total_vote_tally: i32,
+}
+
+#[derive(Queryable, Insertable, Debug, Serialize, Deserialize)]
+#[diesel(table_name = features)]
+pub struct Features {
+    pub id: i32,
+    pub name: String,
+    pub enabled: bool,
 }

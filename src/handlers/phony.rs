@@ -3,7 +3,7 @@ use serenity::{
     model::application::interaction::application_command::ApplicationCommandInteraction,
 };
 
-use super::{eventhandlers::HandlerResponse, nickname::fix_nickname};
+use super::{nickname::fix_nickname, HandlerResponse};
 
 pub struct Phony;
 
@@ -30,24 +30,24 @@ impl Phony {
 
         match member.nick.as_ref() {
             Some(nick) => {
-                let new_nick = fix_nickname(nick, &prefix);
+                let new_nick = fix_nickname(nick, prefix);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return HandlerResponse {
+                HandlerResponse {
                     content: String::from("Done"),
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
             None => {
                 let name = member.display_name().to_string();
-                let new_nick = fix_nickname(&name, &prefix);
+                let new_nick = fix_nickname(&name, prefix);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return HandlerResponse {
+                HandlerResponse {
                     content: String::from("Done"),
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
         }
     }
