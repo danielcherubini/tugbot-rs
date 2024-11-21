@@ -27,14 +27,14 @@ impl Instagram {
     }
 
     fn fx_rewriter(url: &str) -> Option<String> {
-        let re = Regex::new(r"https://(instagram.com)/.+").unwrap();
+        let re = Regex::new(r"https://(www\.)?(instagram\.com)/.+").unwrap();
 
         match re.captures(url) {
             None => None,
             Some(caps) => match caps.get(0) {
                 None => None,
                 Some(full) => caps
-                    .get(1)
+                    .get(2)
                     .map(|short| full.as_str().replace(short.as_str(), "ddinstagram.com")),
             },
         }
@@ -46,11 +46,11 @@ mod tests {
     use super::Instagram;
 
     #[test]
-    fn bsky_rewrite() {
+    fn instagram_rewrite() {
         match Instagram::fx_rewriter(
             "https://www.instagram.com/reel/DCkUQSry42v/?igsh=MXNrMDFwbTEzZnFvMg==",
         ) {
-            None => assert!(false),
+            None => panic!(),
             Some(url) => assert_eq!(
                 url,
                 "https://www.ddinstagram.com/reel/DCkUQSry42v/?igsh=MXNrMDFwbTEzZnFvMg==",
