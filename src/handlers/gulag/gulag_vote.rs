@@ -49,7 +49,7 @@ impl GulagVoteHandler {
         let options = command
             .data
             .options
-            .get(0)
+            .first()
             .expect("Expected user option")
             .resolved
             .as_ref()
@@ -61,17 +61,17 @@ impl GulagVoteHandler {
             Ok(_) => {
                 if let CommandDataOptionValue::User(user, _member) = options {
                     match command.guild_id {
-                        None => return Gulag::send_error("no member"),
+                        None => Gulag::send_error("no member"),
                         Some(guildid) => {
-                            if Gulag::is_tugbot(&ctx.http, &user).await.unwrap() {
-                                return HandlerResponse {
-                                    content: format!("Sorry you can't add tugbot to the gulag"),
+                            if Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
+                                HandlerResponse {
+                                    content: "Sorry you can't add tugbot to the gulag".to_string(),
                                     components: None,
                                     ephemeral: true,
-                                };
+                                }
                             } else {
                                 match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
-                                    None => return Gulag::send_error("Couldn't find gulag role"),
+                                    None => Gulag::send_error("Couldn't find gulag role"),
                                     Some(role) => {
                                         let mem = ctx
                                             .http
@@ -87,30 +87,27 @@ impl GulagVoteHandler {
 
                                         let message = format!(
                                         "Should we add {} to the {}?\n{} you have 10 mins to vote",
-                                        mem.to_string(),
-                                        role.to_string(),
-                                        jury_duty_role.to_string(),
-                                    );
+                                        mem,
+                                        role,
+                                        jury_duty_role);
 
-                                        return HandlerResponse {
+                                        HandlerResponse {
                                             content: message,
                                             components: None,
                                             ephemeral: false,
-                                        };
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 } else {
-                    return Gulag::send_error("Please provide a valid user");
-                };
+                    Gulag::send_error("Please provide a valid user")
+                }
             }
-            Err(_) => {
-                return Gulag::send_error(
-                    "You've used the command too many times, 3 times in an hour is the max",
-                )
-            }
+            Err(_) => Gulag::send_error(
+                "You've used the command too many times, 3 times in an hour is the max",
+            ),
         }
     }
 
@@ -153,7 +150,7 @@ impl GulagVoteHandler {
         let options = command
             .data
             .options
-            .get(0)
+            .first()
             .expect("Expected user option")
             .resolved
             .as_ref()
@@ -163,7 +160,7 @@ impl GulagVoteHandler {
         let conn = &mut establish_connection();
 
         if let CommandDataOptionValue::User(user, _member) = options {
-            if !Gulag::is_tugbot(&ctx.http, &user).await.unwrap() {
+            if !Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
                 let guildid = command.guild_id.unwrap();
                 let role = Gulag::find_gulag_role(&ctx.http, guildid.0).await.unwrap();
 

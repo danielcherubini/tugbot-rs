@@ -34,7 +34,7 @@ impl GulagRemoveHandler {
         let user_options = command
             .data
             .options
-            .get(0)
+            .first()
             .expect("Expected user option")
             .resolved
             .as_ref()
@@ -42,13 +42,11 @@ impl GulagRemoveHandler {
 
         if let CommandDataOptionValue::User(user, _member) = user_options {
             match command.guild_id {
-                None => {
-                    return HandlerResponse {
-                        content: "no member".to_string(),
-                        components: None,
-                        ephemeral: true,
-                    }
-                }
+                None => HandlerResponse {
+                    content: "no member".to_string(),
+                    components: None,
+                    ephemeral: true,
+                },
                 Some(guildid) => {
                     match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
                         Some(gulag_role) => {
@@ -69,9 +67,10 @@ impl GulagRemoveHandler {
                                                 .await
                                             {
                                                 Ok(mut member) => {
-                                                    if let Err(_) = member
+                                                    if (member
                                                         .remove_role(&ctx.http, gulag_role.id.0)
-                                                        .await
+                                                        .await)
+                                                        .is_err()
                                                     {
                                                         return Gulag::send_error(
                                                             "Couldn't remove role",
@@ -80,12 +79,13 @@ impl GulagRemoveHandler {
 
                                                     let message = format!(
                                                         "Freeing {} from the gulag",
-                                                        member.to_string()
+                                                        member
                                                     );
 
-                                                    if let Err(_) = gulag_channel
+                                                    if (gulag_channel
                                                         .send_message(ctx, |m| m.content(message))
-                                                        .await
+                                                        .await)
+                                                        .is_err()
                                                     {
                                                         return Gulag::send_error(
                                                             "Couldn't Send message to release",
@@ -99,12 +99,12 @@ impl GulagRemoveHandler {
                                                     .expect("delete user");
                                                     println!("Removed from database");
 
-                                                    return HandlerResponse {
+                                                    HandlerResponse {
                                                         content: "Releasing User from the Gulag"
                                                             .to_string(),
                                                         components: None,
                                                         ephemeral: true,
-                                                    };
+                                                    }
                                                 }
                                                 Err(_) => Gulag::send_error("Couldn't get member"),
                                             }
@@ -120,11 +120,11 @@ impl GulagRemoveHandler {
                 }
             }
         } else {
-            return HandlerResponse {
+            HandlerResponse {
                 content: "Please provide a valid user".to_string(),
                 components: None,
                 ephemeral: false,
-            };
+            }
         }
     }
 }

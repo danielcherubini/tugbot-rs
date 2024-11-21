@@ -13,6 +13,7 @@ pub mod twitter;
 
 use crate::handlers::{
     bsky::Bsky,
+    feat::Feat,
     gulag::{
         gulag_handler::GulagHandler,
         gulag_list_handler::GulagListHandler,
@@ -100,6 +101,7 @@ impl EventHandler for Handler {
                 }
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
+                "feature" => Feat::setup_interaction(&command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
                     components: None,
@@ -150,7 +152,8 @@ impl EventHandler for Handler {
                     GulagMessageCommandHandler::setup_command(command)
                 });
                 c.create_application_command(|command| Horny::setup_command(command));
-                c.create_application_command(|command| Phony::setup_command(command))
+                c.create_application_command(|command| Phony::setup_command(command));
+                c.create_application_command(|command| Feat::setup_command(command))
             })
             .await;
 
