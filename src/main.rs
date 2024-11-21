@@ -1,5 +1,5 @@
 use serenity::Client;
-use tugbot::{handlers::eventhandlers::Handler, tugbot::config::Config};
+use tugbot::{handlers::Handler, tugbot::config::Config};
 
 #[tokio::main]
 async fn main() {

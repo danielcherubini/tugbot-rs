@@ -21,7 +21,7 @@ use crate::{
         new_gulag_vote,
         schema::gulag_votes::{self, dsl::*},
     },
-    handlers::eventhandlers::HandlerResponse,
+    handlers::HandlerResponse,
 };
 
 use super::Gulag;

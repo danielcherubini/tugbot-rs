@@ -1,4 +1,4 @@
-use crate::handlers::eventhandlers::HandlerResponse;
+use crate::handlers::HandlerResponse;
 use serenity::{
     builder::CreateApplicationCommand,
     client::Context,

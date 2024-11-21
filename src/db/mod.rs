@@ -1,4 +1,3 @@
-pub mod features;
 pub mod message_vote;
 pub mod models;
 pub mod schema;

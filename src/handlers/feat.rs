@@ -5,13 +5,11 @@ use serenity::{
 
 use super::{nickname::fix_nickname, HandlerResponse};
 
-pub struct Horny;
+pub struct Feat;
 
-impl Horny {
+impl Feat {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
-            .name("horny")
-            .description("Mark yourself as horny/lfg");
+        return command.name("feature").description("Toggle Feature");
     }
 
     pub async fn setup_interaction(

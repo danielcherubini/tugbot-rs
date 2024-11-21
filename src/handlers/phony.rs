@@ -3,7 +3,7 @@ use serenity::{
     model::application::interaction::application_command::ApplicationCommandInteraction,
 };
 
-use super::{eventhandlers::HandlerResponse, nickname::fix_nickname};
+use super::{nickname::fix_nickname, HandlerResponse};
 
 pub struct Phony;
 
