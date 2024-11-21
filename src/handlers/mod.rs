@@ -5,6 +5,7 @@ pub mod elon;
 pub mod feat;
 pub mod gulag;
 pub mod horny;
+pub mod instagram;
 pub mod nickname;
 pub mod phony;
 pub mod teh;
@@ -28,6 +29,7 @@ use crate::handlers::{
     twitter::Twitter,
 };
 use crate::tugbot::servers::Servers;
+use instagram::Instagram;
 use serenity::{
     async_trait,
     builder::CreateComponents,
@@ -57,6 +59,7 @@ impl EventHandler for Handler {
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
         Bsky::handler(&ctx, &msg).await;
+        Instagram::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
