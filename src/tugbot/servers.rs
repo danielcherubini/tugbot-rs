@@ -6,8 +6,8 @@ use serenity::{
     prelude::TypeMapKey,
 };
 
-use crate::db::{create_server, schema::servers::dsl::*};
-use crate::db::{establish_connection, models::Server};
+use crate::db::schema::servers::dsl::*;
+use crate::db::{db, models::Server};
 
 pub struct PostgresClient;
 impl TypeMapKey for PostgresClient {
@@ -23,7 +23,7 @@ impl Servers {
     pub async fn get_servers(ctx: &Context) -> Vec<Servers> {
         let mut serverss = Vec::new();
 
-        let connection = &mut establish_connection();
+        let connection = &mut db::establish_connection();
         let results = servers
             .load::<Server>(connection)
             .expect("Error loading Servers");
@@ -44,7 +44,7 @@ impl Servers {
                 for role in roles {
                     if role.name == "gulag" {
                         let _s =
-                            create_server(connection, guild_info.id.0 as i64, role.id.0 as i64);
+                            db::create_server(connection, guild_info.id.0 as i64, role.id.0 as i64);
                         serverss.push(Servers {
                             guild_id: guild_info.id,
                             gulag_id: role.id,

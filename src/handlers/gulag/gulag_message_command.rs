@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        establish_connection,
+        db,
         message_vote::{MessageVoteHanderResponseType, MessageVoteHandler},
     },
     handlers::HandlerResponse,
@@ -24,7 +24,7 @@ impl GulagMessageCommandHandler {
         _ctx: &serenity::client::Context,
         command: &ApplicationCommandInteraction,
     ) -> HandlerResponse {
-        let conn = &mut establish_connection();
+        let conn = &mut db::establish_connection();
         let command_data = &command.data;
         let target_id = command_data.target_id.unwrap();
         let message = command_data

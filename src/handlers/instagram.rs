@@ -1,13 +1,13 @@
 use regex::Regex;
 use serenity::{model::channel::Message, prelude::Context};
 
-use crate::features::Features;
+use crate::db::features;
 
 pub struct Instagram;
 
 impl Instagram {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if Features::is_enabled("instagram".to_string()) {
+        if features::is_enabled("instagram".to_string()) {
             match Self::fx_rewriter(&msg.content.to_owned()) {
                 None => (),
                 Some(fixed_message) => {

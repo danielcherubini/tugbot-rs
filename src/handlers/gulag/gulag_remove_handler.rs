@@ -1,5 +1,5 @@
 use super::Gulag;
-use crate::db::{establish_connection, schema::gulag_users::dsl::*};
+use crate::db::{db, schema::gulag_users::dsl::*};
 use crate::handlers::HandlerResponse;
 use diesel::*;
 use serenity::{
@@ -91,7 +91,7 @@ impl GulagRemoveHandler {
                                                             "Couldn't Send message to release",
                                                         );
                                                     };
-                                                    let conn = &mut establish_connection();
+                                                    let conn = &mut db::establish_connection();
                                                     diesel::delete(
                                                         gulag_users.filter(id.eq(db_gulag_user.id)),
                                                     )

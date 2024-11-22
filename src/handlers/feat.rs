@@ -1,3 +1,5 @@
+use super::HandlerResponse;
+use crate::db::{features, models};
 use serenity::{
     builder::CreateApplicationCommand,
     model::{
@@ -5,10 +7,6 @@ use serenity::{
         prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
     },
 };
-
-use crate::{db::models, features};
-
-use super::HandlerResponse;
 
 pub struct Feat;
 
@@ -32,7 +30,7 @@ impl Feat {
                 if let CommandDataOptionValue::String(feature_name) =
                     feature_option_value.resolved.as_ref().unwrap()
                 {
-                    match features::Features::all() {
+                    match features::all() {
                         Ok(f) => Feat::handle_feature(f, feature_name),
                         Err(e) => Feat::handle_error(e.to_string()),
                     }
@@ -40,7 +38,8 @@ impl Feat {
                     Feat::handle_error("Please provide a valid user".to_string())
                 }
             }
-            None => match features::Features::all() {
+
+            None => match features::all() {
                 Ok(features) => Feat::handle_list_features(features),
                 Err(e) => Feat::handle_error(e.to_string()),
             },
@@ -51,7 +50,7 @@ impl Feat {
         for feat in features {
             if feat.name == *feature_name {
                 println!("{:?}", feature_name);
-                features::Features::update(feat.name, !feat.enabled);
+                features::update(feat.name, !feat.enabled);
                 return HandlerResponse {
                     content: String::from("Done"),
                     components: None,

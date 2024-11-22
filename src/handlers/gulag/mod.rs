@@ -1,12 +1,11 @@
 use super::HandlerResponse;
 use crate::db::{
-    add_time_to_gulag, establish_connection,
+    db, gulag,
     models::{GulagUser, JobStatus, MessageVotes},
     schema::{
         gulag_users::{self, dsl::*},
         message_votes::{self, dsl::*},
     },
-    send_to_gulag,
 };
 use anyhow::{Context, Result};
 use diesel::*;
@@ -119,17 +118,17 @@ impl Gulag {
     ) -> GulagUser {
         let mut mem = http.get_member(guildid, userid).await.unwrap();
         mem.add_role(http, RoleId(gulag_roleid)).await.unwrap();
-        let conn = &mut establish_connection();
+        let conn = &mut db::establish_connection();
 
         match Gulag::is_user_in_gulag(userid) {
-            Some(gulag_db_user) => add_time_to_gulag(
+            Some(gulag_db_user) => gulag::add_time_to_gulag(
                 conn,
                 gulag_db_user.id,
                 gulag_db_user.gulag_length + gulaglength as i32,
                 gulaglength as i32,
                 gulag_db_user.release_at,
             ),
-            None => send_to_gulag(
+            None => gulag::send_to_gulag(
                 conn,
                 userid as i64,
                 guildid as i64,
@@ -211,7 +210,7 @@ impl Gulag {
     pub fn run_gulag_check(http: &Arc<Http>) {
         let http = Arc::clone(http);
         spawn(async move {
-            let conn = &mut establish_connection();
+            let conn = &mut db::establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
                 let results = gulag_users
@@ -293,7 +292,7 @@ impl Gulag {
     pub fn run_gulag_vote_check(http: &Arc<Http>) {
         let http = Arc::clone(http);
         spawn(async move {
-            let conn = &mut establish_connection();
+            let conn = &mut db::establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
                 let job_status_predicate = message_votes::job_status
@@ -374,7 +373,7 @@ impl Gulag {
     }
 
     pub fn is_user_in_gulag(userid: u64) -> Option<GulagUser> {
-        let conn = &mut establish_connection();
+        let conn = &mut db::establish_connection();
         let results = gulag_users
             .filter(gulag_users::user_id.eq(userid as i64))
             .load::<GulagUser>(conn)

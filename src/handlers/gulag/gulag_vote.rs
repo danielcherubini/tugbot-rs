@@ -16,9 +16,8 @@ use std::{
 
 use crate::{
     db::{
-        establish_connection,
+        db, gulag,
         models::GulagVote,
-        new_gulag_vote,
         schema::gulag_votes::{self, dsl::*},
     },
     handlers::HandlerResponse,
@@ -56,7 +55,7 @@ impl GulagVoteHandler {
             .expect("Expected user object");
 
         let requesterid = command.member.to_owned().unwrap().user.id.0;
-        let conn = &mut establish_connection();
+        let conn = &mut db::establish_connection();
         match GulagVoteHandler::gulag_spam_detection(requesterid, conn).await {
             Ok(_) => {
                 if let CommandDataOptionValue::User(user, _member) = options {
@@ -157,7 +156,7 @@ impl GulagVoteHandler {
             .expect("Expected user object");
 
         let requesterid = command.member.to_owned().unwrap().user.id.0;
-        let conn = &mut establish_connection();
+        let conn = &mut db::establish_connection();
 
         if let CommandDataOptionValue::User(user, _member) = options {
             if !Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
@@ -167,7 +166,7 @@ impl GulagVoteHandler {
                 let _r = msg.react(&ctx, '👍').await.unwrap();
                 let _r = msg.react(&ctx, '👎').await.unwrap();
 
-                let _v = new_gulag_vote(
+                let _v = gulag::new_gulag_vote(
                     conn,
                     requesterid as i64,
                     user.id.0 as i64,

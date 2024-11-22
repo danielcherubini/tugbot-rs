@@ -1,4 +1,4 @@
-use crate::db::{establish_connection, message_vote::MessageVoteHandler};
+use crate::db::{db, message_vote::MessageVoteHandler};
 use serenity::model::prelude::{Emoji, Reaction};
 
 pub struct GulagReaction;
@@ -29,7 +29,7 @@ impl GulagReaction {
                 .author
                 .id
                 .0;
-            let conn = &mut establish_connection();
+            let conn = &mut db::establish_connection();
             match reaction_type {
                 GulagReactionType::ADDED => {
                     println!("Added");

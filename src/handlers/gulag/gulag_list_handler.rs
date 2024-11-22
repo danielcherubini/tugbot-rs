@@ -1,13 +1,11 @@
-use std::time::SystemTime;
-
-use crate::db::schema::gulag_users::dsl::*;
-use crate::db::{establish_connection, models::GulagUser};
+use crate::db::{db, models::GulagUser, schema::gulag_users::dsl::*};
 use crate::handlers::HandlerResponse;
 use diesel::*;
 use serenity::{
     builder::CreateApplicationCommand, client::Context,
     model::application::interaction::application_command::ApplicationCommandInteraction,
 };
+use std::time::SystemTime;
 
 pub struct GulagListHandler;
 
@@ -29,7 +27,7 @@ impl GulagListHandler {
                 ephemeral: false,
             },
             Some(_guildid) => {
-                let conn = &mut establish_connection();
+                let conn = &mut db::establish_connection();
                 let gulagusers = gulag_users
                     .select(GulagUser::as_select())
                     .load(conn)
