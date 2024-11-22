@@ -1,5 +1,5 @@
 use serenity::Client;
-use tugbot::{handlers::Handler, tugbot::config::Config};
+use tugbot::{handlers::eventhandler, tugbot::config::Config};
 
 #[tokio::main]
 async fn main() {
@@ -9,7 +9,7 @@ async fn main() {
     // The Application Id is usually the Bot User Id.
     // Build our client.
     let mut client = Client::builder(tugbot_config.token, tugbot_config.intents)
-        .event_handler(Handler)
+        .event_handler(eventhandler::Handler)
         .application_id(tugbot_config.application_id)
         .await
         .expect("Error creating client");

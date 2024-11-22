@@ -1,19 +1,11 @@
 use super::{
-    bsky,
-    feat::Feat,
+    bsky, feat,
     gulag::{
-        gulag_handler::GulagHandler,
-        gulag_list_handler::GulagListHandler,
-        gulag_message_command::GulagMessageCommandHandler,
-        gulag_reaction::{GulagReaction, GulagReactionType},
-        gulag_remove_handler::GulagRemoveHandler,
-        Gulag,
+        gulag, gulag_handler, gulag_list_handler, gulag_message_command,
+        gulag_reaction::{self, GulagReactionType},
+        gulag_remove_handler,
     },
-    horny::Horny,
-    instagram::Instagram,
-    phony::Phony,
-    teh::Teh,
-    twitter::Twitter,
+    horny, instagram, phony, teh, twitter,
 };
 use crate::tugbot::servers::Servers;
 use serenity::{
@@ -41,24 +33,24 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        Teh::handler(&ctx, &msg).await;
-        Twitter::handler(&ctx, &msg).await;
-        //TikTok::handler(&ctx, &msg).await;
+        teh::handler(&ctx, &msg).await;
+        twitter::handler(&ctx, &msg).await;
+        //tikTok::handler(&ctx, &msg).await;
         bsky::handler(&ctx, &msg).await;
-        Instagram::handler(&ctx, &msg).await;
+        instagram::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
+        gulag_reaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
     }
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::REMOVED).await;
+        gulag_reaction::handler(&ctx, &add_reaction, GulagReactionType::REMOVED).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        if let Some(user) = Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
-            Gulag::add_to_gulag(
+        if let Some(user) = gulag::is_user_in_gulag(*member.user.id.as_u64()) {
+            gulag::add_to_gulag(
                 &ctx.http,
                 user.guild_id as u64,
                 user.user_id as u64,
@@ -82,15 +74,13 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             let handler_response = match command.data.name.as_str() {
-                "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
-                "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
-                "gulag-list" => GulagListHandler::setup_interaction(&ctx, &command).await,
-                "Add Gulag Vote" => {
-                    GulagMessageCommandHandler::setup_interaction(&ctx, &command).await
-                }
-                "phony" => Horny::setup_interaction(&ctx, &command).await,
-                "horny" => Phony::setup_interaction(&ctx, &command).await,
-                "feature" => Feat::setup_interaction(&command).await,
+                "gulag" => gulag_handler::setup_interaction(&ctx, &command).await,
+                "gulag-release" => gulag_remove_handler::setup_interaction(&ctx, &command).await,
+                "gulag-list" => gulag_list_handler::setup_interaction(&ctx, &command).await,
+                "Add Gulag Vote" => gulag_message_command::setup_interaction(&ctx, &command).await,
+                "phony" => horny::setup_interaction(&ctx, &command).await,
+                "horny" => phony::setup_interaction(&ctx, &command).await,
+                "feature" => feat::setup_interaction(&command).await,
                 _ => HandlerResponse {
                     content: "Not Implimented".to_string(),
                     components: None,
@@ -129,20 +119,22 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         let servers = Servers::get_servers(&ctx).await;
-        Gulag::run_gulag_check(&ctx.http);
-        Gulag::run_gulag_vote_check(&ctx.http);
+        gulag::run_gulag_check(&ctx.http);
+        gulag::run_gulag_vote_check(&ctx.http);
 
         for server in servers {
             let commands = GuildId::set_application_commands(&server.guild_id, &ctx.http, |c| {
-                c.create_application_command(|command| GulagHandler::setup_command(command));
-                c.create_application_command(|command| GulagRemoveHandler::setup_command(command));
-                c.create_application_command(|command| GulagListHandler::setup_command(command));
+                c.create_application_command(|command| gulag_handler::setup_command(command));
                 c.create_application_command(|command| {
-                    GulagMessageCommandHandler::setup_command(command)
+                    gulag_remove_handler::setup_command(command)
                 });
-                c.create_application_command(|command| Horny::setup_command(command));
-                c.create_application_command(|command| Phony::setup_command(command));
-                c.create_application_command(|command| Feat::setup_command(command))
+                c.create_application_command(|command| gulag_list_handler::setup_command(command));
+                c.create_application_command(|command| {
+                    gulag_message_command::setup_command(command)
+                });
+                c.create_application_command(|command| horny::setup_command(command));
+                c.create_application_command(|command| phony::setup_command(command));
+                c.create_application_command(|command| feat::setup_command(command))
             })
             .await;
 
