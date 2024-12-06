@@ -38,7 +38,7 @@ build {
   provisioner "shell" {
     max_retries = 5
     inline = [
-      "timedatectl set-timezone Europe/Oslo"
+      "timedatectl set-timezone Europe/Oslo",
       "cd /usr/src/tugbot",
       "git pull",
       "cargo install --path .",
