@@ -7,7 +7,7 @@ pub struct Bsky;
 
 impl Bsky {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if Features::is_enabled("bsky".to_string()) {
+        if Features::is_enabled("bsky") {
             match Self::fx_rewriter(&msg.content.to_owned()) {
                 None => (),
                 Some(fixed_message) => {

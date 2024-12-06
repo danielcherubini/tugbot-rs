@@ -10,7 +10,7 @@ impl Features {
             .load(&mut conn)
             .with_context(|| "Failed to get features")
     }
-    pub fn is_enabled(feature_name: String) -> bool {
+    pub fn is_enabled(feature_name: &str) -> bool {
         let mut conn = establish_connection();
         features
             .filter(name.eq(feature_name))
@@ -21,7 +21,7 @@ impl Features {
             .unwrap_or(false)
     }
 
-    pub fn update(feature_name: String, enable: bool) {
+    pub fn update(feature_name: &str, enable: bool) {
         let mut conn = establish_connection();
         diesel::update(features.filter(name.eq(feature_name)))
             .set(enabled.eq(enable))
