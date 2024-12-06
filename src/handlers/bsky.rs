@@ -1,23 +1,27 @@
 use regex::Regex;
 use serenity::{model::channel::Message, prelude::Context};
 
+use crate::features::Features;
+
 pub struct Bsky;
 
 impl Bsky {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        match Self::fx_rewriter(&msg.content.to_owned()) {
-            None => return,
-            Some(fixed_message) => {
-                if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
-                    println!("Error supressing embeds {:?}", why);
-                }
+        if Features::is_enabled("bsky".to_string()) {
+            match Self::fx_rewriter(&msg.content.to_owned()) {
+                None => (),
+                Some(fixed_message) => {
+                    if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
+                        println!("Error supressing embeds {:?}", why);
+                    }
 
-                println!("Suppressed Embed");
-                if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                    println!("Error Editing Message to Tweet {:?}", why);
-                }
+                    println!("Suppressed Embed");
+                    if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
+                        println!("Error Editing Message to Tweet {:?}", why);
+                    }
 
-                println!("Posted Tweet");
+                    println!("Posted Tweet");
+                }
             }
         }
     }
@@ -46,7 +50,7 @@ mod tests {
         match Bsky::fx_rewriter(
             "https://bsky.app/profile/radleybalko.bsky.social/post/3lb5nsfya6s2o",
         ) {
-            None => assert!(false),
+            None => panic!(),
             Some(url) => assert_eq!(
                 url,
                 "https://bsyy.app/profile/radleybalko.bsky.social/post/3lb5nsfya6s2o",
