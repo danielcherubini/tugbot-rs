@@ -51,12 +51,8 @@ impl Feat {
         for feat in features {
             if feat.name == *feature_name {
                 println!("{:?}", feature_name);
-                features::Features::update(feat.name, !feat.enabled);
-                return HandlerResponse {
-                    content: String::from("Done"),
-                    components: None,
-                    ephemeral: true,
-                };
+                features::Features::update(&feat.name, !feat.enabled);
+                return Self::handle_list_features(features::Features::all().unwrap());
             }
         }
 

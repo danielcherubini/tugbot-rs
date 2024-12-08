@@ -7,7 +7,7 @@ pub struct Instagram;
 
 impl Instagram {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if Features::is_enabled("instagram".to_string()) {
+        if Features::is_enabled("instagram") {
             match Self::fx_rewriter(&msg.content.to_owned()) {
                 None => (),
                 Some(fixed_message) => {

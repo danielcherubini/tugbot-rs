@@ -1,21 +1,25 @@
 use regex::Regex;
 use serenity::{model::channel::Message, prelude::Context};
 
+use crate::features::Features;
+
 pub struct TikTok;
 
 impl TikTok {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if let Some(fixed_message) = Self::fx_rewriter(&msg.content.to_owned()).await {
-            if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
-                println!("Error supressing embeds {:?}", why);
-            }
+        if Features::is_enabled("tiktok") {
+            if let Some(fixed_message) = Self::fx_rewriter(&msg.content.to_owned()).await {
+                if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
+                    println!("Error supressing embeds {:?}", why);
+                }
 
-            println!("Suppressed Embed");
-            if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                println!("Error Editing Message to Tweet {:?}", why);
-            }
+                println!("Suppressed Embed");
+                if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
+                    println!("Error Editing Message to Tweet {:?}", why);
+                }
 
-            println!("Posted Tickeytackey");
+                println!("Posted Tickeytackey");
+            }
         }
     }
 
