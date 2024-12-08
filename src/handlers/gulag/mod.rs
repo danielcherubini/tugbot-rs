@@ -329,15 +329,8 @@ impl Gulag {
         result: &MessageVotes,
     ) -> Result<(), anyhow::Error> {
         // Set the vote to running in the database
-        let empty_vec: Vec<i64> = vec![];
         let updated_result: MessageVotes = diesel::update(message_votes.find(result.message_id))
-            .set((
-                message_votes::job_status.eq(JobStatus::Running),
-                message_votes::total_vote_tally
-                    .eq(result.current_vote_tally + result.total_vote_tally),
-                message_votes::current_vote_tally.eq(0),
-                message_votes::voters.eq(empty_vec),
-            ))
+            .set(message_votes::job_status.eq(JobStatus::Running))
             .get_result(conn)
             .with_context(|| format!("Failed to update message_vote_id {}", result.message_id))?;
         if updated_result.job_status == JobStatus::Running {
@@ -359,7 +352,7 @@ impl Gulag {
             }
 
             // send to gulag and message
-            Gulag::send_to_gulag_and_message(
+            return match Gulag::send_to_gulag_and_message(
                 &http,
                 updated_result.guild_id as u64,
                 updated_result.user_id as u64,
@@ -367,7 +360,28 @@ impl Gulag {
                 updated_result.message_id as u64,
                 None,
             )
-            .await?;
+            .await
+            {
+                Ok(()) => {
+                    println!("OK done with sending to gulag, now setting it to done");
+                    let empty_vec: Vec<i64> = vec![];
+                    let _updated_result: MessageVotes =
+                        diesel::update(message_votes.find(result.message_id))
+                            .set((
+                                message_votes::job_status.eq(JobStatus::Done),
+                                message_votes::total_vote_tally
+                                    .eq(result.current_vote_tally + result.total_vote_tally),
+                                message_votes::current_vote_tally.eq(0),
+                                message_votes::voters.eq(empty_vec),
+                            ))
+                            .get_result(conn)
+                            .with_context(|| {
+                                format!("Failed to update message_vote_id {}", result.message_id)
+                            })?;
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            };
         }
 
         Ok(())
