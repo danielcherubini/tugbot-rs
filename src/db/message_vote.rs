@@ -40,7 +40,7 @@ impl MessageVoteHandler {
                     Err(anyhow!("You have already Voted"))
                 } else {
                     message.voters.push(Some(voter_id as i64));
-                    current_vote_tally = message.current_vote_tally + 1;
+                    let current_vote_tally: i32 = message.current_vote_tally + 1;
                     match diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                         .set((
                             message_votes::current_vote_tally.eq(current_vote_tally),
