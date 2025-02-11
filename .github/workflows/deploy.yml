@@ -86,7 +86,7 @@ jobs:
       - name: Install Plugins
         run: packer plugins install github.com/hashicorp/proxmox
       - name: Build with Packer
-        run: packer build -debug packer
+        run: packer build packer
 
   deploy:
     runs-on: self-hosted
