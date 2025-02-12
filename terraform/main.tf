@@ -2,7 +2,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "telmate/proxmox"
-      version = "3.0.1-rc6"
+      version = "2.9.14"
     }
   }
 }
@@ -31,12 +31,11 @@ resource "proxmox_vm_qemu" "tugbot" {
     size     = "30G"
     type     = "scsi"
     storage  = "local-lvm"
-    iothread = true
+    iothread = 1
     backup   = true
   }
 
   network {
-    id     = 0
     model  = "virtio"
     bridge = "vmbr1"
   }
