@@ -31,11 +31,12 @@ resource "proxmox_vm_qemu" "tugbot" {
     size     = "30G"
     type     = "scsi"
     storage  = "local-lvm"
-    iothread = 1
+    iothread = true
     backup   = true
   }
 
   network {
+    id     = 0
     model  = "virtio"
     bridge = "vmbr1"
   }
