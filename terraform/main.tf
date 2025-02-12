@@ -32,7 +32,6 @@ resource "proxmox_vm_qemu" "tugbot" {
     type     = "scsi"
     storage  = "local-lvm"
     iothread = 1
-    backup   = true
   }
 
   network {
