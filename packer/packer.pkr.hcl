@@ -9,7 +9,7 @@ packer {
 
 source "proxmox-clone" "tugbot" {
   clone_vm                 = "tugbot-base"
-  cores                    = 4
+  cores                    = 8
   insecure_skip_tls_verify = true
   memory                   = 4096
 
