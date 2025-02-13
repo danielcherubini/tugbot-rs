@@ -26,12 +26,26 @@ resource "proxmox_vm_qemu" "tugbot" {
   memory      = 2048
   scsihw      = "virtio-scsi-single"
   bootdisk    = "scsi0"
-  disk {
-    slot     = 0
-    size     = "30G"
-    type     = "scsi"
-    storage  = "local-lvm"
-    iothread = 1
+
+  disks {
+      ide {
+          ide3 {
+              cloudinit {
+                  storage = "local-lvm"
+              }
+          }
+      }
+      scsi {
+          scsi0 {
+              disk {
+                  size            = 32
+                  storage         = "local-lvm"
+                  storage_type    = "scsi"
+                  iothread        = true
+                  discard         = true
+              }
+          }
+      }
   }
 
   network {
