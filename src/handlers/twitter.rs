@@ -35,7 +35,7 @@ impl Twitter {
                 None => None,
                 Some(full) => caps
                     .get(1)
-                    .map(|short| full.as_str().replace(short.as_str(), "vxtwitter.com")),
+                    .map(|short| full.as_str().replace(short.as_str(), "girlcockx.com")),
             },
         }
     }
@@ -51,7 +51,7 @@ mod tests {
             None => panic!(),
             Some(url) => assert_eq!(
                 url,
-                "https://vxtwitter.com/davidbcooper/status/1684840110259404802",
+                "https://girlcockx.com/davidbcooper/status/1684840110259404802",
             ),
         }
     }
@@ -62,7 +62,7 @@ mod tests {
             None => assert!(false),
             Some(url) => assert_eq!(
                 url,
-                "https://vxtwitter.com/davidbcooper/status/1684840110259404802",
+                "https://girlcockx.com/davidbcooper/status/1684840110259404802",
             ),
         }
     }
