@@ -75,7 +75,7 @@ impl Greasy {
     pub fn has_enough_dents(reactions: &[MessageReaction]) -> bool {
         let count: u64 = reactions
             .iter()
-            .filter(|r| r.reaction_type.to_string() == DENTHEAD || r.me)
+            .filter(|r| r.reaction_type.to_string() == DENTHEAD)
             .map(|r| r.count)
             .sum();
         count > MAX_HEADDENTS
