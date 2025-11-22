@@ -35,7 +35,7 @@ impl Instagram {
                 None => None,
                 Some(full) => caps
                     .get(2)
-                    .map(|short| full.as_str().replace(short.as_str(), "ddinstagram.com")),
+                    .map(|short| full.as_str().replace(short.as_str(), "kkinstagram.com")),
             },
         }
     }
@@ -53,7 +53,7 @@ mod tests {
             None => panic!(),
             Some(url) => assert_eq!(
                 url,
-                "https://www.ddinstagram.com/reel/DCkUQSry42v/?igsh=MXNrMDFwbTEzZnFvMg==",
+                "https://www.kkinstagram.com/reel/DCkUQSry42v/?igsh=MXNrMDFwbTEzZnFvMg==",
             ),
         }
     }
