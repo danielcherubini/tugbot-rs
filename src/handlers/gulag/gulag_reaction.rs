@@ -21,15 +21,26 @@ impl GulagReaction {
             let guild_id = add_reaction.guild_id.unwrap().0;
             let channel_id = add_reaction.channel_id.0;
 
-            let user_id = ctx
-                .http
-                .get_message(channel_id, message_id)
-                .await
-                .unwrap()
-                .author
-                .id
-                .0;
             let conn = &mut establish_connection();
+
+            // Try to get user_id from database first (avoid API call for existing votes)
+            let user_id = match MessageVoteHandler::get_user_id_from_message(conn, message_id) {
+                Some(id) => {
+                    // User ID found in database, no need to fetch message
+                    id
+                }
+                None => {
+                    // First reaction on this message, fetch from Discord
+                    match ctx.http.get_message(channel_id, message_id).await {
+                        Ok(message) => message.author.id.0,
+                        Err(e) => {
+                            eprintln!("Failed to fetch message {}: {}", message_id, e);
+                            return;
+                        }
+                    }
+                }
+            };
+
             match reaction_type {
                 GulagReactionType::ADDED => {
                     println!("Added");
