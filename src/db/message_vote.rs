@@ -33,6 +33,58 @@ impl MessageVoteHandler {
             .map(|id| id as u64)
     }
 
+    /// Sync message vote data from Discord reactions (source of truth)
+    /// Takes the actual list of voters from Discord and updates the database
+    pub fn sync_from_discord(
+        conn: &mut PgConnection,
+        message_id: u64,
+        guild_id: u64,
+        channel_id: u64,
+        user_id: u64,
+        voters: Vec<i64>,
+    ) -> Result<MessageVotes> {
+        let current_vote_tally = voters.len() as i32;
+        let voters_option: Vec<Option<i64>> = voters.into_iter().map(Some).collect();
+
+        let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
+            .find(message_id as i64)
+            .select(MessageVotes::as_select())
+            .first(conn)
+            .optional();
+
+        match message {
+            Ok(Some(existing)) => {
+                // Update existing entry with Discord data
+                diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
+                    .set((
+                        message_votes::current_vote_tally.eq(current_vote_tally),
+                        message_votes::voters.eq(voters_option),
+                    ))
+                    .get_result(conn)
+                    .map_err(|e| anyhow!("Failed to update vote from Discord: {}", e))
+            }
+            Ok(None) => {
+                // Create new entry with Discord data
+                let new_message_vote = NewMessageVotes {
+                    message_id: message_id as i64,
+                    channel_id: channel_id as i64,
+                    guild_id: guild_id as i64,
+                    user_id: user_id as i64,
+                    current_vote_tally,
+                    total_vote_tally: 0,
+                    voters: voters_option,
+                    job_status: JobStatus::Created,
+                };
+                diesel::insert_into(message_votes::table)
+                    .values(&new_message_vote)
+                    .returning(MessageVotes::as_returning())
+                    .get_result(conn)
+                    .map_err(|e| anyhow!("Failed to create vote from Discord: {}", e))
+            }
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn message_vote_create_or_update(
         conn: &mut PgConnection,
         message_id: u64,
@@ -51,8 +103,7 @@ impl MessageVoteHandler {
         match message {
             Ok(Some(mut message)) => {
                 // Check if the voter_id has already voted
-                if message.current_vote_tally < 6 && message.voters.contains(&Some(voter_id as i64))
-                {
+                if message.voters.contains(&Some(voter_id as i64)) {
                     Err(anyhow!("You have already Voted"))
                 } else {
                     message.voters.push(Some(voter_id as i64));
