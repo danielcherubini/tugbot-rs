@@ -180,10 +180,11 @@ impl Gulag {
         }
 
         let content = format!(
-            "Sending {} to the Gulag for {} minutes because of this {}{}",
+            "Sending {} to the Gulag for {} minutes because of {}, they have {} minutes remaining{}",
             member.user,
-            gulag_user.gulag_length / 60,
+            gulaglength / 60,
             msg.link(),
+            gulag_user.gulag_length / 60,
             user_string,
         );
 
