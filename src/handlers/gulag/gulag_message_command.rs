@@ -31,12 +31,26 @@ impl GulagMessageCommandHandler {
 
         let conn = &mut establish_connection();
         let command_data = &command.data;
-        let target_id = command_data.target_id.unwrap();
-        let message = command_data
+
+        let Some(target_id) = command_data.target_id else {
+            return HandlerResponse {
+                content: "No target message found.".to_string(),
+                components: None,
+                ephemeral: true,
+            };
+        };
+
+        let Some(message) = command_data
             .resolved
             .messages
             .get(&serenity::model::prelude::MessageId::new(target_id.get()))
-            .unwrap();
+        else {
+            return HandlerResponse {
+                content: "Could not resolve target message.".to_string(),
+                components: None,
+                ephemeral: true,
+            };
+        };
 
         let Some(guild_id) = command.guild_id else {
             return HandlerResponse {

@@ -68,7 +68,9 @@ impl GulagVoteHandler {
                         .get(user_id)
                         .expect("User not found");
 
-                    if Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
+                    let is_tugbot = Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false);
+
+                    if is_tugbot {
                         HandlerResponse {
                             content: "Sorry you can't add tugbot to the gulag".to_string(),
                             components: None,
@@ -78,7 +80,14 @@ impl GulagVoteHandler {
                         match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
                             None => Gulag::send_error("Couldn't find gulag role"),
                             Some(role) => {
-                                let mem = ctx.http.get_member(guildid, user.id).await.unwrap();
+                                let mem = match ctx.http.get_member(guildid, user.id).await {
+                                    Ok(m) => m,
+                                    Err(_) => {
+                                        return Gulag::send_error(
+                                            "Could not find member in server",
+                                        );
+                                    }
+                                };
 
                                 let jury_duty_role = match GulagVoteHandler::find_jury_duty_role(
                                     &ctx.http,
