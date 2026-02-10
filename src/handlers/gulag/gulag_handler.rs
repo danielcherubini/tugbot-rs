@@ -97,7 +97,7 @@ impl GulagHandler {
                         ephemeral: false,
                     },
                     Some(gulag_role) => {
-                        let gulag_user = Gulag::add_to_gulag(
+                        let gulag_user = match Gulag::add_to_gulag(
                             &ctx.http,
                             &pool,
                             super::GulagParams {
@@ -109,7 +109,17 @@ impl GulagHandler {
                                 messageid: 0,
                             },
                         )
-                        .await;
+                        .await
+                        {
+                            Ok(u) => u,
+                            Err(e) => {
+                                return HandlerResponse {
+                                    content: format!("Failed to send to gulag: {}", e),
+                                    components: None,
+                                    ephemeral: true,
+                                };
+                            }
+                        };
 
                         if let CommandDataOptionValue::String(reason) = reason_options {
                             let content = format!(

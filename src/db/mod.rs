@@ -52,14 +52,22 @@ pub fn establish_connection() -> PgConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn create_server(pool: &DbPool, guild_id: i64, gulag_id: i64) -> Server {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+pub fn create_server(
+    pool: &DbPool,
+    guild_id: i64,
+    gulag_id: i64,
+) -> Result<Server, diesel::result::Error> {
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     let new_server = NewServer { guild_id, gulag_id };
 
     diesel::insert_into(servers::table)
         .values(&new_server)
         .get_result(&mut conn)
-        .expect("Error saving new server")
 }
 
 pub fn send_to_gulag(
@@ -70,8 +78,13 @@ pub fn send_to_gulag(
     gulag_length: i32,
     channel_id: i64,
     message_id: i64,
-) -> GulagUser {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+) -> Result<GulagUser, diesel::result::Error> {
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     let time_now = SystemTime::now();
     let gulag_duration = Duration::from_secs(gulag_length as u64);
     let release_time = time_now.add(gulag_duration);
@@ -92,7 +105,6 @@ pub fn send_to_gulag(
     diesel::insert_into(gulag_users::table)
         .values(&new_user)
         .get_result(&mut conn)
-        .expect("Error saving new User")
 }
 
 pub fn add_time_to_gulag(
@@ -101,8 +113,13 @@ pub fn add_time_to_gulag(
     gulag_length: i32,
     gulag_duration: i32,
     release_at: SystemTime,
-) -> GulagUser {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+) -> Result<GulagUser, diesel::result::Error> {
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     let gulag_duration = Duration::from_secs(gulag_duration as u64);
     let new_release_time = release_at.add(gulag_duration);
     diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
@@ -111,7 +128,6 @@ pub fn add_time_to_gulag(
             gulag_users::release_at.eq(new_release_time),
         ))
         .get_result(&mut conn)
-        .expect("Error saving new User")
 }
 
 pub fn new_gulag_vote(
@@ -122,8 +138,13 @@ pub fn new_gulag_vote(
     gulag_role_id: i64,
     message_id: i64,
     channel_id: i64,
-) -> GulagVote {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+) -> Result<GulagVote, diesel::result::Error> {
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     let new_gulag_vote = NewGulagVote {
         requester_id,
         sender_id,
@@ -138,7 +159,6 @@ pub fn new_gulag_vote(
     diesel::insert_into(gulag_votes::table)
         .values(&new_gulag_vote)
         .get_result(&mut conn)
-        .expect("Error saving new gulag vote")
 }
 
 pub fn get_or_create_ai_slop_usage(
@@ -146,7 +166,12 @@ pub fn get_or_create_ai_slop_usage(
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     use self::ai_slop_usage::dsl::*;
 
     // Try to get existing record
@@ -179,7 +204,12 @@ pub fn increment_ai_slop_usage(
     usage_id: i32,
     new_count: i32,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     use self::ai_slop_usage::dsl::*;
 
     diesel::update(ai_slop_usage.find(usage_id))
@@ -195,7 +225,12 @@ pub fn atomic_increment_ai_slop(
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<i32, diesel::result::Error> {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+    let mut conn = pool.get().map_err(|e| {
+        diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::UnableToSendCommand,
+            Box::new(e.to_string()),
+        )
+    })?;
     use diesel::sql_types::Integer;
 
     // Upsert: insert with count=1 or increment existing
@@ -223,7 +258,7 @@ pub fn atomic_increment_ai_slop(
 }
 
 pub fn get_server_by_guild_id(pool: &DbPool, target_guild_id: i64) -> Option<Server> {
-    let mut conn = pool.get().expect("Failed to get database connection from pool");
+    let mut conn = pool.get().ok()?;
     use self::servers::dsl::*;
 
     servers

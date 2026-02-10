@@ -184,7 +184,7 @@ impl GulagVoteHandler {
                 let _r = msg.react(&ctx, '👍').await.unwrap();
                 let _r = msg.react(&ctx, '👎').await.unwrap();
 
-                let _v = new_gulag_vote(
+                if let Err(e) = new_gulag_vote(
                     &pool,
                     requesterid as i64,
                     user_id.get() as i64,
@@ -192,7 +192,9 @@ impl GulagVoteHandler {
                     role.id.get() as i64,
                     msg.id.get() as i64,
                     msg.channel_id.get() as i64,
-                );
+                ) {
+                    eprintln!("Failed to create gulag vote: {}", e);
+                }
             }
         }
     }
@@ -212,13 +214,21 @@ impl GulagVoteHandler {
     }
 
     async fn gulag_spam_detection(requesterid: u64, pool: &DbPool) -> Result<()> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow::anyhow!("Failed to get database connection: {}", e))?;
         let yesterday = SystemTime::now() - Duration::from_secs(3600);
         let results = gulag_votes
             .filter(gulag_votes::created_at.between(yesterday, SystemTime::now()))
             .filter(gulag_votes::requester_id.eq(requesterid as i64))
             .load::<GulagVote>(&mut conn)
-            .expect("Error loading Servers");
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Error loading GulagVote records for spam detection (user {}): {}",
+                    requesterid,
+                    e
+                )
+            })?;
 
         if results.len() > 3 {
             bail!("Spam detected")

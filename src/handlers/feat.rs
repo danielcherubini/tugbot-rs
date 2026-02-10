@@ -53,7 +53,9 @@ impl Feat {
     ) -> HandlerResponse {
         for feat in features {
             if feat.name == *feature_name {
-                features::Features::update(pool, &feat.name, !feat.enabled);
+                if let Err(e) = features::Features::update(pool, &feat.name, !feat.enabled) {
+                    return Self::handle_error(format!("Failed to update feature: {}", e));
+                }
                 return match features::Features::all(pool) {
                     Ok(f) => Self::handle_list_features(f),
                     Err(e) => Self::handle_error(e.to_string()),

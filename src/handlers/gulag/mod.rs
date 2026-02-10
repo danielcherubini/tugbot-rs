@@ -118,14 +118,18 @@ impl Gulag {
         }
     }
 
-    pub async fn add_to_gulag(http: &Arc<Http>, pool: &DbPool, params: GulagParams) -> GulagUser {
+    pub async fn add_to_gulag(
+        http: &Arc<Http>,
+        pool: &DbPool,
+        params: GulagParams,
+    ) -> Result<GulagUser> {
         let mem = http
             .get_member(params.guildid.into(), params.userid.into())
             .await
-            .unwrap();
+            .with_context(|| "Failed to get guild member")?;
         mem.add_role(http, RoleId::new(params.gulag_roleid))
             .await
-            .unwrap();
+            .with_context(|| "Failed to add gulag role")?;
 
         match Gulag::is_user_in_gulag(pool, params.userid) {
             Some(gulag_db_user) => add_time_to_gulag(
@@ -134,7 +138,8 @@ impl Gulag {
                 gulag_db_user.gulag_length + params.gulaglength as i32,
                 params.gulaglength as i32,
                 gulag_db_user.release_at,
-            ),
+            )
+            .with_context(|| "Failed to add time to gulag"),
             None => send_to_gulag(
                 pool,
                 params.userid as i64,
@@ -143,7 +148,8 @@ impl Gulag {
                 params.gulaglength as i32,
                 params.channelid as i64,
                 params.messageid as i64,
-            ),
+            )
+            .with_context(|| "Failed to send user to gulag"),
         }
     }
 
@@ -176,7 +182,8 @@ impl Gulag {
                 messageid,
             },
         )
-        .await;
+        .await
+        .with_context(|| "Failed to add user to gulag")?;
 
         let msg = http.get_message(channelid.into(), messageid.into()).await?;
         let member = http.get_member(guildid.into(), userid.into()).await?;

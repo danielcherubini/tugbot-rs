@@ -87,7 +87,7 @@ impl EventHandler for Handler {
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
         let pool = get_pool(&ctx).await;
         if let Some(user) = Gulag::is_user_in_gulag(&pool, member.user.id.get()) {
-            Gulag::add_to_gulag(
+            if let Err(e) = Gulag::add_to_gulag(
                 &ctx.http,
                 &pool,
                 gulag::GulagParams {
@@ -99,7 +99,10 @@ impl EventHandler for Handler {
                     messageid: 0,
                 },
             )
-            .await;
+            .await
+            {
+                eprintln!("Failed to re-add user to gulag on rejoin: {}", e);
+            }
 
             let message = format!("You can't escape so easily {}", member);
             if let Ok(channel) = ctx.http.get_channel((user.channel_id as u64).into()).await {

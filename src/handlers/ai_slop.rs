@@ -152,7 +152,7 @@ impl AiSlopHandler {
         let duration_seconds = Self::calculate_duration(current_count);
 
         // Send to gulag
-        let _gulag_result = Gulag::add_to_gulag(
+        if let Err(e) = Gulag::add_to_gulag(
             &ctx.http,
             &pool,
             crate::handlers::gulag::GulagParams {
@@ -164,7 +164,15 @@ impl AiSlopHandler {
                 messageid: target_message.id.get(),
             },
         )
-        .await;
+        .await
+        {
+            eprintln!("Failed to send user to gulag: {}", e);
+            return HandlerResponse {
+                content: format!("Error: Failed to send to gulag: {}", e),
+                components: None,
+                ephemeral: true,
+            };
+        }
 
         // Only increment if gulag succeeded
         // Use atomic increment to prevent race conditions

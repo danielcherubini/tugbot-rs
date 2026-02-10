@@ -48,15 +48,18 @@ impl Servers {
 
                 for role in roles {
                     if role.name == "gulag" {
-                        let _s = create_server(
-                            pool,
-                            guild_info.id.get() as i64,
-                            role.id.get() as i64,
-                        );
-                        serverss.push(Servers {
-                            guild_id: guild_info.id,
-                            gulag_id: role.id,
-                        });
+                        match create_server(pool, guild_info.id.get() as i64, role.id.get() as i64)
+                        {
+                            Ok(_) => {
+                                serverss.push(Servers {
+                                    guild_id: guild_info.id,
+                                    gulag_id: role.id,
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to create server in DB: {}", e);
+                            }
+                        }
                     }
                 }
             }
