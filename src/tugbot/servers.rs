@@ -3,16 +3,9 @@ use serenity::{
     client::Context,
     http::GuildPagination,
     model::id::{GuildId, RoleId},
-    prelude::TypeMapKey,
 };
 
-use crate::db::{create_server, schema::servers::dsl::*};
-use crate::db::{establish_connection, models::Server};
-
-pub struct PostgresClient;
-impl TypeMapKey for PostgresClient {
-    type Value = diesel::r2d2::ConnectionManager<diesel::pg::PgConnection>;
-}
+use crate::db::{create_server, models::Server, schema::servers::dsl::*, DbPool};
 
 pub struct Servers {
     pub guild_id: GuildId,
@@ -20,12 +13,12 @@ pub struct Servers {
 }
 
 impl Servers {
-    pub async fn get_servers(ctx: &Context) -> Vec<Servers> {
+    pub async fn get_servers(ctx: &Context, pool: &DbPool) -> Vec<Servers> {
         let mut serverss = Vec::new();
 
-        let connection = &mut establish_connection();
+        let mut connection = pool.get().expect("Failed to get database connection from pool");
         let results = servers
-            .load::<Server>(connection)
+            .load::<Server>(&mut connection)
             .expect("Error loading Servers");
 
         if results.is_empty() {
@@ -56,7 +49,7 @@ impl Servers {
                 for role in roles {
                     if role.name == "gulag" {
                         let _s = create_server(
-                            connection,
+                            pool,
                             guild_info.id.get() as i64,
                             role.id.get() as i64,
                         );
@@ -81,7 +74,7 @@ impl Servers {
                     Err(err) => {
                         println!("Couldnt connect to server with guildid {:?}", err);
                         diesel::delete(servers.filter(id.eq(s.id)))
-                            .execute(connection)
+                            .execute(&mut connection)
                             .expect("delete server");
                     }
                 }

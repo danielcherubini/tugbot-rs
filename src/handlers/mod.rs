@@ -13,6 +13,24 @@ pub mod teh;
 pub mod tiktok;
 pub mod twitter;
 
+use crate::db::DbPool;
+use serenity::prelude::TypeMapKey;
+
+// TypeMapKey for storing the database pool in Serenity's context
+pub struct DbPoolKey;
+
+impl TypeMapKey for DbPoolKey {
+    type Value = DbPool;
+}
+
+// Helper function to get the database pool from context
+pub async fn get_pool(ctx: &serenity::client::Context) -> DbPool {
+    let data = ctx.data.read().await;
+    data.get::<DbPoolKey>()
+        .expect("Expected DbPool in TypeMap")
+        .clone()
+}
+
 use crate::handlers::{
     ai_slop::AiSlopHandler,
     bsky::Bsky,
@@ -67,9 +85,11 @@ impl EventHandler for Handler {
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        if let Some(user) = Gulag::is_user_in_gulag(member.user.id.get()) {
+        let pool = get_pool(&ctx).await;
+        if let Some(user) = Gulag::is_user_in_gulag(&pool, member.user.id.get()) {
             Gulag::add_to_gulag(
                 &ctx.http,
+                &pool,
                 user.guild_id as u64,
                 user.user_id as u64,
                 user.gulag_role_id as u64,
@@ -104,7 +124,7 @@ impl EventHandler for Handler {
                 "AI Slop" => AiSlopHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
-                "feature" => Feat::setup_interaction(&command).await,
+                "feature" => Feat::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implemented".to_string(),
                     components: None,
@@ -131,9 +151,12 @@ impl EventHandler for Handler {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-        let servers = Servers::get_servers(&ctx).await;
-        Gulag::run_gulag_check(&ctx.http);
-        Gulag::run_gulag_vote_check(&ctx.http);
+
+        let pool = get_pool(&ctx).await;
+
+        let servers = Servers::get_servers(&ctx, &pool).await;
+        Gulag::run_gulag_check(&ctx.http, pool.clone());
+        Gulag::run_gulag_vote_check(&ctx.http, pool.clone());
 
         for server in servers {
             let commands = server

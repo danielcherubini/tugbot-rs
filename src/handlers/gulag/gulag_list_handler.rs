@@ -1,8 +1,7 @@
 use std::time::SystemTime;
 
-use crate::db::schema::gulag_users::dsl::*;
-use crate::db::{establish_connection, models::GulagUser};
-use crate::handlers::HandlerResponse;
+use crate::db::{models::GulagUser, schema::gulag_users::dsl::*};
+use crate::handlers::{get_pool, HandlerResponse};
 use diesel::*;
 use serenity::{all::CommandInteraction, builder::CreateCommand, client::Context};
 
@@ -21,11 +20,12 @@ impl GulagListHandler {
                 ephemeral: false,
             },
             Some(_guildid) => {
-                let conn = &mut establish_connection();
+                let pool = get_pool(ctx).await;
+                let mut conn = pool.get().expect("Failed to get database connection from pool");
                 let gulagusers = gulag_users
                     .filter(in_gulag.eq(true))
                     .select(GulagUser::as_select())
-                    .load(conn)
+                    .load(&mut conn)
                     .expect("Error connecting to database");
 
                 if gulagusers.is_empty() {

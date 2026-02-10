@@ -1,5 +1,5 @@
 use crate::features::Features;
-use crate::handlers::HandlerResponse;
+use crate::handlers::{get_pool, HandlerResponse};
 use serenity::{
     all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption},
@@ -33,7 +33,8 @@ impl GulagHandler {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
-        if !Features::is_enabled("gulag") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "gulag") {
             return HandlerResponse {
                 content: String::from("Gulag feature is currently disabled"),
                 components: None,
@@ -98,6 +99,7 @@ impl GulagHandler {
                     Some(gulag_role) => {
                         let gulag_user = Gulag::add_to_gulag(
                             &ctx.http,
+                            &pool,
                             guildid.get(),
                             user.get(),
                             gulag_role.id.get(),

@@ -1,12 +1,12 @@
 use super::HandlerResponse;
 use crate::db::{
-    add_time_to_gulag, establish_connection,
+    add_time_to_gulag,
     models::{GulagUser, JobStatus, MessageVotes},
     schema::{
         gulag_users::{self, dsl::*},
         message_votes::{self, dsl::*},
     },
-    send_to_gulag,
+    send_to_gulag, DbPool,
 };
 use anyhow::{Context, Result};
 use diesel::*;
@@ -111,6 +111,7 @@ impl Gulag {
 
     pub async fn add_to_gulag(
         http: &Arc<Http>,
+        pool: &DbPool,
         guildid: u64,
         userid: u64,
         gulag_roleid: u64,
@@ -123,18 +124,17 @@ impl Gulag {
             .await
             .unwrap();
         mem.add_role(http, RoleId::new(gulag_roleid)).await.unwrap();
-        let conn = &mut establish_connection();
 
-        match Gulag::is_user_in_gulag(userid) {
+        match Gulag::is_user_in_gulag(pool, userid) {
             Some(gulag_db_user) => add_time_to_gulag(
-                conn,
+                pool,
                 gulag_db_user.id,
                 gulag_db_user.gulag_length + gulaglength as i32,
                 gulaglength as i32,
                 gulag_db_user.release_at,
             ),
             None => send_to_gulag(
-                conn,
+                pool,
                 userid as i64,
                 guildid as i64,
                 gulag_roleid as i64,
@@ -147,6 +147,7 @@ impl Gulag {
 
     pub async fn send_to_gulag_and_message(
         http: &Arc<Http>,
+        pool: &DbPool,
         guildid: u64,
         userid: u64,
         channelid: u64,
@@ -163,6 +164,7 @@ impl Gulag {
             .with_context(|| "Cant find gulag channel".to_string())?;
         let gulag_user = Gulag::add_to_gulag(
             http,
+            pool,
             guildid,
             userid,
             gulag_role.id.get(),
@@ -215,18 +217,27 @@ impl Gulag {
         Ok(())
     }
 
-    pub fn run_gulag_check(http: &Arc<Http>) {
+    pub fn run_gulag_check(http: &Arc<Http>, pool: DbPool) {
         let http = Arc::clone(http);
         spawn(async move {
-            let conn = &mut establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
+
+                // Get a fresh connection from the pool for each iteration
+                let mut conn = match pool.get() {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        eprintln!("Failed to get database connection in run_gulag_check: {}", e);
+                        continue; // Skip this iteration and try again
+                    }
+                };
+
                 let results = gulag_users
                     .filter(gulag_users::in_gulag.eq(true))
                     .filter(gulag_users::release_at.le(SystemTime::now()))
                     .for_update()
                     .skip_locked()
-                    .load::<GulagUser>(conn)
+                    .load::<GulagUser>(&mut conn)
                     .expect("Error loading Servers");
                 //println!("{:?}", results.len());
                 if !results.is_empty() {
@@ -239,7 +250,7 @@ impl Gulag {
 
                         diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
                             .set(in_gulag.eq(false))
-                            .execute(conn)
+                            .execute(&mut conn)
                             .unwrap();
 
                         match Gulag::remove_from_gulag(
@@ -252,7 +263,7 @@ impl Gulag {
                         {
                             Ok(_) => {
                                 diesel::delete(gulag_users.filter(gulag_users::id.eq(result.id)))
-                                    .execute(conn)
+                                    .execute(&mut conn)
                                     .expect("delete user");
                                 println!("Removed from database");
 
@@ -264,7 +275,7 @@ impl Gulag {
                                         ),
                                     )
                                     .set(message_votes::job_status.eq(JobStatus::Done))
-                                    .get_result::<MessageVotes>(conn)
+                                    .get_result::<MessageVotes>(&mut conn)
                                     .with_context(|| {
                                         format!(
                                             "failed to done message_vote_id {}",
@@ -289,7 +300,7 @@ impl Gulag {
                                     diesel::delete(
                                         gulag_users.filter(gulag_users::id.eq(result.id)),
                                     )
-                                    .execute(conn)
+                                    .execute(&mut conn)
                                     .expect("delete user");
                                     println!("Removed from database due to error {}", why);
                                 }
@@ -304,12 +315,21 @@ impl Gulag {
         });
     }
 
-    pub fn run_gulag_vote_check(http: &Arc<Http>) {
+    pub fn run_gulag_vote_check(http: &Arc<Http>, pool: DbPool) {
         let http = Arc::clone(http);
         spawn(async move {
-            let conn = &mut establish_connection();
             loop {
                 sleep(Duration::from_secs(1)).await;
+
+                // Get a fresh connection from the pool for each iteration
+                let mut conn = match pool.get() {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        eprintln!("Failed to get database connection in run_gulag_vote_check: {}", e);
+                        continue; // Skip this iteration and try again
+                    }
+                };
+
                 let job_status_predicate = message_votes::job_status
                     .eq(JobStatus::Created)
                     .or(message_votes::job_status.eq(JobStatus::Done));
@@ -318,17 +338,17 @@ impl Gulag {
                     .filter(job_status_predicate)
                     .for_update()
                     .skip_locked()
-                    .load::<MessageVotes>(conn)
+                    .load::<MessageVotes>(&mut conn)
                     .expect("Error loading Servers");
                 if !results.is_empty() {
                     for result in results {
                         if let Err(err) =
-                            Self::gulag_check_handler(http.to_owned(), conn, &result).await
+                            Self::gulag_check_handler(http.to_owned(), &pool, &mut conn, &result).await
                         {
                             println!("Error running gulag vote {:?}", err);
                             let _result = diesel::update(message_votes.find(result.message_id))
                                 .set(message_votes::job_status.eq(JobStatus::Failure))
-                                .execute(conn)
+                                .execute(&mut conn)
                                 .unwrap();
                         }
                     }
@@ -339,6 +359,7 @@ impl Gulag {
 
     async fn gulag_check_handler(
         http: Arc<Http>,
+        pool: &DbPool,
         conn: &mut PgConnection,
         result: &MessageVotes,
     ) -> Result<(), anyhow::Error> {
@@ -371,6 +392,7 @@ impl Gulag {
             // send to gulag and message
             return match Gulag::send_to_gulag_and_message(
                 &http,
+                pool,
                 updated_result.guild_id as u64,
                 updated_result.user_id as u64,
                 updated_result.channel_id as u64,
@@ -404,11 +426,11 @@ impl Gulag {
         Ok(())
     }
 
-    pub fn is_user_in_gulag(userid: u64) -> Option<GulagUser> {
-        let conn = &mut establish_connection();
+    pub fn is_user_in_gulag(pool: &DbPool, userid: u64) -> Option<GulagUser> {
+        let mut conn = pool.get().expect("Failed to get database connection from pool");
         let results = gulag_users
             .filter(gulag_users::user_id.eq(userid as i64))
-            .load::<GulagUser>(conn)
+            .load::<GulagUser>(&mut conn)
             .expect("Error loading Servers");
         if !results.is_empty() {
             let user = results.first().unwrap();

@@ -1,5 +1,6 @@
-use crate::db::{establish_connection, message_vote::MessageVoteHandler};
+use crate::db::message_vote::MessageVoteHandler;
 use crate::features::Features;
+use crate::handlers::get_pool;
 use serenity::model::prelude::{Emoji, Reaction};
 
 pub struct GulagReaction;
@@ -17,8 +18,10 @@ impl GulagReaction {
     ) {
         //Match the emoji with the known gulag emoji
         if add_reaction.emoji.to_string().contains(":gulag") {
+            let pool = get_pool(ctx).await;
+
             // Check if gulag feature is enabled
-            if !Features::is_enabled("gulag") {
+            if !Features::is_enabled(&pool, "gulag") {
                 return;
             }
 
@@ -78,11 +81,9 @@ impl GulagReaction {
                 }
             }
 
-            let conn = &mut establish_connection();
-
             // Sync database with actual Discord reaction data
             match MessageVoteHandler::sync_from_discord(
-                conn,
+                &pool,
                 message_id,
                 guild_id,
                 channel_id,

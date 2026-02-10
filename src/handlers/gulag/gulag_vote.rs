@@ -14,12 +14,9 @@ use std::{
 
 use crate::{
     db::{
-        establish_connection,
-        models::GulagVote,
-        new_gulag_vote,
-        schema::gulag_votes::{self, dsl::*},
+        models::GulagVote, new_gulag_vote, schema::gulag_votes::{self, dsl::*}, DbPool,
     },
-    handlers::HandlerResponse,
+    handlers::{get_pool, HandlerResponse},
 };
 
 use super::Gulag;
@@ -40,6 +37,7 @@ impl GulagVoteHandler {
         ctx: &serenity::client::Context,
         command: &CommandInteraction,
     ) -> HandlerResponse {
+        let pool = get_pool(ctx).await;
         let options = &command
             .data
             .options
@@ -57,8 +55,7 @@ impl GulagVoteHandler {
             None => return Gulag::send_error("This command can only be used in a server"),
         };
 
-        let conn = &mut establish_connection();
-        match GulagVoteHandler::gulag_spam_detection(requesterid, conn).await {
+        match GulagVoteHandler::gulag_spam_detection(requesterid, &pool).await {
             Ok(_) => {
                 if let CommandDataOptionValue::User(user_id) = options {
                     let user = command
@@ -161,6 +158,7 @@ impl GulagVoteHandler {
         command: &CommandInteraction,
         msg: Message,
     ) {
+        let pool = get_pool(ctx).await;
         let options = &command
             .data
             .options
@@ -169,7 +167,6 @@ impl GulagVoteHandler {
             .value;
 
         let requesterid = command.member.to_owned().unwrap().user.id.get();
-        let conn = &mut establish_connection();
 
         if let CommandDataOptionValue::User(user_id) = options {
             let user = command
@@ -188,7 +185,7 @@ impl GulagVoteHandler {
                 let _r = msg.react(&ctx, '👎').await.unwrap();
 
                 let _v = new_gulag_vote(
-                    conn,
+                    &pool,
                     requesterid as i64,
                     user_id.get() as i64,
                     guildid.get() as i64,
@@ -214,12 +211,13 @@ impl GulagVoteHandler {
         }
     }
 
-    async fn gulag_spam_detection(requesterid: u64, conn: &mut PgConnection) -> Result<()> {
+    async fn gulag_spam_detection(requesterid: u64, pool: &DbPool) -> Result<()> {
+        let mut conn = pool.get().expect("Failed to get database connection from pool");
         let yesterday = SystemTime::now() - Duration::from_secs(3600);
         let results = gulag_votes
             .filter(gulag_votes::created_at.between(yesterday, SystemTime::now()))
             .filter(gulag_votes::requester_id.eq(requesterid as i64))
-            .load::<GulagVote>(conn)
+            .load::<GulagVote>(&mut conn)
             .expect("Error loading Servers");
 
         if results.len() > 3 {

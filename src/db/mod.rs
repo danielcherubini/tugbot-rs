@@ -16,6 +16,7 @@ use self::{
 };
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dotenv::dotenv;
 use std::{
     env,
@@ -23,6 +24,26 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+pub type DbPool = Pool<ConnectionManager<PgConnection>>;
+
+/// Establishes a connection pool for database operations
+/// This should be called once at application startup
+pub fn establish_pool() -> DbPool {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let manager = ConnectionManager::<PgConnection>::new(database_url);
+
+    Pool::builder()
+        .max_size(15) // Maximum number of connections in the pool
+        .connection_timeout(Duration::from_secs(30))
+        .build(manager)
+        .expect("Failed to create database connection pool")
+}
+
+/// Legacy function for backwards compatibility during migration
+/// Prefer using the pool directly via establish_pool()
+#[deprecated(note = "Use establish_pool() and pass DbPool instead")]
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
 
@@ -31,17 +52,18 @@ pub fn establish_connection() -> PgConnection {
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
 
-pub fn create_server(conn: &mut PgConnection, guild_id: i64, gulag_id: i64) -> Server {
+pub fn create_server(pool: &DbPool, guild_id: i64, gulag_id: i64) -> Server {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     let new_server = NewServer { guild_id, gulag_id };
 
     diesel::insert_into(servers::table)
         .values(&new_server)
-        .get_result(conn)
+        .get_result(&mut conn)
         .expect("Error saving new server")
 }
 
 pub fn send_to_gulag(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     user_id: i64,
     guild_id: i64,
     gulag_role_id: i64,
@@ -49,6 +71,7 @@ pub fn send_to_gulag(
     channel_id: i64,
     message_id: i64,
 ) -> GulagUser {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     let time_now = SystemTime::now();
     let gulag_duration = Duration::from_secs(gulag_length as u64);
     let release_time = time_now.add(gulag_duration);
@@ -68,17 +91,18 @@ pub fn send_to_gulag(
 
     diesel::insert_into(gulag_users::table)
         .values(&new_user)
-        .get_result(conn)
+        .get_result(&mut conn)
         .expect("Error saving new User")
 }
 
 pub fn add_time_to_gulag(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     gulag_user_id: i32,
     gulag_length: i32,
     gulag_duration: i32,
     release_at: SystemTime,
 ) -> GulagUser {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     let gulag_duration = Duration::from_secs(gulag_duration as u64);
     let new_release_time = release_at.add(gulag_duration);
     diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
@@ -86,12 +110,12 @@ pub fn add_time_to_gulag(
             gulag_users::gulag_length.eq(gulag_length),
             gulag_users::release_at.eq(new_release_time),
         ))
-        .get_result(conn)
+        .get_result(&mut conn)
         .expect("Error saving new User")
 }
 
 pub fn new_gulag_vote(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     requester_id: i64,
     sender_id: i64,
     guild_id: i64,
@@ -99,6 +123,7 @@ pub fn new_gulag_vote(
     message_id: i64,
     channel_id: i64,
 ) -> GulagVote {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     let new_gulag_vote = NewGulagVote {
         requester_id,
         sender_id,
@@ -112,22 +137,23 @@ pub fn new_gulag_vote(
     println!("inserting");
     diesel::insert_into(gulag_votes::table)
         .values(&new_gulag_vote)
-        .get_result(conn)
+        .get_result(&mut conn)
         .expect("Error saving new gulag vote")
 }
 
 pub fn get_or_create_ai_slop_usage(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     use self::ai_slop_usage::dsl::*;
 
     // Try to get existing record
     match ai_slop_usage
         .filter(user_id.eq(target_user_id))
         .filter(guild_id.eq(target_guild_id))
-        .first::<AiSlopUsage>(conn)
+        .first::<AiSlopUsage>(&mut conn)
     {
         Ok(usage) => Ok(usage),
         Err(diesel::result::Error::NotFound) => {
@@ -142,17 +168,18 @@ pub fn get_or_create_ai_slop_usage(
 
             diesel::insert_into(ai_slop_usage)
                 .values(&new_usage)
-                .get_result(conn)
+                .get_result(&mut conn)
         }
         Err(e) => Err(e),
     }
 }
 
 pub fn increment_ai_slop_usage(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     usage_id: i32,
     new_count: i32,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     use self::ai_slop_usage::dsl::*;
 
     diesel::update(ai_slop_usage.find(usage_id))
@@ -160,14 +187,15 @@ pub fn increment_ai_slop_usage(
             usage_count.eq(new_count),
             last_slop_at.eq(SystemTime::now()),
         ))
-        .get_result(conn)
+        .get_result(&mut conn)
 }
 
 pub fn atomic_increment_ai_slop(
-    conn: &mut PgConnection,
+    pool: &DbPool,
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<i32, diesel::result::Error> {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     use diesel::sql_types::Integer;
 
     // Upsert: insert with count=1 or increment existing
@@ -189,16 +217,17 @@ pub fn atomic_increment_ai_slop(
     )
     .bind::<diesel::sql_types::BigInt, _>(target_user_id)
     .bind::<diesel::sql_types::BigInt, _>(target_guild_id)
-    .get_result(conn)?;
+    .get_result(&mut conn)?;
 
     Ok(result.usage_count)
 }
 
-pub fn get_server_by_guild_id(conn: &mut PgConnection, target_guild_id: i64) -> Option<Server> {
+pub fn get_server_by_guild_id(pool: &DbPool, target_guild_id: i64) -> Option<Server> {
+    let mut conn = pool.get().expect("Failed to get database connection from pool");
     use self::servers::dsl::*;
 
     servers
         .filter(guild_id.eq(target_guild_id))
-        .first::<Server>(conn)
+        .first::<Server>(&mut conn)
         .ok()
 }

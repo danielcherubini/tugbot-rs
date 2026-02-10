@@ -5,7 +5,7 @@ use serenity::{
 
 use crate::{db::models, features};
 
-use super::HandlerResponse;
+use super::{get_pool, HandlerResponse};
 
 pub struct Feat;
 
@@ -23,30 +23,38 @@ impl Feat {
             )
     }
 
-    pub async fn setup_interaction(command: &CommandInteraction) -> HandlerResponse {
+    pub async fn setup_interaction(
+        ctx: &serenity::prelude::Context,
+        command: &CommandInteraction,
+    ) -> HandlerResponse {
+        let pool = get_pool(ctx).await;
         match command.data.options.first() {
             Some(feature_option_value) => {
                 if let CommandDataOptionValue::String(feature_name) = &feature_option_value.value {
-                    match features::Features::all() {
-                        Ok(f) => Feat::handle_feature(f, feature_name),
+                    match features::Features::all(&pool) {
+                        Ok(f) => Feat::handle_feature(&pool, f, feature_name),
                         Err(e) => Feat::handle_error(e.to_string()),
                     }
                 } else {
                     Feat::handle_error("Please provide a valid feature name".to_string())
                 }
             }
-            None => match features::Features::all() {
+            None => match features::Features::all(&pool) {
                 Ok(features) => Feat::handle_list_features(features),
                 Err(e) => Feat::handle_error(e.to_string()),
             },
         }
     }
 
-    fn handle_feature(features: Vec<models::Features>, feature_name: &String) -> HandlerResponse {
+    fn handle_feature(
+        pool: &crate::db::DbPool,
+        features: Vec<models::Features>,
+        feature_name: &String,
+    ) -> HandlerResponse {
         for feat in features {
             if feat.name == *feature_name {
-                features::Features::update(&feat.name, !feat.enabled);
-                return match features::Features::all() {
+                features::Features::update(pool, &feat.name, !feat.enabled);
+                return match features::Features::all(pool) {
                     Ok(f) => Self::handle_list_features(f),
                     Err(e) => Self::handle_error(e.to_string()),
                 };

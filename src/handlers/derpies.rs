@@ -5,12 +5,14 @@ use serenity::{
 
 use super::gulag::Gulag;
 use crate::features::Features;
+use crate::handlers::get_pool;
 
 pub struct Derpies;
 
 impl Derpies {
     pub async fn message_handler(ctx: &Context, msg: &Message) {
-        if !Features::is_enabled("derpies") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "derpies") {
             return;
         }
 
@@ -29,7 +31,8 @@ impl Derpies {
     }
 
     pub async fn reaction_add_handler(ctx: &Context, add_reaction: &Reaction) {
-        if !Features::is_enabled("derpies") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "derpies") {
             return;
         }
 
