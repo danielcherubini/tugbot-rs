@@ -1,13 +1,11 @@
 use anyhow::{bail, Result};
 use diesel::*;
 use serenity::{
-    builder::CreateApplicationCommand,
-    http::Http,
-    model::{
-        application::interaction::application_command::ApplicationCommandInteraction,
-        channel::{Message, ReactionType},
-        prelude::{application_command::CommandDataOptionValue, command::CommandOptionType, Role},
+    all::{
+        CommandDataOptionValue, CommandInteraction, CommandOptionType, Message, ReactionType, Role,
     },
+    builder::{CreateCommand, CreateCommandOption, EditMessage},
+    http::Http,
 };
 use std::{
     sync::Arc,
@@ -29,74 +27,89 @@ use super::Gulag;
 pub struct GulagVoteHandler;
 
 impl GulagVoteHandler {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("gulag-vote")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("gulag-vote")
             .description("Send to the gulag")
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to gulag")
-                    .kind(CommandOptionType::User)
-                    .required(true)
-            })
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::User, "user", "The user to gulag")
+                    .required(true),
+            )
     }
 
     pub async fn setup_interaction(
         ctx: &serenity::client::Context,
-        command: &ApplicationCommandInteraction,
+        command: &CommandInteraction,
     ) -> HandlerResponse {
-        let options = command
+        let options = &command
             .data
             .options
             .first()
             .expect("Expected user option")
-            .resolved
-            .as_ref()
-            .expect("Expected user object");
+            .value;
 
-        let requesterid = command.member.to_owned().unwrap().user.id.0;
+        let guildid = match command.guild_id {
+            Some(gid) => gid,
+            None => return Gulag::send_error("This command can only be used in a server"),
+        };
+
+        let requesterid = match command.member.as_ref() {
+            Some(member) => member.user.id.get(),
+            None => return Gulag::send_error("This command can only be used in a server"),
+        };
+
         let conn = &mut establish_connection();
         match GulagVoteHandler::gulag_spam_detection(requesterid, conn).await {
             Ok(_) => {
-                if let CommandDataOptionValue::User(user, _member) = options {
-                    match command.guild_id {
-                        None => Gulag::send_error("no member"),
-                        Some(guildid) => {
-                            if Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
-                                HandlerResponse {
-                                    content: "Sorry you can't add tugbot to the gulag".to_string(),
-                                    components: None,
-                                    ephemeral: true,
-                                }
-                            } else {
-                                match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
-                                    None => Gulag::send_error("Couldn't find gulag role"),
-                                    Some(role) => {
-                                        let mem = ctx
-                                            .http
-                                            .get_member(*guildid.as_u64(), *user.id.as_u64())
-                                            .await
-                                            .unwrap();
+                if let CommandDataOptionValue::User(user_id) = options {
+                    let user = command
+                        .data
+                        .resolved
+                        .users
+                        .get(user_id)
+                        .expect("User not found");
 
-                                        let jury_duty_role = GulagVoteHandler::find_jury_duty_role(
-                                            &ctx.http, guildid.0,
-                                        )
-                                        .await
-                                        .unwrap();
+                    let is_tugbot = Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false);
 
-                                        let message = format!(
-                                        "Should we add {} to the {}?\n{} you have 10 mins to vote",
-                                        mem,
-                                        role,
-                                        jury_duty_role);
-
-                                        HandlerResponse {
-                                            content: message,
-                                            components: None,
-                                            ephemeral: false,
-                                        }
+                    if is_tugbot {
+                        HandlerResponse {
+                            content: "Sorry you can't add tugbot to the gulag".to_string(),
+                            components: None,
+                            ephemeral: true,
+                        }
+                    } else {
+                        match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
+                            None => Gulag::send_error("Couldn't find gulag role"),
+                            Some(role) => {
+                                let mem = match ctx.http.get_member(guildid, user.id).await {
+                                    Ok(m) => m,
+                                    Err(_) => {
+                                        return Gulag::send_error(
+                                            "Could not find member in server",
+                                        );
                                     }
+                                };
+
+                                let jury_duty_role = match GulagVoteHandler::find_jury_duty_role(
+                                    &ctx.http,
+                                    guildid.get(),
+                                )
+                                .await
+                                {
+                                    Some(role) => role,
+                                    None => {
+                                        return Gulag::send_error("Couldn't find jury-duty role")
+                                    }
+                                };
+
+                                let message = format!(
+                                    "Should we add {} to the {}?\n{} you have 10 mins to vote",
+                                    mem, role, jury_duty_role
+                                );
+
+                                HandlerResponse {
+                                    content: message,
+                                    components: None,
+                                    ephemeral: false,
                                 }
                             }
                         }
@@ -116,7 +129,7 @@ impl GulagVoteHandler {
         channelid: u64,
         messageid: u64,
     ) -> Result<bool> {
-        let mut m = http.get_message(channelid, messageid).await?;
+        let mut m = http.get_message(channelid.into(), messageid.into()).await?;
         let mut yay = 0;
         let mut nay = 0;
         let original_content = m.content.to_owned();
@@ -130,12 +143,13 @@ impl GulagVoteHandler {
             }
         }
 
-        m.edit(http, |msg| {
-            msg.content(format!(
+        m.edit(
+            http,
+            EditMessage::new().content(format!(
                 "{}\nVote over, totals;\nYes: {}\nNo: {}",
                 original_content, yay, nay
-            ))
-        })
+            )),
+        )
         .await?;
         m.delete_reactions(http).await?;
 
@@ -144,25 +158,31 @@ impl GulagVoteHandler {
 
     pub async fn do_followup(
         ctx: &serenity::client::Context,
-        command: &ApplicationCommandInteraction,
+        command: &CommandInteraction,
         msg: Message,
     ) {
-        let options = command
+        let options = &command
             .data
             .options
             .first()
             .expect("Expected user option")
-            .resolved
-            .as_ref()
-            .expect("Expected user object");
+            .value;
 
-        let requesterid = command.member.to_owned().unwrap().user.id.0;
+        let requesterid = command.member.to_owned().unwrap().user.id.get();
         let conn = &mut establish_connection();
 
-        if let CommandDataOptionValue::User(user, _member) = options {
+        if let CommandDataOptionValue::User(user_id) = options {
+            let user = command
+                .data
+                .resolved
+                .users
+                .get(user_id)
+                .expect("User not found");
             if !Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
                 let guildid = command.guild_id.unwrap();
-                let role = Gulag::find_gulag_role(&ctx.http, guildid.0).await.unwrap();
+                let role = Gulag::find_gulag_role(&ctx.http, guildid.get())
+                    .await
+                    .unwrap();
 
                 let _r = msg.react(&ctx, '👍').await.unwrap();
                 let _r = msg.react(&ctx, '👎').await.unwrap();
@@ -170,18 +190,18 @@ impl GulagVoteHandler {
                 let _v = new_gulag_vote(
                     conn,
                     requesterid as i64,
-                    user.id.0 as i64,
-                    guildid.0 as i64,
-                    role.id.0 as i64,
-                    msg.id.0 as i64,
-                    msg.channel_id.0 as i64,
+                    user_id.get() as i64,
+                    guildid.get() as i64,
+                    role.id.get() as i64,
+                    msg.id.get() as i64,
+                    msg.channel_id.get() as i64,
                 );
             }
         }
     }
 
     async fn find_jury_duty_role(http: &Arc<Http>, guildid: u64) -> Option<Role> {
-        match http.get_guild_roles(guildid).await {
+        match http.get_guild_roles(guildid.into()).await {
             Err(_why) => None,
             Ok(roles) => {
                 for role in roles {
@@ -202,7 +222,7 @@ impl GulagVoteHandler {
             .load::<GulagVote>(conn)
             .expect("Error loading Servers");
 
-        if results.len() > 300 {
+        if results.len() > 3 {
             bail!("Spam detected")
         }
         Ok(())

@@ -1,5 +1,5 @@
 use regex::Regex;
-use serenity::{model::channel::Message, prelude::Context};
+use serenity::{builder::EditMessage, model::channel::Message, prelude::Context};
 
 use crate::features::Features;
 
@@ -9,13 +9,17 @@ impl TikTok {
     pub async fn handler(ctx: &Context, msg: &Message) {
         if Features::is_enabled("tiktok") {
             if let Some(fixed_message) = Self::fx_rewriter(&msg.content.to_owned()).await {
-                if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
+                if let Err(why) = msg
+                    .clone()
+                    .edit(&ctx.http, EditMessage::new().suppress_embeds(true))
+                    .await
+                {
                     println!("Error supressing embeds {:?}", why);
                 }
 
                 println!("Suppressed Embed");
                 if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                    println!("Error Editing Message to Tweet {:?}", why);
+                    println!("Error posting TikTok message {:?}", why);
                 }
 
                 println!("Posted Tickeytackey");

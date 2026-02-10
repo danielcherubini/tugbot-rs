@@ -11,6 +11,7 @@ use crate::db::{
 use anyhow::{Context, Result};
 use diesel::*;
 use serenity::{
+    all::CreateMessage,
     http::Http,
     model::{
         guild::{Member, Role},
@@ -52,7 +53,7 @@ impl Gulag {
         match Self::find_role(http, guildid, role_name).await {
             Some(derpies_role) => {
                 for member_role in member.roles.iter().copied() {
-                    if member_role.0 == derpies_role.id.0 {
+                    if member_role.get() == derpies_role.id.get() {
                         return true;
                     };
                 }
@@ -67,7 +68,7 @@ impl Gulag {
     }
 
     pub async fn find_role(http: &Arc<Http>, guildid: u64, role_name: &str) -> Option<Role> {
-        match http.get_guild_roles(guildid).await {
+        match http.get_guild_roles(guildid.into()).await {
             Err(_why) => None,
             Ok(roles) => {
                 for role in roles {
@@ -85,7 +86,7 @@ impl Gulag {
         guildid: u64,
         channel_name: String,
     ) -> Option<GuildChannel> {
-        match http.get_channels(guildid).await {
+        match http.get_channels(guildid.into()).await {
             Err(_why) => None,
             Ok(channels) => {
                 for channel in channels {
@@ -104,7 +105,7 @@ impl Gulag {
                 eprintln!("{:#?}", why);
                 None
             }
-            Ok(current_user) => Some(current_user.id.0 == user.id.0),
+            Ok(current_user) => Some(current_user.id.get() == user.id.get()),
         }
     }
 
@@ -117,8 +118,11 @@ impl Gulag {
         channelid: u64,
         messageid: u64,
     ) -> GulagUser {
-        let mut mem = http.get_member(guildid, userid).await.unwrap();
-        mem.add_role(http, RoleId(gulag_roleid)).await.unwrap();
+        let mem = http
+            .get_member(guildid.into(), userid.into())
+            .await
+            .unwrap();
+        mem.add_role(http, RoleId::new(gulag_roleid)).await.unwrap();
         let conn = &mut establish_connection();
 
         match Gulag::is_user_in_gulag(userid) {
@@ -161,15 +165,15 @@ impl Gulag {
             http,
             guildid,
             userid,
-            gulag_role.id.0,
+            gulag_role.id.get(),
             gulaglength,
-            gulag_channel.id.0,
+            gulag_channel.id.get(),
             messageid,
         )
         .await;
 
-        let msg = http.get_message(channelid, messageid).await?;
-        let member = http.get_member(guildid, userid).await?;
+        let msg = http.get_message(channelid.into(), messageid.into()).await?;
+        let member = http.get_member(guildid.into(), userid.into()).await?;
 
         let mut user_string = "".to_string();
         if let Some(user_list) = users {
@@ -198,13 +202,15 @@ impl Gulag {
         guildid: u64,
         gulag_roleid: RoleId,
     ) -> Result<()> {
-        let mut mem = http.get_member(guildid, userid).await?;
+        let mem = http.get_member(guildid.into(), userid.into()).await?;
         mem.remove_role(&http, gulag_roleid).await?;
         let channel = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
             .await
             .with_context(|| "Couldn't find gulag channel".to_string())?;
         let message = format!("Freeing {} from the gulag", mem);
-        channel.send_message(&http, |m| m.content(message)).await?;
+        channel
+            .send_message(&http, CreateMessage::new().content(message))
+            .await?;
         println!("Removed from gulag");
         Ok(())
     }
@@ -240,7 +246,7 @@ impl Gulag {
                             http.to_owned(),
                             result.user_id as u64,
                             result.guild_id as u64,
-                            RoleId(result.gulag_role_id as u64),
+                            RoleId::new(result.gulag_role_id as u64),
                         )
                         .await
                         {
@@ -252,22 +258,29 @@ impl Gulag {
 
                                 if result.message_id != 0 {
                                     // Done the vote from the database
-                                    let done_result: MessageVotes =
-                                        diesel::update(message_votes.filter(
+                                    let done_result = diesel::update(
+                                        message_votes.filter(
                                             message_votes::message_id.eq(result.message_id),
-                                        ))
-                                        .set(message_votes::job_status.eq(JobStatus::Done))
-                                        .get_result(conn)
-                                        .with_context(|| {
-                                            format!(
-                                                "failed to done message_vote_id {}",
-                                                result.message_id
-                                            )
-                                        })
-                                        .unwrap();
+                                        ),
+                                    )
+                                    .set(message_votes::job_status.eq(JobStatus::Done))
+                                    .get_result::<MessageVotes>(conn)
+                                    .with_context(|| {
+                                        format!(
+                                            "failed to done message_vote_id {}",
+                                            result.message_id
+                                        )
+                                    });
 
-                                    if done_result.job_status == JobStatus::Done {
-                                        println!("Updated Gulag Vote Check Item to Done");
+                                    match done_result {
+                                        Ok(done_result) => {
+                                            if done_result.job_status == JobStatus::Done {
+                                                println!("Updated Gulag Vote Check Item to Done");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Error updating vote status: {:?}", e);
+                                        }
                                     }
                                 }
                             }
@@ -338,7 +351,10 @@ impl Gulag {
             println!("Updated Gulag Vote Check Item to Running");
             // Remove all gulag emoji's from gulag_reaction
             let message = http
-                .get_message(result.channel_id as u64, result.message_id as u64)
+                .get_message(
+                    (result.channel_id as u64).into(),
+                    (result.message_id as u64).into(),
+                )
                 .await
                 .with_context(|| "Failed to get Message")?;
 

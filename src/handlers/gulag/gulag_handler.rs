@@ -1,11 +1,9 @@
+use crate::features::Features;
 use crate::handlers::HandlerResponse;
 use serenity::{
-    builder::CreateApplicationCommand,
+    all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
+    builder::{CreateCommand, CreateCommandOption},
     client::Context,
-    model::{
-        application::interaction::application_command::ApplicationCommandInteraction,
-        prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
-    },
 };
 
 use super::Gulag;
@@ -13,77 +11,85 @@ use super::Gulag;
 pub struct GulagHandler;
 
 impl GulagHandler {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("gulag")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("gulag")
             .description("Send a user to the Gulag")
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to lookup")
-                    .kind(CommandOptionType::User)
-                    .required(true)
-            })
-            .create_option(|option| {
-                option
-                    .name("reason")
-                    .description("Why Are you sending them")
-                    .kind(CommandOptionType::String)
-                    .required(true)
-            })
-            .create_option(|option| {
-                option
-                    .name("length")
-                    .description("How Long minutes")
-                    .kind(CommandOptionType::Integer)
-                    .required(true)
-            })
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::User, "user", "The user to lookup")
+                    .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "reason",
+                    "Why Are you sending them",
+                )
+                .required(true),
+            )
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::Integer, "length", "How Long minutes")
+                    .required(true),
+            )
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> HandlerResponse {
-        let user_options = command
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        if !Features::is_enabled("gulag") {
+            return HandlerResponse {
+                content: String::from("Gulag feature is currently disabled"),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
+        let user_options = &command
             .data
             .options
             .first()
             .expect("Expected user option")
-            .resolved
-            .as_ref()
-            .expect("Expected user object");
-        let reason_options = command
+            .value;
+        let reason_options = &command
             .data
             .options
             .get(1)
             .expect("Expected reason option")
-            .resolved
-            .as_ref()
-            .expect("Expected reason object");
-        let length_options = command
+            .value;
+        let length_options = &command
             .data
             .options
             .get(2)
             .expect("Expected length option")
-            .resolved
-            .as_ref()
-            .expect("Expected length object");
+            .value;
 
-        let channelid = command.channel_id.0;
+        let channelid = command.channel_id.get();
 
         let mut gulaglength = 300;
         if let CommandDataOptionValue::Integer(length) = length_options {
-            gulaglength = length * 60;
+            if *length > 0 && *length <= 10080 {
+                // Max 1 week
+                gulaglength = length * 60;
+            } else if *length <= 0 {
+                return HandlerResponse {
+                    content: String::from("Gulag length must be positive"),
+                    components: None,
+                    ephemeral: true,
+                };
+            } else {
+                return HandlerResponse {
+                    content: String::from("Gulag length cannot exceed 10080 minutes (1 week)"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
         }
 
-        if let CommandDataOptionValue::User(user, _member) = user_options {
+        if let CommandDataOptionValue::User(user) = user_options {
             match command.guild_id {
                 None => HandlerResponse {
                     content: "no member".to_string(),
                     components: None,
                     ephemeral: false,
                 },
-                Some(guildid) => match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
+                Some(guildid) => match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
                     None => HandlerResponse {
                         content: "couldn't find gulag role".to_string(),
                         components: None,
@@ -92,9 +98,9 @@ impl GulagHandler {
                     Some(gulag_role) => {
                         let gulag_user = Gulag::add_to_gulag(
                             &ctx.http,
-                            *guildid.as_u64(),
-                            *user.id.as_u64(),
-                            *gulag_role.id.as_u64(),
+                            guildid.get(),
+                            user.get(),
+                            gulag_role.id.get(),
                             gulaglength as u32,
                             channelid,
                             0,

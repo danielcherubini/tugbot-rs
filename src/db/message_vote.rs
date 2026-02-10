@@ -19,10 +19,7 @@ pub struct MessageVoteHandlerResponse {
 impl MessageVoteHandler {
     /// Get the user_id from an existing message vote entry
     /// Returns None if the message vote doesn't exist
-    pub fn get_user_id_from_message(
-        conn: &mut PgConnection,
-        message_id: u64,
-    ) -> Option<u64> {
+    pub fn get_user_id_from_message(conn: &mut PgConnection, message_id: u64) -> Option<u64> {
         message_votes::table
             .find(message_id as i64)
             .select(message_votes::user_id)
@@ -99,7 +96,6 @@ impl MessageVoteHandler {
             .first(conn)
             .optional();
 
-        println!("{:?}", message);
         match message {
             Ok(Some(mut message)) => {
                 // Check if the voter_id has already voted
@@ -119,7 +115,7 @@ impl MessageVoteHandler {
                             response_type: MessageVoteHanderResponseType::ADDED,
                             content: c,
                         }),
-                        Err(_) => Err(anyhow!("DB Error whilst trying to add vote")),
+                        Err(e) => Err(anyhow!("DB Error whilst trying to add vote: {}", e)),
                     }
                 }
             }
@@ -143,7 +139,7 @@ impl MessageVoteHandler {
                         response_type: MessageVoteHanderResponseType::ADDED,
                         content: c,
                     }),
-                    Err(_) => Err(anyhow!("Database Error Creating Vote")),
+                    Err(e) => Err(anyhow!("Database Error Creating Vote: {}", e)),
                 }
             }
             Err(e) => Err(e.into()),
@@ -171,13 +167,9 @@ impl MessageVoteHandler {
                         .voters
                         .iter()
                         .position(|x| *x == Some(voter_id as i64))
-                        .unwrap();
+                        .ok_or_else(|| anyhow!("Voter not found in list"))?;
                     message.voters.remove(index);
-                    if message.current_vote_tally == 0 {
-                        message.current_vote_tally = 0;
-                    } else {
-                        message.current_vote_tally -= 1;
-                    }
+                    message.current_vote_tally = message.current_vote_tally.saturating_sub(1);
                     match diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                         .set((
                             message_votes::current_vote_tally.eq(message.current_vote_tally),
@@ -189,7 +181,7 @@ impl MessageVoteHandler {
                             response_type: MessageVoteHanderResponseType::REMOVED,
                             content: c,
                         }),
-                        Err(_) => Err(anyhow!("Database Error Removing Vote")),
+                        Err(e) => Err(anyhow!("Database Error Removing Vote: {}", e)),
                     }
                 }
             }

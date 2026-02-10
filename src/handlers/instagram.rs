@@ -1,5 +1,5 @@
 use regex::Regex;
-use serenity::{model::channel::Message, prelude::Context};
+use serenity::{builder::EditMessage, model::channel::Message, prelude::Context};
 
 use crate::features::Features;
 
@@ -11,16 +11,20 @@ impl Instagram {
             match Self::fx_rewriter(&msg.content.to_owned()) {
                 None => (),
                 Some(fixed_message) => {
-                    if let Err(why) = msg.to_owned().suppress_embeds(ctx.to_owned()).await {
+                    if let Err(why) = msg
+                        .clone()
+                        .edit(&ctx.http, EditMessage::new().suppress_embeds(true))
+                        .await
+                    {
                         println!("Error supressing embeds {:?}", why);
                     }
 
                     println!("Suppressed Embed");
                     if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                        println!("Error Editing Message to Tweet {:?}", why);
+                        println!("Error posting Instagram message {:?}", why);
                     }
 
-                    println!("Posted Tweet");
+                    println!("Posted Instagram");
                 }
             }
         }

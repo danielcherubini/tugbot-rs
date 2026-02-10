@@ -33,22 +33,16 @@ use crate::handlers::{
 use crate::tugbot::servers::Servers;
 use instagram::Instagram;
 use serenity::{
+    all::{Interaction, Member, Message, Reaction, Ready},
     async_trait,
-    builder::CreateComponents,
+    builder::{CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage},
     client::{Context, EventHandler},
-    model::{
-        application::interaction::InteractionResponseType,
-        channel::Message,
-        gateway::Ready,
-        id::GuildId,
-        prelude::{Interaction, Member, Reaction},
-    },
 };
 
 #[derive(Default)]
 pub struct HandlerResponse {
     pub content: String,
-    pub components: Option<CreateComponents>,
+    pub components: Option<Vec<serenity::all::CreateActionRow>>,
     pub ephemeral: bool,
 }
 
@@ -73,7 +67,7 @@ impl EventHandler for Handler {
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
-        if let Some(user) = Gulag::is_user_in_gulag(*member.user.id.as_u64()) {
+        if let Some(user) = Gulag::is_user_in_gulag(member.user.id.get()) {
             Gulag::add_to_gulag(
                 &ctx.http,
                 user.guild_id as u64,
@@ -85,18 +79,21 @@ impl EventHandler for Handler {
             )
             .await;
 
-            let message = format!("You can't escape so easly {}", member);
-            let channel = ctx.http.get_channel(user.channel_id as u64).await.unwrap();
-            channel
-                .id()
-                .send_message(ctx.http, |m| m.content(message))
-                .await
-                .unwrap();
+            let message = format!("You can't escape so easily {}", member);
+            if let Ok(channel) = ctx.http.get_channel((user.channel_id as u64).into()).await {
+                if let Err(why) = channel
+                    .id()
+                    .send_message(&ctx.http, CreateMessage::new().content(message))
+                    .await
+                {
+                    println!("Failed to send gulag escape message: {}", why);
+                }
+            }
         }
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
+        if let Interaction::Command(command) = interaction {
             let handler_response = match command.data.name.as_str() {
                 "gulag" => GulagHandler::setup_interaction(&ctx, &command).await,
                 "gulag-release" => GulagRemoveHandler::setup_interaction(&ctx, &command).await,
@@ -109,35 +106,24 @@ impl EventHandler for Handler {
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&command).await,
                 _ => HandlerResponse {
-                    content: "Not Implimented".to_string(),
+                    content: "Not Implemented".to_string(),
                     components: None,
                     ephemeral: true,
                 },
             };
 
+            let mut message = CreateInteractionResponseMessage::new()
+                .content(handler_response.content)
+                .ephemeral(handler_response.ephemeral);
+            if let Some(components) = handler_response.components {
+                message = message.components(components);
+            }
+
             match command
-                .create_interaction_response(&ctx.http, |r| {
-                    r.kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|i| match handler_response.components {
-                            Some(components) => i
-                                .content(handler_response.content)
-                                .ephemeral(handler_response.ephemeral)
-                                .set_components(components),
-                            None => i
-                                .content(handler_response.content)
-                                .ephemeral(handler_response.ephemeral),
-                        })
-                })
+                .create_response(&ctx.http, CreateInteractionResponse::Message(message))
                 .await
             {
-                Ok(()) => {
-                    let res = command.get_interaction_response(&ctx.http).await.unwrap();
-                    if let Some(msg) = res.interaction.to_owned() {
-                        if msg.name.as_str() == "gulag-vote" {
-                            // GulagVoteHandler::do_followup(&ctx, &command, res).await
-                        }
-                    }
-                }
+                Ok(()) => {}
                 Err(why) => println!("Cannot respond to slash command: {}", why),
             }
         }
@@ -150,19 +136,22 @@ impl EventHandler for Handler {
         Gulag::run_gulag_vote_check(&ctx.http);
 
         for server in servers {
-            let commands = GuildId::set_application_commands(&server.guild_id, &ctx.http, |c| {
-                c.create_application_command(|command| GulagHandler::setup_command(command));
-                c.create_application_command(|command| GulagRemoveHandler::setup_command(command));
-                c.create_application_command(|command| GulagListHandler::setup_command(command));
-                c.create_application_command(|command| {
-                    GulagMessageCommandHandler::setup_command(command)
-                });
-                c.create_application_command(|command| AiSlopHandler::setup_command(command));
-                c.create_application_command(|command| Horny::setup_command(command));
-                c.create_application_command(|command| Phony::setup_command(command));
-                c.create_application_command(|command| Feat::setup_command(command))
-            })
-            .await;
+            let commands = server
+                .guild_id
+                .set_commands(
+                    &ctx.http,
+                    vec![
+                        GulagHandler::setup_command(),
+                        GulagRemoveHandler::setup_command(),
+                        GulagListHandler::setup_command(),
+                        GulagMessageCommandHandler::setup_command(),
+                        AiSlopHandler::setup_command(),
+                        Horny::setup_command(),
+                        Phony::setup_command(),
+                        Feat::setup_command(),
+                    ],
+                )
+                .await;
 
             println!("I now have the following guild slash commands:");
             match commands {

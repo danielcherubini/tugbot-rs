@@ -4,24 +4,16 @@ use crate::db::schema::gulag_users::dsl::*;
 use crate::db::{establish_connection, models::GulagUser};
 use crate::handlers::HandlerResponse;
 use diesel::*;
-use serenity::{
-    builder::CreateApplicationCommand, client::Context,
-    model::application::interaction::application_command::ApplicationCommandInteraction,
-};
+use serenity::{all::CommandInteraction, builder::CreateCommand, client::Context};
 
 pub struct GulagListHandler;
 
 impl GulagListHandler {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("gulag-list")
-            .description("List users in the gulag")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("gulag-list").description("List users in the gulag")
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> HandlerResponse {
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
         match command.guild_id {
             None => HandlerResponse {
                 content: "no member".to_string(),
@@ -46,11 +38,14 @@ impl GulagListHandler {
 
                 let mut userlist = String::from("");
                 for gulaguser in gulagusers {
-                    let user = ctx
-                        .http
-                        .get_user(gulaguser.user_id as u64)
-                        .await
-                        .expect("Couldn't get user");
+                    let user = match ctx.http.get_user((gulaguser.user_id as u64).into()).await {
+                        Ok(u) => u,
+                        Err(_) => {
+                            userlist
+                                .push_str(&format!("\nUnknown user (ID: {})", gulaguser.user_id));
+                            continue;
+                        }
+                    };
 
                     let time_info = match gulaguser.release_at.duration_since(SystemTime::now()) {
                         Ok(duration) => format!("releases in {:?}", duration),

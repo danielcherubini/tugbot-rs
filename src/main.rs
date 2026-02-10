@@ -10,7 +10,7 @@ async fn main() {
     // Build our client.
     let mut client = Client::builder(tugbot_config.token, tugbot_config.intents)
         .event_handler(Handler)
-        .application_id(tugbot_config.application_id)
+        .application_id(tugbot_config.application_id.into())
         .await
         .expect("Error creating client");
 

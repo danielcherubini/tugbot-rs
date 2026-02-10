@@ -1,37 +1,75 @@
 use serenity::{
-    builder::CreateApplicationCommand, client::Context,
-    model::application::interaction::application_command::ApplicationCommandInteraction,
+    all::CommandInteraction,
+    builder::{CreateCommand, EditMember},
+    client::Context,
 };
 
 use super::{nickname::fix_nickname, HandlerResponse};
+use crate::features::Features;
 
 pub struct Phony;
 
 impl Phony {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("phony")
-            .description("Mark yourself as phony/watching")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("phony").description("Mark yourself as phony/watching")
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> HandlerResponse {
-        let member = command.member.as_ref().unwrap();
-        let guild_id = command.guild_id.unwrap();
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        if !Features::is_enabled("phony") {
+            return HandlerResponse {
+                content: String::from("This feature is currently disabled"),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
+        let member = match command.member.as_ref() {
+            Some(m) => m,
+            None => {
+                return HandlerResponse {
+                    content: String::from("Error: This command can only be used in a server"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
+        let guild_id = match command.guild_id {
+            Some(id) => id,
+            None => {
+                return HandlerResponse {
+                    content: String::from("Error: This command can only be used in a server"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
         let user = &command.user;
         let prefix = &command.data.name;
-        let mem = ctx
-            .http
-            .get_member(*guild_id.as_u64(), *user.id.as_u64())
-            .await
-            .unwrap();
+
+        let mut mem = match ctx.http.get_member(guild_id, user.id).await {
+            Ok(m) => m,
+            Err(_) => {
+                return HandlerResponse {
+                    content: String::from("Error: Could not fetch member"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
 
         match member.nick.as_ref() {
             Some(nick) => {
                 let new_nick = fix_nickname(nick, prefix);
-                mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
+                if let Err(why) = mem
+                    .edit(&ctx.http, EditMember::new().nickname(new_nick))
+                    .await
+                {
+                    return HandlerResponse {
+                        content: format!("Error: Could not update nickname: {}", why),
+                        components: None,
+                        ephemeral: true,
+                    };
+                }
                 HandlerResponse {
                     content: String::from("Done"),
                     components: None,
@@ -42,7 +80,16 @@ impl Phony {
                 let name = member.display_name().to_string();
                 let new_nick = fix_nickname(&name, prefix);
 
-                mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
+                if let Err(why) = mem
+                    .edit(&ctx.http, EditMember::new().nickname(new_nick))
+                    .await
+                {
+                    return HandlerResponse {
+                        content: format!("Error: Could not update nickname: {}", why),
+                        components: None,
+                        ephemeral: true,
+                    };
+                }
                 HandlerResponse {
                     content: String::from("Done"),
                     components: None,
