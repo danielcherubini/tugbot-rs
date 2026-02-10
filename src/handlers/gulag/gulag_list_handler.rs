@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::db::schema::gulag_users::dsl::*;
 use crate::db::{establish_connection, models::GulagUser};
@@ -73,5 +73,59 @@ impl GulagListHandler {
                 }
             }
         }
+    }
+
+    // Helper function to format time remaining/overdue for testing
+    pub fn format_time_info(release_time: SystemTime) -> String {
+        match release_time.duration_since(SystemTime::now()) {
+            Ok(duration) => format!("releases in {:?}", duration),
+            Err(_) => {
+                let overdue = SystemTime::now()
+                    .duration_since(release_time)
+                    .unwrap_or_default();
+                format!("overdue for release ({}s ago)", overdue.as_secs())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn test_format_time_info_future_release() {
+        // Test with a release time 5 minutes in the future
+        let future = SystemTime::now() + Duration::from_secs(300);
+        let result = GulagListHandler::format_time_info(future);
+        assert!(result.contains("releases in"));
+    }
+
+    #[test]
+    fn test_format_time_info_past_release() {
+        // Test with a release time in the past (should not panic!)
+        let past = SystemTime::now() - Duration::from_secs(3600); // 1 hour ago
+        let result = GulagListHandler::format_time_info(past);
+        assert!(result.contains("overdue for release"));
+        assert!(result.contains("3600s ago"));
+    }
+
+    #[test]
+    fn test_format_time_info_very_old_release() {
+        // Test with a very old release time (like the bug we fixed)
+        let very_old = SystemTime::now() - Duration::from_secs(41477253); // ~480 days ago
+        let result = GulagListHandler::format_time_info(very_old);
+        assert!(result.contains("overdue for release"));
+        assert!(result.contains("41477253s ago"));
+    }
+
+    #[test]
+    fn test_format_time_info_exactly_now() {
+        // Test with release time approximately now
+        let now = SystemTime::now();
+        let result = GulagListHandler::format_time_info(now);
+        // Should handle either case gracefully (might be slightly past or future due to timing)
+        assert!(result.contains("releases in") || result.contains("overdue for release"));
     }
 }

@@ -183,3 +183,69 @@ pub struct Features {
     pub name: String,
     pub enabled: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn test_job_status_equality() {
+        assert_eq!(JobStatus::Created, JobStatus::Created);
+        assert_eq!(JobStatus::Running, JobStatus::Running);
+        assert_eq!(JobStatus::Done, JobStatus::Done);
+        assert_eq!(JobStatus::Failure, JobStatus::Failure);
+        assert_ne!(JobStatus::Created, JobStatus::Running);
+    }
+
+    #[test]
+    fn test_job_status_debug() {
+        // Ensure Debug trait works
+        let status = JobStatus::Created;
+        let debug_str = format!("{:?}", status);
+        assert!(debug_str.contains("Created"));
+    }
+
+    #[test]
+    fn test_new_gulag_user_creation() {
+        let now = SystemTime::now();
+        let user = NewGulagUser {
+            user_id: 123456789,
+            guild_id: 987654321,
+            gulag_role_id: 111222333,
+            channel_id: 444555666,
+            in_gulag: true,
+            gulag_length: 300,
+            created_at: now,
+            release_at: now + Duration::from_secs(300),
+            remod: false,
+            message_id: 777888999,
+        };
+        assert_eq!(user.user_id, 123456789);
+        assert_eq!(user.gulag_length, 300);
+        assert!(user.in_gulag);
+    }
+
+    #[test]
+    fn test_gulag_user_time_calculation() {
+        let now = SystemTime::now();
+        let future = now + Duration::from_secs(600);
+
+        // Simulate a gulag user with release in future
+        let duration = future.duration_since(now).unwrap();
+        assert!(duration.as_secs() >= 599 && duration.as_secs() <= 601);
+    }
+
+    #[test]
+    fn test_gulag_user_expired_time() {
+        let now = SystemTime::now();
+        let past = now - Duration::from_secs(3600);
+
+        // This should error when trying to get duration from past to now
+        assert!(past.duration_since(now).is_err());
+
+        // But should work the other way
+        let overdue = now.duration_since(past).unwrap();
+        assert!(overdue.as_secs() >= 3599 && overdue.as_secs() <= 3601);
+    }
+}

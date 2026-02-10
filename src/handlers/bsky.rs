@@ -57,4 +57,32 @@ mod tests {
             ),
         }
     }
+
+    #[test]
+    fn bsky_no_match() {
+        // Non-bsky URL should return None
+        let result = Bsky::fx_rewriter("https://twitter.com/someone/status/123");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn bsky_empty_string() {
+        let result = Bsky::fx_rewriter("");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn bsky_partial_url() {
+        // Regex requires at least some path after domain (/.+)
+        let result = Bsky::fx_rewriter("https://bsky.app/");
+        // This will be None because regex requires /.+ (something after /)
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn bsky_with_query_params() {
+        let result = Bsky::fx_rewriter("https://bsky.app/profile/user?ref=share");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "https://bsyy.app/profile/user?ref=share");
+    }
 }

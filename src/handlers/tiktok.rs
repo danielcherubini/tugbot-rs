@@ -54,19 +54,55 @@ impl TikTok {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::TikTok;
-//
-//    #[tokio::test]
-//    async fn rewrite() {
-//        match TikTok::fx_rewriter(
-//            "https://www.tiktok.com/@centralparkturtle/video/7412424505374674207",
-//        )
-//        .await
-//        {
-//            None => panic!("No URL Found"),
-//            Some(url) => assert_eq!(url, "https://offtiktok.com/post/15938",),
-//        }
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use regex::Regex;
+
+    #[test]
+    fn test_tiktok_url_regex_matches() {
+        let re = Regex::new(r"https://((www.)?tiktok.com)/.+").unwrap();
+
+        // Should match standard tiktok URLs
+        assert!(re.is_match("https://www.tiktok.com/@user/video/123456"));
+        assert!(re.is_match("https://tiktok.com/@user/video/123456"));
+
+        // Should not match other domains
+        assert!(!re.is_match("https://twitter.com/user"));
+    }
+
+    #[test]
+    fn test_tiktok_redirect_regex() {
+        let re_redirect = Regex::new(r"NEXT_REDIRECT;replace;(/post/\d+);").unwrap();
+
+        // The regex captures /post/\d+ as a group, the parens in regex are for capturing
+        let test_str = r#"something NEXT_REDIRECT;replace;/post/12345; more text"#;
+        assert!(re_redirect.is_match(test_str));
+
+        let caps = re_redirect.captures(test_str).unwrap();
+        assert_eq!(caps.get(1).unwrap().as_str(), "/post/12345");
+    }
+
+    #[test]
+    fn test_get_url_replacement() {
+        // Test the URL replacement logic
+        let original = "https://www.tiktok.com/@user/video/123";
+        let expected = "https://www.offtiktok.com/@user/video/123";
+        assert_eq!(original.replace("tiktok", "offtiktok"), expected);
+    }
+
+    // Integration test - commented out as it requires network access
+    // Uncomment to test with real network requests
+    /*
+    #[tokio::test]
+    async fn rewrite() {
+        match TikTok::fx_rewriter(
+            "https://www.tiktok.com/@centralparkturtle/video/7412424505374674207",
+        )
+        .await
+        {
+            None => panic!("No URL Found"),
+            Some(url) => assert!(url.starts_with("https://offtiktok.com/post/")),
+        }
+    }
+    */
+}

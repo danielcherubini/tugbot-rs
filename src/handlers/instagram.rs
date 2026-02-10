@@ -57,4 +57,38 @@ mod tests {
             ),
         }
     }
+
+    #[test]
+    fn instagram_rewrite_without_www() {
+        // Should work without www prefix
+        let result = Instagram::fx_rewriter("https://instagram.com/p/ABC123/");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "https://kkinstagram.com/p/ABC123/");
+    }
+
+    #[test]
+    fn instagram_no_match() {
+        let result = Instagram::fx_rewriter("https://twitter.com/someone");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn instagram_empty_string() {
+        let result = Instagram::fx_rewriter("");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn instagram_post_url() {
+        let result = Instagram::fx_rewriter("https://www.instagram.com/p/ABC123/");
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "https://www.kkinstagram.com/p/ABC123/");
+    }
+
+    #[test]
+    fn instagram_story_url() {
+        let result = Instagram::fx_rewriter("https://www.instagram.com/stories/username/123456/");
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("kkinstagram.com"));
+    }
 }

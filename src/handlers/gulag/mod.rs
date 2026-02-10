@@ -414,3 +414,30 @@ impl Gulag {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send_error_formats_correctly() {
+        let error_msg = "Something went wrong";
+        let response = Gulag::send_error(error_msg);
+
+        assert_eq!(response.content, "Error: Something went wrong");
+        assert!(response.ephemeral);
+        assert!(response.components.is_none());
+    }
+
+    #[test]
+    fn test_send_error_with_empty_string() {
+        let response = Gulag::send_error("");
+        assert_eq!(response.content, "Error: ");
+    }
+
+    #[test]
+    fn test_send_error_with_special_characters() {
+        let response = Gulag::send_error("Test & <special> \"chars\"");
+        assert_eq!(response.content, "Error: Test & <special> \"chars\"");
+    }
+}
