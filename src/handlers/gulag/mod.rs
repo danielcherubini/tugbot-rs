@@ -406,6 +406,7 @@ impl Gulag {
                 created_at: user.created_at,
                 in_gulag: user.in_gulag,
                 release_at: user.release_at,
+                remod: user.remod,
                 message_id: user.message_id,
             })
         } else {
