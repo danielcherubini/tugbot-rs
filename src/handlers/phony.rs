@@ -5,6 +5,7 @@ use serenity::{
 };
 
 use super::{nickname::fix_nickname, HandlerResponse};
+use crate::features::Features;
 
 pub struct Phony;
 
@@ -14,11 +15,29 @@ impl Phony {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        if !Features::is_enabled("phony") {
+            return HandlerResponse {
+                content: String::from("This feature is currently disabled"),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
         let member = command.member.as_ref().unwrap();
         let guild_id = command.guild_id.unwrap();
         let user = &command.user;
         let prefix = &command.data.name;
-        let mut mem = ctx.http.get_member(guild_id, user.id).await.unwrap();
+
+        let mut mem = match ctx.http.get_member(guild_id, user.id).await {
+            Ok(m) => m,
+            Err(_) => {
+                return HandlerResponse {
+                    content: String::from("Error: Could not fetch member"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
 
         match member.nick.as_ref() {
             Some(nick) => {

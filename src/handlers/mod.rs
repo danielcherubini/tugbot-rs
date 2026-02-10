@@ -106,7 +106,7 @@ impl EventHandler for Handler {
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&command).await,
                 _ => HandlerResponse {
-                    content: "Not Implimented".to_string(),
+                    content: "Not Implemented".to_string(),
                     components: None,
                     ephemeral: true,
                 },

@@ -4,14 +4,22 @@ use serenity::{
     prelude::Context,
 };
 
+use crate::features::Features;
 use crate::handlers::gulag::Gulag;
 
 pub struct Elon;
 
 impl Elon {
     pub async fn handler(ctx: &Context, msg: &Message) {
+        if !Features::is_enabled("elon") {
+            return;
+        }
+
         if Elon::has_elon_words(msg.content.as_str()) {
-            let guildid = msg.guild_id.unwrap().get();
+            let Some(guild_id) = msg.guild_id else {
+                return;
+            };
+            let guildid = guild_id.get();
             match msg.member(&ctx.http).await {
                 Err(_) => println!("no partial member"),
                 Ok(member) => {
@@ -20,7 +28,7 @@ impl Elon {
                     if Elon::has_elon_role(ctx, guildid, &member).await {
                         let channelid = msg.channel_id.get();
 
-                        Gulag::send_to_gulag_and_message(
+                        if let Err(e) = Gulag::send_to_gulag_and_message(
                             &ctx.http,
                             guildid,
                             member.user.id.get(),
@@ -29,7 +37,9 @@ impl Elon {
                             None,
                         )
                         .await
-                        .unwrap();
+                        {
+                            eprintln!("Failed to send to gulag: {:?}", e);
+                        }
                     }
                 }
             }

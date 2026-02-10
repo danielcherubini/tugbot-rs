@@ -21,10 +21,10 @@ impl Instagram {
 
                     println!("Suppressed Embed");
                     if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                        println!("Error Editing Message to Tweet {:?}", why);
+                        println!("Error posting Instagram message {:?}", why);
                     }
 
-                    println!("Posted Tweet");
+                    println!("Posted Instagram");
                 }
             }
         }

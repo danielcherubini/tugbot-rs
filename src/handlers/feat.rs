@@ -32,7 +32,7 @@ impl Feat {
                         Err(e) => Feat::handle_error(e.to_string()),
                     }
                 } else {
-                    Feat::handle_error("Please provide a valid user".to_string())
+                    Feat::handle_error("Please provide a valid feature name".to_string())
                 }
             }
             None => match features::Features::all() {
@@ -47,7 +47,10 @@ impl Feat {
             if feat.name == *feature_name {
                 println!("{:?}", feature_name);
                 features::Features::update(&feat.name, !feat.enabled);
-                return Self::handle_list_features(features::Features::all().unwrap());
+                return match features::Features::all() {
+                    Ok(f) => Self::handle_list_features(f),
+                    Err(e) => Self::handle_error(e.to_string()),
+                };
             }
         }
 

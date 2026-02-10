@@ -258,22 +258,29 @@ impl Gulag {
 
                                 if result.message_id != 0 {
                                     // Done the vote from the database
-                                    let done_result: MessageVotes =
-                                        diesel::update(message_votes.filter(
+                                    let done_result = diesel::update(
+                                        message_votes.filter(
                                             message_votes::message_id.eq(result.message_id),
-                                        ))
-                                        .set(message_votes::job_status.eq(JobStatus::Done))
-                                        .get_result(conn)
-                                        .with_context(|| {
-                                            format!(
-                                                "failed to done message_vote_id {}",
-                                                result.message_id
-                                            )
-                                        })
-                                        .unwrap();
+                                        ),
+                                    )
+                                    .set(message_votes::job_status.eq(JobStatus::Done))
+                                    .get_result::<MessageVotes>(conn)
+                                    .with_context(|| {
+                                        format!(
+                                            "failed to done message_vote_id {}",
+                                            result.message_id
+                                        )
+                                    });
 
-                                    if done_result.job_status == JobStatus::Done {
-                                        println!("Updated Gulag Vote Check Item to Done");
+                                    match done_result {
+                                        Ok(done_result) => {
+                                            if done_result.job_status == JobStatus::Done {
+                                                println!("Updated Gulag Vote Check Item to Done");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Error updating vote status: {:?}", e);
+                                        }
                                     }
                                 }
                             }

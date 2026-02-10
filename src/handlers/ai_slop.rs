@@ -152,7 +152,7 @@ impl AiSlopHandler {
         // Calculate duration based on CURRENT usage count (before increment)
         let duration_seconds = Self::calculate_duration(current_count);
 
-        // Send to gulag - if this fails, we won't increment the count
+        // Send to gulag
         let _gulag_result = Gulag::add_to_gulag(
             &ctx.http,
             guild_id,

@@ -90,12 +90,17 @@ impl GulagRemoveHandler {
                                                         );
                                                     };
                                                     let conn = &mut establish_connection();
-                                                    diesel::delete(
+                                                    match diesel::delete(
                                                         gulag_users.filter(id.eq(db_gulag_user.id)),
                                                     )
                                                     .execute(conn)
-                                                    .expect("delete user");
-                                                    println!("Removed from database");
+                                                    {
+                                                        Ok(_) => println!("Removed from database"),
+                                                        Err(e) => eprintln!(
+                                                            "Failed to delete gulag user from DB: {}",
+                                                            e
+                                                        ),
+                                                    }
 
                                                     HandlerResponse {
                                                         content: "Releasing User from the Gulag"

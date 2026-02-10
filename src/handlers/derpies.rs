@@ -4,12 +4,20 @@ use serenity::{
 };
 
 use super::gulag::Gulag;
+use crate::features::Features;
 
 pub struct Derpies;
 
 impl Derpies {
     pub async fn message_handler(ctx: &Context, msg: &Message) {
-        let guild_id = msg.guild_id.unwrap().get();
+        if !Features::is_enabled("derpies") {
+            return;
+        }
+
+        let Some(guild_id_val) = msg.guild_id else {
+            return;
+        };
+        let guild_id = guild_id_val.get();
         match msg.member(&ctx.http).await {
             Err(_) => (),
             Ok(member) => {
@@ -21,14 +29,23 @@ impl Derpies {
     }
 
     pub async fn reaction_add_handler(ctx: &Context, add_reaction: &Reaction) {
-        let guild_id = add_reaction.guild_id.unwrap().get();
-        let user_id = add_reaction.user_id.unwrap().get();
+        if !Features::is_enabled("derpies") {
+            return;
+        }
 
-        let reaction_member = ctx
-            .http
-            .get_member(guild_id.into(), user_id.into())
-            .await
-            .unwrap();
+        let Some(guild_id_val) = add_reaction.guild_id else {
+            return;
+        };
+        let guild_id = guild_id_val.get();
+
+        let Some(user_id_val) = add_reaction.user_id else {
+            return;
+        };
+        let user_id = user_id_val.get();
+
+        let Ok(reaction_member) = ctx.http.get_member(guild_id.into(), user_id.into()).await else {
+            return;
+        };
 
         let has_derpies_role =
             Gulag::member_has_role(&ctx.http, guild_id, &reaction_member, "derpies").await;

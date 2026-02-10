@@ -213,7 +213,7 @@ impl GulagVoteHandler {
             .load::<GulagVote>(conn)
             .expect("Error loading Servers");
 
-        if results.len() > 300 {
+        if results.len() > 3 {
             bail!("Spam detected")
         }
         Ok(())

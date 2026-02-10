@@ -19,7 +19,7 @@ impl TikTok {
 
                 println!("Suppressed Embed");
                 if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                    println!("Error Editing Message to Tweet {:?}", why);
+                    println!("Error posting TikTok message {:?}", why);
                 }
 
                 println!("Posted Tickeytackey");
