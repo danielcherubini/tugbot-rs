@@ -53,7 +53,7 @@ impl MessageVoteHandler {
             .optional();
 
         match message {
-            Ok(Some(existing)) => {
+            Ok(Some(_existing)) => {
                 // Update existing entry with Discord data
                 diesel::update(message_votes::dsl::message_votes.find(message_id as i64))
                     .set((
