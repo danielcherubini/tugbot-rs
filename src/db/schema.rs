@@ -7,6 +7,17 @@ pub mod sql_types {
 }
 
 diesel::table! {
+    ai_slop_usage (id) {
+        id -> Int4,
+        user_id -> Int8,
+        guild_id -> Int8,
+        usage_count -> Int4,
+        last_slop_at -> Timestamp,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     features (id) {
         id -> Int4,
         #[max_length = 255]
@@ -26,6 +37,7 @@ diesel::table! {
         gulag_length -> Int4,
         created_at -> Timestamp,
         release_at -> Timestamp,
+        remod -> Bool,
         message_id -> Int8,
     }
 }
@@ -76,6 +88,7 @@ diesel::table! {
 }
 
 diesel::allow_tables_to_appear_in_same_query!(
+    ai_slop_usage,
     features,
     gulag_users,
     gulag_votes,

@@ -7,6 +7,27 @@ use diesel::{
 use serde::{Deserialize, Serialize};
 use std::{io::Write, time::SystemTime};
 
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = ai_slop_usage)]
+pub struct AiSlopUsage {
+    pub id: i32,
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub usage_count: i32,
+    pub last_slop_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = ai_slop_usage)]
+pub struct NewAiSlopUsage {
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub usage_count: i32,
+    pub last_slop_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
 #[derive(Queryable)]
 pub struct Server {
     pub id: i32,

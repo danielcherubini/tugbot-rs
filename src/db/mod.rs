@@ -3,8 +3,9 @@ pub mod models;
 pub mod schema;
 
 use self::{
-    models::{GulagUser, GulagVote, NewGulagUser, NewGulagVote, NewServer, Server},
+    models::{AiSlopUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGulagUser, NewGulagVote, NewServer, Server},
     schema::{
+        ai_slop_usage::{self},
         gulag_users::{self},
         gulag_votes::{self},
         servers,
@@ -109,4 +110,52 @@ pub fn new_gulag_vote(
         .values(&new_gulag_vote)
         .get_result(conn)
         .expect("Error saving new gulag vote")
+}
+
+pub fn get_or_create_ai_slop_usage(
+    conn: &mut PgConnection,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> AiSlopUsage {
+    use self::ai_slop_usage::dsl::*;
+
+    // Try to get existing record
+    match ai_slop_usage
+        .filter(user_id.eq(target_user_id))
+        .filter(guild_id.eq(target_guild_id))
+        .first::<AiSlopUsage>(conn)
+    {
+        Ok(usage) => usage,
+        Err(_) => {
+            // Create new record with count 0
+            let new_usage = NewAiSlopUsage {
+                user_id: target_user_id,
+                guild_id: target_guild_id,
+                usage_count: 0,
+                last_slop_at: SystemTime::now(),
+                created_at: SystemTime::now(),
+            };
+
+            diesel::insert_into(ai_slop_usage)
+                .values(&new_usage)
+                .get_result(conn)
+                .expect("Error creating new ai slop usage record")
+        }
+    }
+}
+
+pub fn increment_ai_slop_usage(
+    conn: &mut PgConnection,
+    usage_id: i32,
+    new_count: i32,
+) -> AiSlopUsage {
+    use self::ai_slop_usage::dsl::*;
+
+    diesel::update(ai_slop_usage.find(usage_id))
+        .set((
+            usage_count.eq(new_count),
+            last_slop_at.eq(SystemTime::now()),
+        ))
+        .get_result(conn)
+        .expect("Error updating ai slop usage count")
 }

@@ -1,4 +1,5 @@
 // pub mod elkmen;
+pub mod ai_slop;
 pub mod bsky;
 pub mod derpies;
 pub mod elon;
@@ -13,6 +14,7 @@ pub mod tiktok;
 pub mod twitter;
 
 use crate::handlers::{
+    ai_slop::AiSlopHandler,
     bsky::Bsky,
     feat::Feat,
     gulag::{
@@ -102,6 +104,7 @@ impl EventHandler for Handler {
                 "Add Gulag Vote" => {
                     GulagMessageCommandHandler::setup_interaction(&ctx, &command).await
                 }
+                "AI Slop" => AiSlopHandler::setup_interaction(&ctx, &command).await,
                 "phony" => Horny::setup_interaction(&ctx, &command).await,
                 "horny" => Phony::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&command).await,
@@ -154,6 +157,7 @@ impl EventHandler for Handler {
                 c.create_application_command(|command| {
                     GulagMessageCommandHandler::setup_command(command)
                 });
+                c.create_application_command(|command| AiSlopHandler::setup_command(command));
                 c.create_application_command(|command| Horny::setup_command(command));
                 c.create_application_command(|command| Phony::setup_command(command));
                 c.create_application_command(|command| Feat::setup_command(command))
