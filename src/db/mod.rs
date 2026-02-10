@@ -231,28 +231,29 @@ pub fn atomic_increment_ai_slop(
             Box::new(e.to_string()),
         )
     })?;
-    use diesel::sql_types::Integer;
+    use self::ai_slop_usage::dsl::*;
 
     // Upsert: insert with count=1 or increment existing
     // This is fully atomic and returns the NEW count
-    #[derive(QueryableByName)]
-    struct CountResult {
-        #[diesel(sql_type = Integer)]
-        usage_count: i32,
-    }
+    let time_now = SystemTime::now();
+    let new_record = NewAiSlopUsage {
+        user_id: target_user_id,
+        guild_id: target_guild_id,
+        usage_count: 1,
+        last_slop_at: time_now,
+        created_at: time_now,
+    };
 
-    let result: CountResult = diesel::sql_query(
-        "INSERT INTO ai_slop_usage (user_id, guild_id, usage_count, last_slop_at, created_at)
-         VALUES ($1, $2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT (user_id, guild_id)
-         DO UPDATE SET
-           usage_count = ai_slop_usage.usage_count + 1,
-           last_slop_at = CURRENT_TIMESTAMP
-         RETURNING usage_count",
-    )
-    .bind::<diesel::sql_types::BigInt, _>(target_user_id)
-    .bind::<diesel::sql_types::BigInt, _>(target_guild_id)
-    .get_result(&mut conn)?;
+    // Use Diesel's on_conflict API for proper upsert
+    let result: AiSlopUsage = diesel::insert_into(ai_slop_usage)
+        .values(&new_record)
+        .on_conflict((user_id, guild_id))
+        .do_update()
+        .set((
+            usage_count.eq(usage_count + 1),
+            last_slop_at.eq(time_now),
+        ))
+        .get_result(&mut conn)?;
 
     Ok(result.usage_count)
 }
