@@ -117,7 +117,7 @@ pub fn get_or_create_ai_slop_usage(
     conn: &mut PgConnection,
     target_user_id: i64,
     target_guild_id: i64,
-) -> AiSlopUsage {
+) -> Result<AiSlopUsage, diesel::result::Error> {
     use self::ai_slop_usage::dsl::*;
 
     // Try to get existing record
@@ -126,8 +126,8 @@ pub fn get_or_create_ai_slop_usage(
         .filter(guild_id.eq(target_guild_id))
         .first::<AiSlopUsage>(conn)
     {
-        Ok(usage) => usage,
-        Err(_) => {
+        Ok(usage) => Ok(usage),
+        Err(diesel::result::Error::NotFound) => {
             // Create new record with count 0
             let new_usage = NewAiSlopUsage {
                 user_id: target_user_id,
@@ -140,8 +140,8 @@ pub fn get_or_create_ai_slop_usage(
             diesel::insert_into(ai_slop_usage)
                 .values(&new_usage)
                 .get_result(conn)
-                .expect("Error creating new ai slop usage record")
         }
+        Err(e) => Err(e),
     }
 }
 
@@ -149,7 +149,7 @@ pub fn increment_ai_slop_usage(
     conn: &mut PgConnection,
     usage_id: i32,
     new_count: i32,
-) -> AiSlopUsage {
+) -> Result<AiSlopUsage, diesel::result::Error> {
     use self::ai_slop_usage::dsl::*;
 
     diesel::update(ai_slop_usage.find(usage_id))
@@ -158,7 +158,6 @@ pub fn increment_ai_slop_usage(
             last_slop_at.eq(SystemTime::now()),
         ))
         .get_result(conn)
-        .expect("Error updating ai slop usage count")
 }
 
 pub fn get_server_by_guild_id(conn: &mut PgConnection, target_guild_id: i64) -> Option<Server> {

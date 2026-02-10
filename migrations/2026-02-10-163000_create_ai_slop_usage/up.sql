@@ -7,5 +7,3 @@ CREATE TABLE "ai_slop_usage" (
   "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, guild_id)
 );
-
-CREATE INDEX idx_ai_slop_user_guild ON ai_slop_usage(user_id, guild_id);
