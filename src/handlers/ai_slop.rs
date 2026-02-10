@@ -51,7 +51,7 @@ impl AiSlopHandler {
             }
         };
 
-        // Check permissions: require moderator, admin, or derpies role
+        // Check permissions: require Highly Regarded or admin role
         // Fetch roles once instead of three separate API calls
         let member = match ctx.http.get_member(guild_id, command.user.id.0).await {
             Ok(m) => m,
@@ -64,7 +64,7 @@ impl AiSlopHandler {
             }
         };
 
-        let allowed_roles = ["moderator", "admin", "derpies"];
+        let allowed_roles = ["Highly Regarded", "admin"];
         let has_permission = match ctx.http.get_guild_roles(guild_id).await {
             Ok(guild_roles) => {
                 let allowed_role_ids: Vec<_> = guild_roles
@@ -79,7 +79,7 @@ impl AiSlopHandler {
 
         if !has_permission {
             return HandlerResponse {
-                content: "Error: You need moderator, admin, or derpies role to use this command"
+                content: "Error: You need Highly Regarded or admin role to use this command"
                     .to_string(),
                 components: None,
                 ephemeral: true,
