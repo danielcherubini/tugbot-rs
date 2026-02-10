@@ -3,7 +3,10 @@ pub mod models;
 pub mod schema;
 
 use self::{
-    models::{AiSlopUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGulagUser, NewGulagVote, NewServer, Server},
+    models::{
+        AiSlopUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGulagUser, NewGulagVote, NewServer,
+        Server,
+    },
     schema::{
         ai_slop_usage::{self},
         gulag_users::{self},
@@ -182,7 +185,7 @@ pub fn atomic_increment_ai_slop(
          DO UPDATE SET
            usage_count = ai_slop_usage.usage_count + 1,
            last_slop_at = CURRENT_TIMESTAMP
-         RETURNING usage_count"
+         RETURNING usage_count",
     )
     .bind::<diesel::sql_types::BigInt, _>(target_user_id)
     .bind::<diesel::sql_types::BigInt, _>(target_guild_id)

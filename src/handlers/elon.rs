@@ -11,21 +11,21 @@ pub struct Elon;
 impl Elon {
     pub async fn handler(ctx: &Context, msg: &Message) {
         if Elon::has_elon_words(msg.content.as_str()) {
-            let guildid = msg.guild_id.unwrap().0;
+            let guildid = msg.guild_id.unwrap().get();
             match msg.member(&ctx.http).await {
                 Err(_) => println!("no partial member"),
                 Ok(member) => {
                     println!("{:?}", member);
 
                     if Elon::has_elon_role(ctx, guildid, &member).await {
-                        let channelid = msg.channel_id.0;
+                        let channelid = msg.channel_id.get();
 
                         Gulag::send_to_gulag_and_message(
                             &ctx.http,
                             guildid,
-                            member.user.id.0,
+                            member.user.id.get(),
                             channelid,
-                            msg.id.0,
+                            msg.id.get(),
                             None,
                         )
                         .await
@@ -37,13 +37,13 @@ impl Elon {
     }
 
     pub async fn has_elon_role(ctx: &Context, guildid: u64, member: &Member) -> bool {
-        match ctx.http.get_guild_roles(guildid).await {
+        match ctx.http.get_guild_roles(guildid.into()).await {
             Err(_why) => false,
             Ok(roles) => {
                 for role in roles {
                     if role.name == "#1ElonMuskFan" {
                         for member_role in member.roles.iter().copied() {
-                            if member_role.0 == role.id.0 {
+                            if member_role.get() == role.id.get() {
                                 return true;
                             }
                         }

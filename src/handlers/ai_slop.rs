@@ -6,11 +6,8 @@ use crate::db::{
 use crate::features::Features;
 use crate::handlers::gulag::Gulag;
 use serenity::{
-    builder::CreateApplicationCommand,
-    model::prelude::{
-        command::CommandType,
-        interaction::application_command::ApplicationCommandInteraction, Mentionable,
-    },
+    all::{CommandInteraction, CommandType, Mentionable},
+    builder::CreateCommand,
     prelude::Context,
 };
 
@@ -20,17 +17,13 @@ impl AiSlopHandler {
     // Maximum duration: ~30 days (to prevent overflow)
     const MAX_DURATION_SECS: u32 = 2_592_000; // 30 days in seconds
 
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("AI Slop")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("AI Slop")
             .kind(CommandType::Message)
             .description("")
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> HandlerResponse {
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
         // Check feature flag
         if !Features::is_enabled("ai_slop") {
             return HandlerResponse {
@@ -41,7 +34,7 @@ impl AiSlopHandler {
         }
 
         let guild_id = match command.guild_id {
-            Some(id) => id.0,
+            Some(id) => id.get(),
             None => {
                 return HandlerResponse {
                     content: "Error: This command can only be used in a guild".to_string(),
@@ -53,7 +46,7 @@ impl AiSlopHandler {
 
         // Check permissions: require Highly Regarded or admin role
         // Fetch roles once instead of three separate API calls
-        let member = match ctx.http.get_member(guild_id, command.user.id.0).await {
+        let member = match ctx.http.get_member(guild_id.into(), command.user.id).await {
             Ok(m) => m,
             Err(_) => {
                 return HandlerResponse {
@@ -65,7 +58,7 @@ impl AiSlopHandler {
         };
 
         let allowed_roles = ["Highly Regarded", "admin"];
-        let has_permission = match ctx.http.get_guild_roles(guild_id).await {
+        let has_permission = match ctx.http.get_guild_roles(guild_id.into()).await {
             Ok(guild_roles) => {
                 let allowed_role_ids: Vec<_> = guild_roles
                     .iter()
@@ -101,7 +94,7 @@ impl AiSlopHandler {
         let target_user = &target_message.author;
 
         // Prevent self-slop
-        if target_user.id.0 == command.user.id.0 {
+        if target_user.id.get() == command.user.id.get() {
             return HandlerResponse {
                 content: "Error: You cannot AI Slop yourself!".to_string(),
                 components: None,
@@ -134,8 +127,9 @@ impl AiSlopHandler {
             Some(s) => s,
             None => {
                 return HandlerResponse {
-                    content: "Error: This server is not configured. Please ensure a gulag role exists."
-                        .to_string(),
+                    content:
+                        "Error: This server is not configured. Please ensure a gulag role exists."
+                            .to_string(),
                     components: None,
                     ephemeral: true,
                 };
@@ -143,20 +137,17 @@ impl AiSlopHandler {
         };
 
         // Get current usage count (don't increment yet)
-        let current_count = match get_or_create_ai_slop_usage(
-            conn,
-            target_user.id.0 as i64,
-            guild_id as i64,
-        ) {
-            Ok(u) => u.usage_count,
-            Err(_) => {
-                return HandlerResponse {
-                    content: "Error: Database error occurred".to_string(),
-                    components: None,
-                    ephemeral: true,
-                };
-            }
-        };
+        let current_count =
+            match get_or_create_ai_slop_usage(conn, target_user.id.get() as i64, guild_id as i64) {
+                Ok(u) => u.usage_count,
+                Err(_) => {
+                    return HandlerResponse {
+                        content: "Error: Database error occurred".to_string(),
+                        components: None,
+                        ephemeral: true,
+                    };
+                }
+            };
 
         // Calculate duration based on CURRENT usage count (before increment)
         let duration_seconds = Self::calculate_duration(current_count);
@@ -165,24 +156,27 @@ impl AiSlopHandler {
         let _gulag_result = Gulag::add_to_gulag(
             &ctx.http,
             guild_id,
-            target_user.id.0,
+            target_user.id.get(),
             server.gulag_id as u64,
             duration_seconds,
-            command.channel_id.0,
-            target_message.id.0,
+            command.channel_id.get(),
+            target_message.id.get(),
         )
         .await;
 
         // Only increment if gulag succeeded
         // Use atomic increment to prevent race conditions
-        let new_count = match atomic_increment_ai_slop(conn, target_user.id.0 as i64, guild_id as i64) {
-            Ok(count) => count,
-            Err(_) => {
-                // Gulag succeeded but increment failed - log but don't fail the command
-                eprintln!("Warning: Successfully added to gulag but failed to increment AI slop count");
-                current_count + 1 // Estimate for display
-            }
-        };
+        let new_count =
+            match atomic_increment_ai_slop(conn, target_user.id.get() as i64, guild_id as i64) {
+                Ok(count) => count,
+                Err(_) => {
+                    // Gulag succeeded but increment failed - log but don't fail the command
+                    eprintln!(
+                    "Warning: Successfully added to gulag but failed to increment AI slop count"
+                );
+                    current_count + 1 // Estimate for display
+                }
+            };
 
         // Post notification to #the-gulag channel
         if let Some(gulag_channel) =

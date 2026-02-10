@@ -3,44 +3,36 @@ use crate::db::{establish_connection, schema::gulag_users::dsl::*};
 use crate::handlers::HandlerResponse;
 use diesel::*;
 use serenity::{
-    builder::CreateApplicationCommand,
+    all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
+    builder::{CreateCommand, CreateCommandOption, CreateMessage},
     client::Context,
-    model::{
-        application::interaction::application_command::ApplicationCommandInteraction,
-        prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
-    },
 };
 
 pub struct GulagRemoveHandler;
 
 impl GulagRemoveHandler {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("gulag-release")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("gulag-release")
             .description("Release a user from the Gulag")
-            .create_option(|option| {
-                option
-                    .name("user")
-                    .description("The user to lookup")
-                    .kind(CommandOptionType::User)
-                    .required(true)
-            })
+            .add_option(
+                CreateCommandOption::new(CommandOptionType::User, "user", "The user to lookup")
+                    .required(true),
+            )
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &ApplicationCommandInteraction,
-    ) -> HandlerResponse {
-        let user_options = command
-            .data
-            .options
-            .first()
-            .expect("Expected user option")
-            .resolved
-            .as_ref()
-            .expect("Expected user object");
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        let user_options = match command.data.options.first() {
+            Some(opt) => &opt.value,
+            None => {
+                return HandlerResponse {
+                    content: "Expected user option".to_string(),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
 
-        if let CommandDataOptionValue::User(user, _member) = user_options {
+        if let CommandDataOptionValue::User(user) = user_options {
             match command.guild_id {
                 None => HandlerResponse {
                     content: "no member".to_string(),
@@ -48,14 +40,14 @@ impl GulagRemoveHandler {
                     ephemeral: true,
                 },
                 Some(guildid) => {
-                    match Gulag::find_gulag_role(&ctx.http, *guildid.as_u64()).await {
+                    match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
                         Some(gulag_role) => {
-                            match Gulag::is_user_in_gulag(user.id.0) {
+                            match Gulag::is_user_in_gulag(user.get()) {
                                 Some(db_gulag_user) => {
                                     // release
                                     match Gulag::find_channel(
                                         &ctx.http,
-                                        guildid.0,
+                                        guildid.get(),
                                         "the-gulag".to_string(),
                                     )
                                     .await
@@ -63,12 +55,15 @@ impl GulagRemoveHandler {
                                         Some(gulag_channel) => {
                                             match ctx
                                                 .http
-                                                .get_member(guildid.0, db_gulag_user.user_id as u64)
+                                                .get_member(
+                                                    guildid,
+                                                    (db_gulag_user.user_id as u64).into(),
+                                                )
                                                 .await
                                             {
-                                                Ok(mut member) => {
+                                                Ok(member) => {
                                                     if (member
-                                                        .remove_role(&ctx.http, gulag_role.id.0)
+                                                        .remove_role(&ctx.http, gulag_role.id.get())
                                                         .await)
                                                         .is_err()
                                                     {
@@ -83,7 +78,10 @@ impl GulagRemoveHandler {
                                                     );
 
                                                     if (gulag_channel
-                                                        .send_message(ctx, |m| m.content(message))
+                                                        .send_message(
+                                                            &ctx.http,
+                                                            CreateMessage::new().content(message),
+                                                        )
                                                         .await)
                                                         .is_err()
                                                     {

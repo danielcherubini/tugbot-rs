@@ -19,10 +19,7 @@ pub struct MessageVoteHandlerResponse {
 impl MessageVoteHandler {
     /// Get the user_id from an existing message vote entry
     /// Returns None if the message vote doesn't exist
-    pub fn get_user_id_from_message(
-        conn: &mut PgConnection,
-        message_id: u64,
-    ) -> Option<u64> {
+    pub fn get_user_id_from_message(conn: &mut PgConnection, message_id: u64) -> Option<u64> {
         message_votes::table
             .find(message_id as i64)
             .select(message_votes::user_id)

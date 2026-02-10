@@ -9,7 +9,7 @@ pub struct Derpies;
 
 impl Derpies {
     pub async fn message_handler(ctx: &Context, msg: &Message) {
-        let guild_id = msg.guild_id.unwrap().0;
+        let guild_id = msg.guild_id.unwrap().get();
         match msg.member(&ctx.http).await {
             Err(_) => (),
             Ok(member) => {
@@ -21,17 +21,21 @@ impl Derpies {
     }
 
     pub async fn reaction_add_handler(ctx: &Context, add_reaction: &Reaction) {
-        let guild_id = add_reaction.guild_id.unwrap().0;
-        let user_id = add_reaction.user_id.unwrap().0;
+        let guild_id = add_reaction.guild_id.unwrap().get();
+        let user_id = add_reaction.user_id.unwrap().get();
 
-        let reaction_member = ctx.http.get_member(guild_id, user_id).await.unwrap();
+        let reaction_member = ctx
+            .http
+            .get_member(guild_id.into(), user_id.into())
+            .await
+            .unwrap();
 
         let has_derpies_role =
             Gulag::member_has_role(&ctx.http, guild_id, &reaction_member, "derpies").await;
 
         // let message = ctx
         //     .http
-        //     .get_message(add_reaction.channel_id.0, add_reaction.message_id.0)
+        //     .get_message(add_reaction.channel_id.get(), add_reaction.message_id.get())
         //     .await
         //     .unwrap();
         // let message_member = ctx
@@ -51,9 +55,9 @@ impl Derpies {
             let _ = ctx
                 .http
                 .delete_reaction(
-                    add_reaction.channel_id.0,
-                    add_reaction.message_id.0,
-                    Some(user_id),
+                    add_reaction.channel_id,
+                    add_reaction.message_id,
+                    user_id.into(),
                     &add_reaction.emoji,
                 )
                 .await;

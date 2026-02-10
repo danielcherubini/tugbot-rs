@@ -18,7 +18,7 @@ impl Server {
     pub async fn get_servers(ctx: &Context) -> Vec<Server> {
         let mut servers = Vec::new();
 
-        let guild_id = GuildId(0);
+        let guild_id = GuildId::new(1);
         let guilds = ctx
             .http
             .get_guilds(Some(&GuildPagination::After(guild_id)), Some(10))

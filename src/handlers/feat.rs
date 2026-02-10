@@ -1,9 +1,6 @@
 use serenity::{
-    builder::CreateApplicationCommand,
-    model::{
-        application::interaction::application_command::ApplicationCommandInteraction,
-        prelude::{application_command::CommandDataOptionValue, command::CommandOptionType},
-    },
+    all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
+    builder::{CreateCommand, CreateCommandOption},
 };
 
 use crate::{db::models, features};
@@ -13,25 +10,23 @@ use super::HandlerResponse;
 pub struct Feat;
 
 impl Feat {
-    pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        command
-            .name("feature")
+    pub fn setup_command() -> CreateCommand {
+        CreateCommand::new("feature")
             .description("Toggle Feature")
-            .create_option(|option| {
-                option
-                    .name("name")
-                    .description("The feature to enable")
-                    .kind(CommandOptionType::String)
-                    .required(false)
-            })
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::String,
+                    "name",
+                    "The feature to enable",
+                )
+                .required(false),
+            )
     }
 
-    pub async fn setup_interaction(command: &ApplicationCommandInteraction) -> HandlerResponse {
+    pub async fn setup_interaction(command: &CommandInteraction) -> HandlerResponse {
         match command.data.options.first() {
             Some(feature_option_value) => {
-                if let CommandDataOptionValue::String(feature_name) =
-                    feature_option_value.resolved.as_ref().unwrap()
-                {
+                if let CommandDataOptionValue::String(feature_name) = &feature_option_value.value {
                     match features::Features::all() {
                         Ok(f) => Feat::handle_feature(f, feature_name),
                         Err(e) => Feat::handle_error(e.to_string()),
