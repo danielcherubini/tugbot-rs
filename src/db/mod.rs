@@ -79,6 +79,14 @@ pub fn send_to_gulag(
     channel_id: i64,
     message_id: i64,
 ) -> Result<GulagUser, diesel::result::Error> {
+    // Validate gulag_length is non-negative
+    if gulag_length < 0 {
+        return Err(diesel::result::Error::DatabaseError(
+            diesel::result::DatabaseErrorKind::CheckViolation,
+            Box::new("gulag_length must be non-negative".to_string()),
+        ));
+    }
+
     let mut conn = pool.get().map_err(|e| {
         diesel::result::Error::DatabaseError(
             diesel::result::DatabaseErrorKind::UnableToSendCommand,
@@ -155,7 +163,6 @@ pub fn new_gulag_vote(
         message_id,
         created_at: SystemTime::now(),
     };
-    println!("inserting");
     diesel::insert_into(gulag_votes::table)
         .values(&new_gulag_vote)
         .get_result(&mut conn)

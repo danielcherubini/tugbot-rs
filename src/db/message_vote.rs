@@ -20,7 +20,7 @@ impl MessageVoteHandler {
     /// Get the user_id from an existing message vote entry
     /// Returns None if the message vote doesn't exist
     pub fn get_user_id_from_message(pool: &DbPool, message_id: u64) -> Option<u64> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
+        let mut conn = pool.get().ok()?;
         message_votes::table
             .find(message_id as i64)
             .select(message_votes::user_id)
@@ -41,7 +41,9 @@ impl MessageVoteHandler {
         user_id: u64,
         voters: Vec<i64>,
     ) -> Result<MessageVotes> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let current_vote_tally = voters.len() as i32;
         let voters_option: Vec<Option<i64>> = voters.into_iter().map(Some).collect();
 
@@ -92,7 +94,9 @@ impl MessageVoteHandler {
         user_id: u64,
         voter_id: u64,
     ) -> Result<MessageVoteHandlerResponse> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
             .find(message_id as i64)
             .select(MessageVotes::as_select())
@@ -154,7 +158,9 @@ impl MessageVoteHandler {
         message_id: u64,
         voter_id: u64,
     ) -> Result<MessageVoteHandlerResponse> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
             .find(message_id as i64)
             .select(MessageVotes::as_select())

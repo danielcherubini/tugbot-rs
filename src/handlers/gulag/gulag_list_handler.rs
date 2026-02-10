@@ -21,12 +21,34 @@ impl GulagListHandler {
             },
             Some(_guildid) => {
                 let pool = get_pool(ctx).await;
-                let mut conn = pool.get().expect("Failed to get database connection from pool");
-                let gulagusers = gulag_users
+                let mut conn = match pool.get() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Failed to get database connection: {}", e);
+                        return HandlerResponse {
+                            content: "Failed to connect to database. Please try again later."
+                                .to_string(),
+                            components: None,
+                            ephemeral: true,
+                        };
+                    }
+                };
+                let gulagusers = match gulag_users
                     .filter(in_gulag.eq(true))
                     .select(GulagUser::as_select())
                     .load(&mut conn)
-                    .expect("Error connecting to database");
+                {
+                    Ok(users) => users,
+                    Err(e) => {
+                        eprintln!("Error loading gulag users: {}", e);
+                        return HandlerResponse {
+                            content: "Failed to query gulag users. Please try again later."
+                                .to_string(),
+                            components: None,
+                            ephemeral: true,
+                        };
+                    }
+                };
 
                 if gulagusers.is_empty() {
                     return HandlerResponse {

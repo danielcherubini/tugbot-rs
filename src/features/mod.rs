@@ -36,10 +36,15 @@ impl Features {
         let mut conn = pool
             .get()
             .with_context(|| "Failed to get database connection from pool")?;
-        diesel::update(features.filter(name.eq(feature_name)))
+        let rows_affected = diesel::update(features.filter(name.eq(feature_name)))
             .set(enabled.eq(enable))
             .execute(&mut conn)
             .with_context(|| format!("Error updating feature '{}'", feature_name))?;
+
+        if rows_affected == 0 {
+            anyhow::bail!("Feature '{}' not found in database", feature_name);
+        }
+
         Ok(())
     }
 }

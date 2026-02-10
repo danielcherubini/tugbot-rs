@@ -16,10 +16,29 @@ impl Servers {
     pub async fn get_servers(ctx: &Context, pool: &DbPool) -> Vec<Servers> {
         let mut serverss = Vec::new();
 
-        let mut connection = pool.get().expect("Failed to get database connection from pool");
-        let results = servers
-            .load::<Server>(&mut connection)
-            .expect("Error loading Servers");
+        // Use spawn_blocking to avoid blocking async runtime
+        let pool_clone = pool.clone();
+        let results = match tokio::task::spawn_blocking(move || {
+            let mut connection = pool_clone.get().map_err(|e| {
+                diesel::result::Error::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UnableToSendCommand,
+                    Box::new(e.to_string()),
+                )
+            })?;
+            servers.load::<Server>(&mut connection)
+        })
+        .await
+        {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                eprintln!("Database error loading servers: {}", e);
+                return serverss;
+            }
+            Err(e) => {
+                eprintln!("Task join error: {}", e);
+                return serverss;
+            }
+        };
 
         if results.is_empty() {
             println!("Nothing found in DB");
@@ -48,8 +67,23 @@ impl Servers {
 
                 for role in roles {
                     if role.name == "gulag" {
-                        match create_server(pool, guild_info.id.get() as i64, role.id.get() as i64)
-                        {
+                        // Safe conversion with overflow check
+                        let guild_id_i64 = match i64::try_from(guild_info.id.get()) {
+                            Ok(gid) => gid,
+                            Err(e) => {
+                                eprintln!("Guild ID overflow: {}", e);
+                                continue;
+                            }
+                        };
+                        let role_id_i64 = match i64::try_from(role.id.get()) {
+                            Ok(rid) => rid,
+                            Err(e) => {
+                                eprintln!("Role ID overflow: {}", e);
+                                continue;
+                            }
+                        };
+
+                        match create_server(pool, guild_id_i64, role_id_i64) {
                             Ok(_) => {
                                 serverss.push(Servers {
                                     guild_id: guild_info.id,
@@ -75,10 +109,19 @@ impl Servers {
                         });
                     }
                     Err(err) => {
-                        println!("Couldnt connect to server with guildid {:?}", err);
-                        diesel::delete(servers.filter(id.eq(s.id)))
-                            .execute(&mut connection)
-                            .expect("delete server");
+                        println!("Couldn't connect to server with guild_id {:?}", err);
+                        // Delete server in spawn_blocking to avoid blocking async runtime
+                        let pool_clone = pool.clone();
+                        let server_id = s.id;
+                        tokio::spawn(async move {
+                            let _ = tokio::task::spawn_blocking(move || {
+                                if let Ok(mut conn) = pool_clone.get() {
+                                    let _ = diesel::delete(servers.filter(id.eq(server_id)))
+                                        .execute(&mut conn);
+                                }
+                            })
+                            .await;
+                        });
                     }
                 }
             }
