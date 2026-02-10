@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use crate::db::schema::gulag_users::dsl::*;
 use crate::db::{establish_connection, models::GulagUser};
