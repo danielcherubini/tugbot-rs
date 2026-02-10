@@ -6,7 +6,7 @@
 
 set -e
 
-INSTALL_DIR="/usr/src/tugbot"
+INSTALL_DIR="/opt/tugbot"
 SERVICE_NAME="tugbot"
 
 echo "Updating Tugbot Discord Bot..."

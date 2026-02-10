@@ -4,13 +4,13 @@
 # Run this AFTER cloning the repo
 #
 # Usage:
-#   git clone git@github.com:danielcherubini/tugbot-rs.git /usr/src/tugbot
-#   bash /usr/src/tugbot/scripts/install.sh
+#   git clone git@github.com:danielcherubini/tugbot-rs.git /opt/tugbot
+#   bash /opt/tugbot/scripts/install.sh
 #
 
 set -e
 
-INSTALL_DIR="/usr/src/tugbot"
+INSTALL_DIR="/opt/tugbot"
 SERVICE_NAME="tugbot"
 
 echo "==================================="
@@ -78,9 +78,25 @@ echo "[5/5] Installing tugbot binary..."
 cargo install --path .
 echo "       Binary installed to: /root/.cargo/bin/tugbot"
 
-# Install systemd service
+# Install systemd service (use existing service file, update paths)
 echo "[6/6] Installing systemd service..."
-cp $INSTALL_DIR/systemd/tugbot.service /etc/systemd/system/
+cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
+[Unit]
+Description=Tugbot Service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/root/.cargo/bin/tugbot
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 # Enable and start service
 systemctl daemon-reload
