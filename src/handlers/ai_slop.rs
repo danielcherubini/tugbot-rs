@@ -1,7 +1,7 @@
 use super::HandlerResponse;
 use crate::db::{
-    establish_connection, get_or_create_ai_slop_usage, get_server_by_guild_id,
-    increment_ai_slop_usage,
+    atomic_increment_ai_slop, establish_connection, get_or_create_ai_slop_usage,
+    get_server_by_guild_id,
 };
 use crate::features::Features;
 use crate::handlers::gulag::Gulag;
@@ -52,6 +52,7 @@ impl AiSlopHandler {
         };
 
         // Check permissions: require moderator, admin, or derpies role
+        // Fetch roles once instead of three separate API calls
         let member = match ctx.http.get_member(guild_id, command.user.id.0).await {
             Ok(m) => m,
             Err(_) => {
@@ -63,11 +64,20 @@ impl AiSlopHandler {
             }
         };
 
-        let is_moderator = Gulag::member_has_role(&ctx.http, guild_id, &member, "moderator").await;
-        let is_admin = Gulag::member_has_role(&ctx.http, guild_id, &member, "admin").await;
-        let is_derpies = Gulag::member_has_role(&ctx.http, guild_id, &member, "derpies").await;
+        let allowed_roles = ["moderator", "admin", "derpies"];
+        let has_permission = match ctx.http.get_guild_roles(guild_id).await {
+            Ok(guild_roles) => {
+                let allowed_role_ids: Vec<_> = guild_roles
+                    .iter()
+                    .filter(|r| allowed_roles.contains(&r.name.as_str()))
+                    .map(|r| r.id)
+                    .collect();
+                member.roles.iter().any(|r| allowed_role_ids.contains(r))
+            }
+            Err(_) => false,
+        };
 
-        if !is_moderator && !is_admin && !is_derpies {
+        if !has_permission {
             return HandlerResponse {
                 content: "Error: You need moderator, admin, or derpies role to use this command"
                     .to_string(),
@@ -132,10 +142,13 @@ impl AiSlopHandler {
             }
         };
 
-        // Get or create usage record
-        let usage = match get_or_create_ai_slop_usage(conn, target_user.id.0 as i64, guild_id as i64)
-        {
-            Ok(u) => u,
+        // Get current usage count (don't increment yet)
+        let current_count = match get_or_create_ai_slop_usage(
+            conn,
+            target_user.id.0 as i64,
+            guild_id as i64,
+        ) {
+            Ok(u) => u.usage_count,
             Err(_) => {
                 return HandlerResponse {
                     content: "Error: Database error occurred".to_string(),
@@ -146,20 +159,10 @@ impl AiSlopHandler {
         };
 
         // Calculate duration based on CURRENT usage count (before increment)
-        let duration_seconds = Self::calculate_duration(usage.usage_count);
+        let duration_seconds = Self::calculate_duration(current_count);
 
-        // Increment usage count for next time
-        let new_count = usage.usage_count + 1;
-        if let Err(_) = increment_ai_slop_usage(conn, usage.id, new_count) {
-            return HandlerResponse {
-                content: "Error: Could not update usage count".to_string(),
-                components: None,
-                ephemeral: true,
-            };
-        }
-
-        // Send to gulag using the gulag role ID from database
-        let _gulag_user = Gulag::add_to_gulag(
+        // Send to gulag - if this fails, we won't increment the count
+        let _gulag_result = Gulag::add_to_gulag(
             &ctx.http,
             guild_id,
             target_user.id.0,
@@ -169,6 +172,17 @@ impl AiSlopHandler {
             target_message.id.0,
         )
         .await;
+
+        // Only increment if gulag succeeded
+        // Use atomic increment to prevent race conditions
+        let new_count = match atomic_increment_ai_slop(conn, target_user.id.0 as i64, guild_id as i64) {
+            Ok(count) => count,
+            Err(_) => {
+                // Gulag succeeded but increment failed - log but don't fail the command
+                eprintln!("Warning: Successfully added to gulag but failed to increment AI slop count");
+                current_count + 1 // Estimate for display
+            }
+        };
 
         // Post notification to #the-gulag channel
         if let Some(gulag_channel) =

@@ -160,6 +160,37 @@ pub fn increment_ai_slop_usage(
         .get_result(conn)
 }
 
+pub fn atomic_increment_ai_slop(
+    conn: &mut PgConnection,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> Result<i32, diesel::result::Error> {
+    use diesel::sql_types::Integer;
+
+    // Upsert: insert with count=1 or increment existing
+    // This is fully atomic and returns the NEW count
+    #[derive(QueryableByName)]
+    struct CountResult {
+        #[diesel(sql_type = Integer)]
+        usage_count: i32,
+    }
+
+    let result: CountResult = diesel::sql_query(
+        "INSERT INTO ai_slop_usage (user_id, guild_id, usage_count, last_slop_at, created_at)
+         VALUES ($1, $2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT (user_id, guild_id)
+         DO UPDATE SET
+           usage_count = ai_slop_usage.usage_count + 1,
+           last_slop_at = CURRENT_TIMESTAMP
+         RETURNING usage_count"
+    )
+    .bind::<diesel::sql_types::BigInt, _>(target_user_id)
+    .bind::<diesel::sql_types::BigInt, _>(target_guild_id)
+    .get_result(conn)?;
+
+    Ok(result.usage_count)
+}
+
 pub fn get_server_by_guild_id(conn: &mut PgConnection, target_guild_id: i64) -> Option<Server> {
     use self::servers::dsl::*;
 
