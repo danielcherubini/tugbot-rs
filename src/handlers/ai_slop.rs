@@ -1,5 +1,8 @@
 use super::HandlerResponse;
-use crate::db::{establish_connection, get_or_create_ai_slop_usage, increment_ai_slop_usage};
+use crate::db::{
+    establish_connection, get_or_create_ai_slop_usage, get_server_by_guild_id,
+    increment_ai_slop_usage,
+};
 use crate::handlers::gulag::Gulag;
 use serenity::{
     builder::CreateApplicationCommand,
@@ -77,8 +80,21 @@ impl AiSlopHandler {
             }
         }
 
-        // Get or create usage record
+        // Get server info from database
         let conn = &mut establish_connection();
+        let server = match get_server_by_guild_id(conn, guild_id as i64) {
+            Some(s) => s,
+            None => {
+                return HandlerResponse {
+                    content: "Error: This server is not configured. Please ensure a gulag role exists."
+                        .to_string(),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
+
+        // Get or create usage record
         let usage = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             get_or_create_ai_slop_usage(conn, target_user.id.0 as i64, guild_id as i64)
         })) {
@@ -107,25 +123,12 @@ impl AiSlopHandler {
             };
         }
 
-        // Find gulag role
-        let gulag_role = match Gulag::find_gulag_role(&ctx.http, guild_id).await {
-            Some(role) => role,
-            None => {
-                return HandlerResponse {
-                    content: "Error: Could not find gulag role. Please create a role named 'gulag'"
-                        .to_string(),
-                    components: None,
-                    ephemeral: true,
-                };
-            }
-        };
-
-        // Send to gulag
+        // Send to gulag using the gulag role ID from database
         let _gulag_user = Gulag::add_to_gulag(
             &ctx.http,
             guild_id,
             target_user.id.0,
-            gulag_role.id.0,
+            server.gulag_id as u64,
             duration_seconds,
             command.channel_id.0,
             target_message.id.0,

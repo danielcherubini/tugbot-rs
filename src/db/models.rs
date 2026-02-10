@@ -54,6 +54,7 @@ pub struct GulagUser {
     pub gulag_length: i32,
     pub created_at: SystemTime,
     pub release_at: SystemTime,
+    pub remod: bool,
     pub message_id: i64,
 }
 
@@ -68,6 +69,7 @@ pub struct NewGulagUser {
     pub gulag_length: i32,
     pub created_at: SystemTime,
     pub release_at: SystemTime,
+    pub remod: bool,
     pub message_id: i64,
 }
 

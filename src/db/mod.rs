@@ -59,6 +59,7 @@ pub fn send_to_gulag(
         gulag_length,
         created_at: time_now,
         release_at: release_time,
+        remod: false,
         message_id,
     };
 
@@ -158,4 +159,13 @@ pub fn increment_ai_slop_usage(
         ))
         .get_result(conn)
         .expect("Error updating ai slop usage count")
+}
+
+pub fn get_server_by_guild_id(conn: &mut PgConnection, target_guild_id: i64) -> Option<Server> {
+    use self::servers::dsl::*;
+
+    servers
+        .filter(guild_id.eq(target_guild_id))
+        .first::<Server>(conn)
+        .ok()
 }
