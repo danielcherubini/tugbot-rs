@@ -90,12 +90,14 @@ impl EventHandler for Handler {
             Gulag::add_to_gulag(
                 &ctx.http,
                 &pool,
-                user.guild_id as u64,
-                user.user_id as u64,
-                user.gulag_role_id as u64,
-                user.gulag_length as u32,
-                user.channel_id as u64,
-                0,
+                gulag::GulagParams {
+                    guildid: user.guild_id as u64,
+                    userid: user.user_id as u64,
+                    gulag_roleid: user.gulag_role_id as u64,
+                    gulaglength: user.gulag_length as u32,
+                    channelid: user.channel_id as u64,
+                    messageid: 0,
+                },
             )
             .await;
 

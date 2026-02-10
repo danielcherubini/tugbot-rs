@@ -155,12 +155,14 @@ impl AiSlopHandler {
         let _gulag_result = Gulag::add_to_gulag(
             &ctx.http,
             &pool,
-            guild_id,
-            target_user.id.get(),
-            server.gulag_id as u64,
-            duration_seconds,
-            command.channel_id.get(),
-            target_message.id.get(),
+            crate::handlers::gulag::GulagParams {
+                guildid: guild_id,
+                userid: target_user.id.get(),
+                gulag_roleid: server.gulag_id as u64,
+                gulaglength: duration_seconds,
+                channelid: command.channel_id.get(),
+                messageid: target_message.id.get(),
+            },
         )
         .await;
 

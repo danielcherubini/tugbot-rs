@@ -100,12 +100,14 @@ impl GulagHandler {
                         let gulag_user = Gulag::add_to_gulag(
                             &ctx.http,
                             &pool,
-                            guildid.get(),
-                            user.get(),
-                            gulag_role.id.get(),
-                            gulaglength as u32,
-                            channelid,
-                            0,
+                            super::GulagParams {
+                                guildid: guildid.get(),
+                                userid: user.get(),
+                                gulag_roleid: gulag_role.id.get(),
+                                gulaglength: gulaglength as u32,
+                                channelid,
+                                messageid: 0,
+                            },
                         )
                         .await;
 

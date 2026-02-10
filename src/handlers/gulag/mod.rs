@@ -35,6 +35,15 @@ pub mod gulag_vote;
 
 pub struct Gulag;
 
+pub struct GulagParams {
+    pub guildid: u64,
+    pub userid: u64,
+    pub gulag_roleid: u64,
+    pub gulaglength: u32,
+    pub channelid: u64,
+    pub messageid: u64,
+}
+
 impl Gulag {
     fn send_error(err: &str) -> HandlerResponse {
         HandlerResponse {
@@ -109,38 +118,31 @@ impl Gulag {
         }
     }
 
-    pub async fn add_to_gulag(
-        http: &Arc<Http>,
-        pool: &DbPool,
-        guildid: u64,
-        userid: u64,
-        gulag_roleid: u64,
-        gulaglength: u32,
-        channelid: u64,
-        messageid: u64,
-    ) -> GulagUser {
+    pub async fn add_to_gulag(http: &Arc<Http>, pool: &DbPool, params: GulagParams) -> GulagUser {
         let mem = http
-            .get_member(guildid.into(), userid.into())
+            .get_member(params.guildid.into(), params.userid.into())
             .await
             .unwrap();
-        mem.add_role(http, RoleId::new(gulag_roleid)).await.unwrap();
+        mem.add_role(http, RoleId::new(params.gulag_roleid))
+            .await
+            .unwrap();
 
-        match Gulag::is_user_in_gulag(pool, userid) {
+        match Gulag::is_user_in_gulag(pool, params.userid) {
             Some(gulag_db_user) => add_time_to_gulag(
                 pool,
                 gulag_db_user.id,
-                gulag_db_user.gulag_length + gulaglength as i32,
-                gulaglength as i32,
+                gulag_db_user.gulag_length + params.gulaglength as i32,
+                params.gulaglength as i32,
                 gulag_db_user.release_at,
             ),
             None => send_to_gulag(
                 pool,
-                userid as i64,
-                guildid as i64,
-                gulag_roleid as i64,
-                gulaglength as i32,
-                channelid as i64,
-                messageid as i64,
+                params.userid as i64,
+                params.guildid as i64,
+                params.gulag_roleid as i64,
+                params.gulaglength as i32,
+                params.channelid as i64,
+                params.messageid as i64,
             ),
         }
     }
@@ -165,12 +167,14 @@ impl Gulag {
         let gulag_user = Gulag::add_to_gulag(
             http,
             pool,
-            guildid,
-            userid,
-            gulag_role.id.get(),
-            gulaglength,
-            gulag_channel.id.get(),
-            messageid,
+            GulagParams {
+                guildid,
+                userid,
+                gulag_roleid: gulag_role.id.get(),
+                gulaglength,
+                channelid: gulag_channel.id.get(),
+                messageid,
+            },
         )
         .await;
 
