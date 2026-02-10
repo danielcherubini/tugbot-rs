@@ -79,7 +79,7 @@ cargo install --path .
 echo "       Binary installed to: /root/.cargo/bin/tugbot"
 
 # Install systemd service (use existing service file, update paths)
-echo "[6/6] Installing systemd service..."
+echo "[6/7] Installing systemd service..."
 cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
 [Unit]
 Description=Tugbot Service
@@ -103,6 +103,12 @@ systemctl daemon-reload
 systemctl enable ${SERVICE_NAME}.service
 systemctl start ${SERVICE_NAME}.service
 
+# Create symlink for easy updates
+echo "[7/7] Creating update command symlink..."
+ln -sf "$INSTALL_DIR/scripts/update.sh" /usr/local/bin/update-tugbot
+chmod +x "$INSTALL_DIR/scripts/update.sh"
+echo "       update-tugbot command installed"
+
 echo ""
 echo "==================================="
 echo " Installation complete!"
@@ -112,6 +118,5 @@ echo " Status:  systemctl status tugbot"
 echo " Logs:    journalctl -u tugbot -f"
 echo " Stop:    systemctl stop tugbot"
 echo " Start:   systemctl start tugbot"
-echo ""
-echo "To update: cd $INSTALL_DIR && git pull && cargo install --path . && systemctl restart tugbot"
+echo " Update:  update-tugbot"
 echo ""
