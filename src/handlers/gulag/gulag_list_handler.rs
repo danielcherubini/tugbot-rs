@@ -38,11 +38,14 @@ impl GulagListHandler {
 
                 let mut userlist = String::from("");
                 for gulaguser in gulagusers {
-                    let user = ctx
-                        .http
-                        .get_user((gulaguser.user_id as u64).into())
-                        .await
-                        .expect("Couldn't get user");
+                    let user = match ctx.http.get_user((gulaguser.user_id as u64).into()).await {
+                        Ok(u) => u,
+                        Err(_) => {
+                            userlist
+                                .push_str(&format!("\nUnknown user (ID: {})", gulaguser.user_id));
+                            continue;
+                        }
+                    };
 
                     let time_info = match gulaguser.release_at.duration_since(SystemTime::now()) {
                         Ok(duration) => format!("releases in {:?}", duration),

@@ -99,7 +99,7 @@ impl GulagReaction {
     }
 
     pub async fn find_emoji(ctx: &serenity::prelude::Context, guild_id: u64) -> Option<Emoji> {
-        let guild_emojis = ctx.http.get_emojis(guild_id.into()).await.unwrap();
+        let guild_emojis = ctx.http.get_emojis(guild_id.into()).await.ok()?;
 
         for ge in guild_emojis {
             if ge.name == "gulag" {

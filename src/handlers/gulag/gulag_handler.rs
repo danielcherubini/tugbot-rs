@@ -1,3 +1,4 @@
+use crate::features::Features;
 use crate::handlers::HandlerResponse;
 use serenity::{
     all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
@@ -32,6 +33,14 @@ impl GulagHandler {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        if !Features::is_enabled("gulag") {
+            return HandlerResponse {
+                content: String::from("Gulag feature is currently disabled"),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
         let user_options = &command
             .data
             .options
@@ -55,7 +64,22 @@ impl GulagHandler {
 
         let mut gulaglength = 300;
         if let CommandDataOptionValue::Integer(length) = length_options {
-            gulaglength = length * 60;
+            if *length > 0 && *length <= 10080 {
+                // Max 1 week
+                gulaglength = length * 60;
+            } else if *length <= 0 {
+                return HandlerResponse {
+                    content: String::from("Gulag length must be positive"),
+                    components: None,
+                    ephemeral: true,
+                };
+            } else {
+                return HandlerResponse {
+                    content: String::from("Gulag length cannot exceed 10080 minutes (1 week)"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
         }
 
         if let CommandDataOptionValue::User(user) = user_options {

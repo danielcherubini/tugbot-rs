@@ -45,7 +45,6 @@ impl Feat {
     fn handle_feature(features: Vec<models::Features>, feature_name: &String) -> HandlerResponse {
         for feat in features {
             if feat.name == *feature_name {
-                println!("{:?}", feature_name);
                 features::Features::update(&feat.name, !feat.enabled);
                 return match features::Features::all() {
                     Ok(f) => Self::handle_list_features(f),

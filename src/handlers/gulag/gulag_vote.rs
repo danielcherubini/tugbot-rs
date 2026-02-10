@@ -47,7 +47,16 @@ impl GulagVoteHandler {
             .expect("Expected user option")
             .value;
 
-        let requesterid = command.member.to_owned().unwrap().user.id.get();
+        let guildid = match command.guild_id {
+            Some(gid) => gid,
+            None => return Gulag::send_error("This command can only be used in a server"),
+        };
+
+        let requesterid = match command.member.as_ref() {
+            Some(member) => member.user.id.get(),
+            None => return Gulag::send_error("This command can only be used in a server"),
+        };
+
         let conn = &mut establish_connection();
         match GulagVoteHandler::gulag_spam_detection(requesterid, conn).await {
             Ok(_) => {
@@ -58,49 +67,40 @@ impl GulagVoteHandler {
                         .users
                         .get(user_id)
                         .expect("User not found");
-                    match command.guild_id {
-                        None => Gulag::send_error("no member"),
-                        Some(guildid) => {
-                            if Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
-                                HandlerResponse {
-                                    content: "Sorry you can't add tugbot to the gulag".to_string(),
-                                    components: None,
-                                    ephemeral: true,
-                                }
-                            } else {
-                                match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
-                                    None => Gulag::send_error("Couldn't find gulag role"),
-                                    Some(role) => {
-                                        let mem =
-                                            ctx.http.get_member(guildid, user.id).await.unwrap();
 
-                                        let jury_duty_role =
-                                            match GulagVoteHandler::find_jury_duty_role(
-                                                &ctx.http,
-                                                guildid.get(),
-                                            )
-                                            .await
-                                            {
-                                                Some(role) => role,
-                                                None => {
-                                                    return Gulag::send_error(
-                                                        "Couldn't find jury-duty role",
-                                                    )
-                                                }
-                                            };
+                    if Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
+                        HandlerResponse {
+                            content: "Sorry you can't add tugbot to the gulag".to_string(),
+                            components: None,
+                            ephemeral: true,
+                        }
+                    } else {
+                        match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
+                            None => Gulag::send_error("Couldn't find gulag role"),
+                            Some(role) => {
+                                let mem = ctx.http.get_member(guildid, user.id).await.unwrap();
 
-                                        let message = format!(
-                                        "Should we add {} to the {}?\n{} you have 10 mins to vote",
-                                        mem,
-                                        role,
-                                        jury_duty_role);
-
-                                        HandlerResponse {
-                                            content: message,
-                                            components: None,
-                                            ephemeral: false,
-                                        }
+                                let jury_duty_role = match GulagVoteHandler::find_jury_duty_role(
+                                    &ctx.http,
+                                    guildid.get(),
+                                )
+                                .await
+                                {
+                                    Some(role) => role,
+                                    None => {
+                                        return Gulag::send_error("Couldn't find jury-duty role")
                                     }
+                                };
+
+                                let message = format!(
+                                    "Should we add {} to the {}?\n{} you have 10 mins to vote",
+                                    mem, role, jury_duty_role
+                                );
+
+                                HandlerResponse {
+                                    content: message,
+                                    components: None,
+                                    ephemeral: false,
                                 }
                             }
                         }

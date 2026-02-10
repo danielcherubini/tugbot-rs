@@ -21,6 +21,14 @@ impl GulagMessageCommandHandler {
         _ctx: &serenity::client::Context,
         command: &CommandInteraction,
     ) -> HandlerResponse {
+        if !crate::features::Features::is_enabled("gulag") {
+            return HandlerResponse {
+                content: "Gulag feature is currently disabled.".to_string(),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
         let conn = &mut establish_connection();
         let command_data = &command.data;
         let target_id = command_data.target_id.unwrap();

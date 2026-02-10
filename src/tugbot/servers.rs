@@ -30,16 +30,28 @@ impl Servers {
 
         if results.is_empty() {
             println!("Nothing found in DB");
-            let current_guild_id = GuildId::new(0);
-            let guilds = ctx
+            let current_guild_id = GuildId::new(1);
+            let guilds = match ctx
                 .http
                 .get_guilds(Some(GuildPagination::After(current_guild_id)), Some(10))
                 .await
-                .unwrap();
+            {
+                Ok(g) => g,
+                Err(e) => {
+                    eprintln!("Failed to get guilds: {}", e);
+                    return serverss;
+                }
+            };
 
             for guild_info in guilds {
                 let id64: u64 = u64::from(guild_info.id);
-                let roles = ctx.http.get_guild_roles(id64.into()).await.unwrap();
+                let roles = match ctx.http.get_guild_roles(id64.into()).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("Failed to get roles for guild {}: {}", id64, e);
+                        continue;
+                    }
+                };
 
                 for role in roles {
                     if role.name == "gulag" {
