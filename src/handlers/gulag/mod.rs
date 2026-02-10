@@ -172,9 +172,9 @@ impl Gulag {
         let member = http.get_member(guildid, userid).await?;
 
         let mut user_string = "".to_string();
-        if users.is_some() {
+        if let Some(user_list) = users {
             user_string = "\nThese people voted them in".to_string();
-            for user in users.unwrap() {
+            for user in user_list {
                 user_string.push_str(format!(", {}", user).as_str());
             }
         }

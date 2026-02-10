@@ -30,5 +30,11 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        components: clippy
+        rustflags: ""  # Disable default -D warnings
     - run: rustc --version && cargo --version
-    - run: cargo test --workspace --verbose
+    - name: Run Clippy
+      run: cargo clippy --workspace --all-targets -- -D warnings
+    - name: Run tests
+      run: cargo test --workspace --verbose

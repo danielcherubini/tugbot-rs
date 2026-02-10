@@ -14,7 +14,7 @@ pub struct Feat;
 
 impl Feat {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("feature")
             .description("Toggle Feature")
             .create_option(|option| {
@@ -23,7 +23,7 @@ impl Feat {
                     .description("The feature to enable")
                     .kind(CommandOptionType::String)
                     .required(false)
-            });
+            })
     }
 
     pub async fn setup_interaction(command: &ApplicationCommandInteraction) -> HandlerResponse {

@@ -13,9 +13,9 @@ pub struct GulagListHandler;
 
 impl GulagListHandler {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("gulag-list")
-            .description("List users in the gulag");
+            .description("List users in the gulag")
     }
 
     pub async fn setup_interaction(

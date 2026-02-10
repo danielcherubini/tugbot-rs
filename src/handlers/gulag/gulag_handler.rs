@@ -14,7 +14,7 @@ pub struct GulagHandler;
 
 impl GulagHandler {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("gulag")
             .description("Send a user to the Gulag")
             .create_option(|option| {
@@ -37,7 +37,7 @@ impl GulagHandler {
                     .description("How Long minutes")
                     .kind(CommandOptionType::Integer)
                     .required(true)
-            });
+            })
     }
 
     pub async fn setup_interaction(

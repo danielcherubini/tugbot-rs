@@ -11,7 +11,7 @@ impl Derpies {
     pub async fn message_handler(ctx: &Context, msg: &Message) {
         let guild_id = msg.guild_id.unwrap().0;
         match msg.member(&ctx.http).await {
-            Err(_) => return,
+            Err(_) => (),
             Ok(member) => {
                 if Gulag::member_has_role(&ctx.http, guild_id, &member, "derpies").await {
                     println!("It's derpies");

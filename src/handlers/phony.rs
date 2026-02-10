@@ -9,9 +9,9 @@ pub struct Phony;
 
 impl Phony {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("phony")
-            .description("Mark yourself as phony/watching");
+            .description("Mark yourself as phony/watching")
     }
 
     pub async fn setup_interaction(

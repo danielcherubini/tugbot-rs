@@ -1,19 +1,19 @@
-fn clean_username(nick: &String) -> String {
+fn clean_username(nick: &str) -> String {
     nick.replace("phony | ", "").replace("horny | ", "")
 }
 
 // fix_nickname is a function to add the nickname for horny/phony
-pub fn fix_nickname(nick: &String, prefix: &String) -> String {
+pub fn fix_nickname(nick: &str, prefix: &str) -> String {
     // check if the nickname has the prefix in it
     let nick_to_find = format!("{} | ", prefix);
     if nick.contains(&nick_to_find) {
         // the prefix is already in the nick so just clean
-        return clean_username(nick);
+        clean_username(nick)
     } else if nick.contains(" | ") {
         // the prefix doesn't match, but there's a pipe in there
-        return format!("{} | {}", prefix, clean_username(nick));
+        format!("{} | {}", prefix, clean_username(nick))
     } else {
-        return format!("{} | {}", prefix, nick);
+        format!("{} | {}", prefix, nick)
     }
 }
 

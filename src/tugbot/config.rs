@@ -24,11 +24,11 @@ impl Config {
         let intents = GatewayIntents::privileged()
             .union(GatewayIntents::GUILD_MESSAGES)
             .union(GatewayIntents::GUILD_MESSAGE_REACTIONS);
-        return Config {
+        Config {
             db_url,
             token,
             application_id,
             intents,
-        };
+        }
     }
 }

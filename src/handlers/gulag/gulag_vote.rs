@@ -30,7 +30,7 @@ pub struct GulagVoteHandler;
 
 impl GulagVoteHandler {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("gulag-vote")
             .description("Send to the gulag")
             .create_option(|option| {
@@ -39,7 +39,7 @@ impl GulagVoteHandler {
                     .description("The user to gulag")
                     .kind(CommandOptionType::User)
                     .required(true)
-            });
+            })
     }
 
     pub async fn setup_interaction(

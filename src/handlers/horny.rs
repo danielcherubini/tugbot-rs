@@ -9,9 +9,9 @@ pub struct Horny;
 
 impl Horny {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("horny")
-            .description("Mark yourself as horny/lfg");
+            .description("Mark yourself as horny/lfg")
     }
 
     pub async fn setup_interaction(
@@ -30,24 +30,24 @@ impl Horny {
 
         match member.nick.as_ref() {
             Some(nick) => {
-                let new_nick = fix_nickname(nick, &prefix);
+                let new_nick = fix_nickname(nick, prefix);
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return HandlerResponse {
+                HandlerResponse {
                     content: String::from("Done"),
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
             None => {
                 let name = member.display_name().to_string();
-                let new_nick = fix_nickname(&name, &prefix);
+                let new_nick = fix_nickname(&name, prefix);
 
                 mem.edit(&ctx.http, |m| m.nickname(new_nick)).await.unwrap();
-                return HandlerResponse {
+                HandlerResponse {
                     content: String::from("Done"),
                     components: None,
                     ephemeral: true,
-                };
+                }
             }
         }
     }

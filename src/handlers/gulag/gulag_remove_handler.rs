@@ -15,7 +15,7 @@ pub struct GulagRemoveHandler;
 
 impl GulagRemoveHandler {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command
+        command
             .name("gulag-release")
             .description("Release a user from the Gulag")
             .create_option(|option| {
@@ -24,7 +24,7 @@ impl GulagRemoveHandler {
                     .description("The user to lookup")
                     .kind(CommandOptionType::User)
                     .required(true)
-            });
+            })
     }
 
     pub async fn setup_interaction(

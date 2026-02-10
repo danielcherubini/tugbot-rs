@@ -28,7 +28,7 @@ impl Servers {
             .load::<Server>(connection)
             .expect("Error loading Servers");
 
-        if results.len() == 0 {
+        if results.is_empty() {
             println!("Nothing found in DB");
             let current_guild_id = GuildId(0);
             let guilds = ctx
@@ -73,6 +73,6 @@ impl Servers {
             }
         }
 
-        return serverss;
+        serverss
     }
 }

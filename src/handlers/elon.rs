@@ -17,7 +17,7 @@ impl Elon {
                 Ok(member) => {
                     println!("{:?}", member);
 
-                    if Elon::has_elon_role(&ctx, guildid, &member).await {
+                    if Elon::has_elon_role(ctx, guildid, &member).await {
                         let channelid = msg.channel_id.0;
 
                         Gulag::send_to_gulag_and_message(
@@ -42,7 +42,7 @@ impl Elon {
             Ok(roles) => {
                 for role in roles {
                     if role.name == "#1ElonMuskFan" {
-                        for member_role in member.roles.to_owned() {
+                        for member_role in member.roles.iter().copied() {
                             if member_role.0 == role.id.0 {
                                 return true;
                             }
@@ -63,9 +63,6 @@ impl Elon {
         let clean =
             Regex::replace_all(&Regex::new(r"[^a-zA-Z0-9 ]").unwrap(), english.as_str(), "");
 
-        match re.captures(&clean.to_lowercase()) {
-            None => false,
-            Some(_) => true,
-        }
+        re.captures(&clean.to_lowercase()).is_some()
     }
 }

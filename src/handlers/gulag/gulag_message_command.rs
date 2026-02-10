@@ -17,7 +17,7 @@ pub struct GulagMessageCommandHandler;
 
 impl GulagMessageCommandHandler {
     pub fn setup_command(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-        return command.name("Add Gulag Vote").kind(CommandType::Message);
+        command.name("Add Gulag Vote").kind(CommandType::Message)
     }
 
     pub async fn setup_interaction(

@@ -59,7 +59,7 @@ mod tests {
     #[test]
     fn x_rewrite() {
         match Twitter::fx_rewriter("https://x.com/davidbcooper/status/1684840110259404802") {
-            None => assert!(false),
+            None => panic!("Expected URL to be rewritten"),
             Some(url) => assert_eq!(
                 url,
                 "https://girlcockx.com/davidbcooper/status/1684840110259404802",
