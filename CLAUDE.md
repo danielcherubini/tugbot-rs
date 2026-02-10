@@ -34,6 +34,23 @@ Required environment variables (create a `.env` file):
 - `APPLICATION_ID` - Discord application ID
 - `DATABASE_URL` - PostgreSQL connection string (e.g., `postgres://tugbot:tugbot@localhost/tugbot`)
 
+### Database Access via MCP (Claude Code)
+
+For direct database access in Claude Code, set up an MCP server:
+
+```bash
+# Extract DATABASE_URL from .env
+source .env
+
+# Add MCP server for database access
+claude mcp add --transport stdio tugbot-db -- npx -y @bytebase/dbhub --dsn "$DATABASE_URL"
+
+# Verify connection
+claude mcp list
+```
+
+This enables Claude Code to directly query and inspect the database using natural language.
+
 ## Architecture
 
 ### Core Components
@@ -93,6 +110,58 @@ The gulag system spawns two background tasks in `ready()`:
 
 Both use `tokio::spawn()` with infinite loops and 1-second sleep intervals.
 
+## Deployment
+
+### Initial Setup
+
+The bot is deployed to an LXC container. Initial setup:
+
+```bash
+# Clone repository
+git clone git@github.com:danielcherubini/tugbot-rs.git /opt/tugbot
+
+# Run installation script (as root)
+cd /opt/tugbot
+bash scripts/install.sh
+```
+
+The install script:
+- Installs system dependencies (libpq-dev, pkg-config, libssl-dev, etc.)
+- Installs Rust toolchain
+- Installs Diesel CLI
+- Runs database migrations
+- Builds and installs the binary
+- Sets up systemd service
+- Creates `update-tugbot` command symlink
+
+### Updating Production
+
+After pushing changes to the repository:
+
+```bash
+# SSH into the LXC (key-based authentication)
+ssh root@tugbot
+
+# Run update command
+update-tugbot
+```
+
+The `update-tugbot` command:
+- Pulls latest changes from `origin/main`
+- Runs database migrations
+- Rebuilds and installs the binary
+- Restarts the systemd service
+
+### Service Management
+
+```bash
+systemctl status tugbot    # Check status
+systemctl restart tugbot   # Restart service
+systemctl stop tugbot      # Stop service
+systemctl start tugbot     # Start service
+journalctl -u tugbot -f    # View logs
+```
+
 ## Version Bumping and Releases
 
 When asked to bump versions and release:
@@ -109,3 +178,4 @@ When asked to bump versions and release:
 - Discord embeds are suppressed for social media links before posting rewritten versions
 - The "gulag" feature uses Discord's timeout/role system, not native Discord timeouts
 - Commands are note and phony/horny appear swapped in the interaction handler (intentional)
+- When working with time-based queries in gulag system, always handle cases where `release_at` may be in the past (use `.duration_since()` with proper error handling)
