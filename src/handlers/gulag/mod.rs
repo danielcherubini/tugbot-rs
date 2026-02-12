@@ -530,13 +530,37 @@ impl Gulag {
     }
 
     pub fn is_user_in_gulag(pool: &DbPool, userid: u64) -> Option<GulagUser> {
-        let mut conn = pool.get().expect("Failed to get database connection from pool");
-        let results = gulag_users
-            .filter(gulag_users::user_id.eq(userid as i64))
+        // Return None on any error instead of panicking
+        let mut conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to get database connection in is_user_in_gulag: {}", e);
+                return None;
+            }
+        };
+
+        // Safe conversion of user ID
+        let userid_i64 = match i64::try_from(userid) {
+            Ok(uid) => uid,
+            Err(e) => {
+                eprintln!("User ID conversion error in is_user_in_gulag: {}", e);
+                return None;
+            }
+        };
+
+        let results = match gulag_users
+            .filter(gulag_users::user_id.eq(userid_i64))
             .load::<GulagUser>(&mut conn)
-            .expect("Error loading Servers");
+        {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("Error loading gulag user in is_user_in_gulag: {}", e);
+                return None;
+            }
+        };
+
         if !results.is_empty() {
-            let user = results.first().unwrap();
+            let user = results.first().unwrap(); // Safe: we checked !is_empty()
             Some(GulagUser {
                 id: user.id,
                 user_id: user.user_id,
