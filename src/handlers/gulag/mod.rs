@@ -474,11 +474,14 @@ impl Gulag {
         if updated_result.job_status == JobStatus::Running {
             println!("Updated Gulag Vote Check Item to Running");
             // Remove all gulag emoji's from gulag_reaction
+            // Safe conversion of IDs
+            let channel_id_u64 = u64::try_from(result.channel_id)
+                .with_context(|| format!("Channel ID {} exceeds u64::MAX", result.channel_id))?;
+            let message_id_u64 = u64::try_from(result.message_id)
+                .with_context(|| format!("Message ID {} exceeds u64::MAX", result.message_id))?;
+
             let message = http
-                .get_message(
-                    (result.channel_id as u64).into(),
-                    (result.message_id as u64).into(),
-                )
+                .get_message(channel_id_u64.into(), message_id_u64.into())
                 .await
                 .with_context(|| "Failed to get Message")?;
 
@@ -493,13 +496,27 @@ impl Gulag {
             }
 
             // send to gulag and message
+            // Safe conversion of IDs for send_to_gulag_and_message
+            let guild_id_u64 = u64::try_from(updated_result.guild_id).with_context(|| {
+                format!("Guild ID {} exceeds u64::MAX", updated_result.guild_id)
+            })?;
+            let user_id_u64 = u64::try_from(updated_result.user_id).with_context(|| {
+                format!("User ID {} exceeds u64::MAX", updated_result.user_id)
+            })?;
+            let channel_id_u64 = u64::try_from(updated_result.channel_id).with_context(|| {
+                format!("Channel ID {} exceeds u64::MAX", updated_result.channel_id)
+            })?;
+            let message_id_u64 = u64::try_from(updated_result.message_id).with_context(|| {
+                format!("Message ID {} exceeds u64::MAX", updated_result.message_id)
+            })?;
+
             return match Gulag::send_to_gulag_and_message(
                 &http,
                 pool,
-                updated_result.guild_id as u64,
-                updated_result.user_id as u64,
-                updated_result.channel_id as u64,
-                updated_result.message_id as u64,
+                guild_id_u64,
+                user_id_u64,
+                channel_id_u64,
+                message_id_u64,
                 None,
             )
             .await
@@ -548,34 +565,17 @@ impl Gulag {
             }
         };
 
-        let results = match gulag_users
+        // Use .first().optional() for cleaner code
+        match gulag_users
             .filter(gulag_users::user_id.eq(userid_i64))
-            .load::<GulagUser>(&mut conn)
+            .first::<GulagUser>(&mut conn)
+            .optional()
         {
-            Ok(r) => r,
+            Ok(user) => user, // Returns Option<GulagUser> directly
             Err(e) => {
                 eprintln!("Error loading gulag user in is_user_in_gulag: {}", e);
-                return None;
+                None
             }
-        };
-
-        if !results.is_empty() {
-            let user = results.first().unwrap(); // Safe: we checked !is_empty()
-            Some(GulagUser {
-                id: user.id,
-                user_id: user.user_id,
-                channel_id: user.channel_id,
-                guild_id: user.guild_id,
-                gulag_role_id: user.gulag_role_id,
-                gulag_length: user.gulag_length,
-                created_at: user.created_at,
-                in_gulag: user.in_gulag,
-                release_at: user.release_at,
-                remod: user.remod,
-                message_id: user.message_id,
-            })
-        } else {
-            None
         }
     }
 }
