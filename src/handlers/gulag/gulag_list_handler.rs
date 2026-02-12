@@ -1,8 +1,7 @@
 use std::time::SystemTime;
 
-use crate::db::schema::gulag_users::dsl::*;
-use crate::db::{establish_connection, models::GulagUser};
-use crate::handlers::HandlerResponse;
+use crate::db::{models::GulagUser, schema::gulag_users::dsl::*};
+use crate::handlers::{get_pool, HandlerResponse};
 use diesel::*;
 use serenity::{all::CommandInteraction, builder::CreateCommand, client::Context};
 
@@ -21,12 +20,35 @@ impl GulagListHandler {
                 ephemeral: false,
             },
             Some(_guildid) => {
-                let conn = &mut establish_connection();
-                let gulagusers = gulag_users
+                let pool = get_pool(ctx).await;
+                let mut conn = match pool.get() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Failed to get database connection: {}", e);
+                        return HandlerResponse {
+                            content: "Failed to connect to database. Please try again later."
+                                .to_string(),
+                            components: None,
+                            ephemeral: true,
+                        };
+                    }
+                };
+                let gulagusers = match gulag_users
                     .filter(in_gulag.eq(true))
                     .select(GulagUser::as_select())
-                    .load(conn)
-                    .expect("Error connecting to database");
+                    .load(&mut conn)
+                {
+                    Ok(users) => users,
+                    Err(e) => {
+                        eprintln!("Error loading gulag users: {}", e);
+                        return HandlerResponse {
+                            content: "Failed to query gulag users. Please try again later."
+                                .to_string(),
+                            components: None,
+                            ephemeral: true,
+                        };
+                    }
+                };
 
                 if gulagusers.is_empty() {
                     return HandlerResponse {

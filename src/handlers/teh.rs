@@ -1,4 +1,5 @@
 use crate::features::Features;
+use crate::handlers::get_pool;
 use serenity::{
     model::prelude::{Message, ReactionType},
     prelude::Context,
@@ -7,7 +8,8 @@ use serenity::{
 pub struct Teh;
 impl Teh {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if Features::is_enabled("teh") && msg.content.to_lowercase().contains("teh") {
+        let pool = get_pool(ctx).await;
+        if Features::is_enabled(&pool, "teh") && msg.content.to_lowercase().contains("teh") {
             // React with "🇹"
             if let Err(why) = msg.react(ctx, ReactionType::Unicode("🇹".to_string())).await {
                 println!("Error reacting with emoji T: {:?}", why);

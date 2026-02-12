@@ -5,13 +5,14 @@ use serenity::{
 };
 
 use crate::features::Features;
-use crate::handlers::gulag::Gulag;
+use crate::handlers::{get_pool, gulag::Gulag};
 
 pub struct Elon;
 
 impl Elon {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if !Features::is_enabled("elon") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "elon") {
             return;
         }
 
@@ -30,6 +31,7 @@ impl Elon {
 
                         if let Err(e) = Gulag::send_to_gulag_and_message(
                             &ctx.http,
+                            &pool,
                             guildid,
                             member.user.id.get(),
                             channelid,

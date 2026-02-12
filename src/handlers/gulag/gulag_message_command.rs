@@ -1,9 +1,6 @@
 use crate::{
-    db::{
-        establish_connection,
-        message_vote::{MessageVoteHanderResponseType, MessageVoteHandler},
-    },
-    handlers::HandlerResponse,
+    db::message_vote::{MessageVoteHanderResponseType, MessageVoteHandler},
+    handlers::{get_pool, HandlerResponse},
 };
 use serenity::{
     all::{CommandInteraction, CommandType},
@@ -18,18 +15,18 @@ impl GulagMessageCommandHandler {
     }
 
     pub async fn setup_interaction(
-        _ctx: &serenity::client::Context,
+        ctx: &serenity::client::Context,
         command: &CommandInteraction,
     ) -> HandlerResponse {
-        if !crate::features::Features::is_enabled("gulag") {
+        let pool = get_pool(ctx).await;
+
+        if !crate::features::Features::is_enabled(&pool, "gulag") {
             return HandlerResponse {
                 content: "Gulag feature is currently disabled.".to_string(),
                 components: None,
                 ephemeral: true,
             };
         }
-
-        let conn = &mut establish_connection();
         let command_data = &command.data;
 
         let Some(target_id) = command_data.target_id else {
@@ -61,7 +58,7 @@ impl GulagMessageCommandHandler {
         };
 
         match MessageVoteHandler::message_vote_create_or_update(
-            conn,
+            &pool,
             message.id.get(),
             guild_id.get(),
             command.channel_id.get(),

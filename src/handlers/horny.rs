@@ -4,7 +4,7 @@ use serenity::{
     client::Context,
 };
 
-use super::{nickname::fix_nickname, HandlerResponse};
+use super::{get_pool, nickname::fix_nickname, HandlerResponse};
 use crate::features::Features;
 
 pub struct Horny;
@@ -15,7 +15,8 @@ impl Horny {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
-        if !Features::is_enabled("horny") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "horny") {
             return HandlerResponse {
                 content: String::from("This feature is currently disabled"),
                 components: None,

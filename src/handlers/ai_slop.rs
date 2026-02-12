@@ -1,8 +1,5 @@
-use super::HandlerResponse;
-use crate::db::{
-    atomic_increment_ai_slop, establish_connection, get_or_create_ai_slop_usage,
-    get_server_by_guild_id,
-};
+use super::{get_pool, HandlerResponse};
+use crate::db::{atomic_increment_ai_slop, get_or_create_ai_slop_usage, get_server_by_guild_id};
 use crate::features::Features;
 use crate::handlers::gulag::Gulag;
 use serenity::{
@@ -24,8 +21,10 @@ impl AiSlopHandler {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        let pool = get_pool(ctx).await;
+
         // Check feature flag
-        if !Features::is_enabled("ai_slop") {
+        if !Features::is_enabled(&pool, "ai_slop") {
             return HandlerResponse {
                 content: "This feature is currently disabled.".to_string(),
                 components: None,
@@ -122,8 +121,7 @@ impl AiSlopHandler {
         }
 
         // Get server info from database
-        let conn = &mut establish_connection();
-        let server = match get_server_by_guild_id(conn, guild_id as i64) {
+        let server = match get_server_by_guild_id(&pool, guild_id as i64) {
             Some(s) => s,
             None => {
                 return HandlerResponse {
@@ -138,7 +136,8 @@ impl AiSlopHandler {
 
         // Get current usage count (don't increment yet)
         let current_count =
-            match get_or_create_ai_slop_usage(conn, target_user.id.get() as i64, guild_id as i64) {
+            match get_or_create_ai_slop_usage(&pool, target_user.id.get() as i64, guild_id as i64)
+            {
                 Ok(u) => u.usage_count,
                 Err(_) => {
                     return HandlerResponse {
@@ -153,21 +152,32 @@ impl AiSlopHandler {
         let duration_seconds = Self::calculate_duration(current_count);
 
         // Send to gulag
-        let _gulag_result = Gulag::add_to_gulag(
+        if let Err(e) = Gulag::add_to_gulag(
             &ctx.http,
-            guild_id,
-            target_user.id.get(),
-            server.gulag_id as u64,
-            duration_seconds,
-            command.channel_id.get(),
-            target_message.id.get(),
+            &pool,
+            crate::handlers::gulag::GulagParams {
+                guildid: guild_id,
+                userid: target_user.id.get(),
+                gulag_roleid: server.gulag_id as u64,
+                gulaglength: duration_seconds,
+                channelid: command.channel_id.get(),
+                messageid: target_message.id.get(),
+            },
         )
-        .await;
+        .await
+        {
+            eprintln!("Failed to send user to gulag: {}", e);
+            return HandlerResponse {
+                content: format!("Error: Failed to send to gulag: {}", e),
+                components: None,
+                ephemeral: true,
+            };
+        }
 
         // Only increment if gulag succeeded
         // Use atomic increment to prevent race conditions
         let new_count =
-            match atomic_increment_ai_slop(conn, target_user.id.get() as i64, guild_id as i64) {
+            match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
                 Ok(count) => count,
                 Err(_) => {
                     // Gulag succeeded but increment failed - log but don't fail the command
