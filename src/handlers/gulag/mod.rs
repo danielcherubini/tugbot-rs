@@ -131,25 +131,64 @@ impl Gulag {
             .await
             .with_context(|| "Failed to add gulag role")?;
 
+        // Safe conversion of gulag length from u32 to i32
+        let gulag_length_i32: i32 = params.gulaglength
+            .try_into()
+            .with_context(|| format!("Gulag length {} exceeds i32::MAX", params.gulaglength))?;
+
         match Gulag::is_user_in_gulag(pool, params.userid) {
-            Some(gulag_db_user) => add_time_to_gulag(
-                pool,
-                gulag_db_user.id,
-                gulag_db_user.gulag_length + params.gulaglength as i32,
-                params.gulaglength as i32,
-                gulag_db_user.release_at,
-            )
-            .with_context(|| "Failed to add time to gulag"),
-            None => send_to_gulag(
-                pool,
-                params.userid as i64,
-                params.guildid as i64,
-                params.gulag_roleid as i64,
-                params.gulaglength as i32,
-                params.channelid as i64,
-                params.messageid as i64,
-            )
-            .with_context(|| "Failed to send user to gulag"),
+            Some(gulag_db_user) => {
+                // Safely add to existing gulag time with overflow check
+                let new_length = gulag_db_user
+                    .gulag_length
+                    .checked_add(gulag_length_i32)
+                    .with_context(|| {
+                        format!(
+                            "Gulag length overflow: {} + {}",
+                            gulag_db_user.gulag_length, gulag_length_i32
+                        )
+                    })?;
+
+                add_time_to_gulag(
+                    pool,
+                    gulag_db_user.id,
+                    new_length,
+                    gulag_length_i32,
+                    gulag_db_user.release_at,
+                )
+                .with_context(|| "Failed to add time to gulag")
+            }
+            None => {
+                // Safe conversions for all Discord IDs
+                let user_id_i64: i64 = params
+                    .userid
+                    .try_into()
+                    .with_context(|| format!("User ID {} exceeds i64::MAX", params.userid))?;
+                let guild_id_i64: i64 = params
+                    .guildid
+                    .try_into()
+                    .with_context(|| format!("Guild ID {} exceeds i64::MAX", params.guildid))?;
+                let role_id_i64: i64 = params.gulag_roleid.try_into().with_context(|| {
+                    format!("Role ID {} exceeds i64::MAX", params.gulag_roleid)
+                })?;
+                let channel_id_i64: i64 = params.channelid.try_into().with_context(|| {
+                    format!("Channel ID {} exceeds i64::MAX", params.channelid)
+                })?;
+                let message_id_i64: i64 = params.messageid.try_into().with_context(|| {
+                    format!("Message ID {} exceeds i64::MAX", params.messageid)
+                })?;
+
+                send_to_gulag(
+                    pool,
+                    user_id_i64,
+                    guild_id_i64,
+                    role_id_i64,
+                    gulag_length_i32,
+                    channel_id_i64,
+                    message_id_i64,
+                )
+                .with_context(|| "Failed to send user to gulag")
+            }
         }
     }
 
@@ -379,23 +418,35 @@ impl Gulag {
                 let job_status_predicate = message_votes::job_status
                     .eq(JobStatus::Created)
                     .or(message_votes::job_status.eq(JobStatus::Done));
-                let results = message_votes
+                let results = match message_votes
                     .filter(message_votes::current_vote_tally.ge(5))
                     .filter(job_status_predicate)
                     .for_update()
                     .skip_locked()
                     .load::<MessageVotes>(&mut conn)
-                    .expect("Error loading Servers");
+                {
+                    Ok(r) => r,
+                    Err(err) => {
+                        eprintln!("Error loading MessageVotes for vote processing: {}", err);
+                        continue;
+                    }
+                };
+
                 if !results.is_empty() {
                     for result in results {
                         if let Err(err) =
                             Self::gulag_check_handler(http.to_owned(), &pool, &mut conn, &result).await
                         {
                             println!("Error running gulag vote {:?}", err);
-                            let _result = diesel::update(message_votes.find(result.message_id))
+                            if let Err(update_err) = diesel::update(message_votes.find(result.message_id))
                                 .set(message_votes::job_status.eq(JobStatus::Failure))
                                 .execute(&mut conn)
-                                .unwrap();
+                            {
+                                eprintln!(
+                                    "Failed to update JobStatus to Failure for message {}: {}",
+                                    result.message_id, update_err
+                                );
+                            }
                         }
                     }
                 }
