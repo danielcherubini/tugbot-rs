@@ -90,17 +90,23 @@ impl GulagRemoveHandler {
                                                             "Couldn't Send message to release",
                                                         );
                                                     };
-                                                    let mut conn = pool.get().expect("Failed to get database connection from pool");
-                                                    match diesel::delete(
-                                                        gulag_users.filter(id.eq(db_gulag_user.id)),
-                                                    )
-                                                    .execute(&mut conn)
-                                                    {
-                                                        Ok(_) => println!("Removed from database"),
-                                                        Err(e) => eprintln!(
-                                                            "Failed to delete gulag user from DB: {}",
-                                                            e
-                                                        ),
+                                                    match pool.get() {
+                                                        Ok(mut conn) => {
+                                                            match diesel::delete(
+                                                                gulag_users.filter(id.eq(db_gulag_user.id)),
+                                                            )
+                                                            .execute(&mut conn)
+                                                            {
+                                                                Ok(_) => println!("Removed from database"),
+                                                                Err(e) => eprintln!(
+                                                                    "Failed to delete gulag user from DB: {}",
+                                                                    e
+                                                                ),
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            eprintln!("Failed to get database connection for cleanup: {}", e);
+                                                        }
                                                     }
 
                                                     HandlerResponse {
