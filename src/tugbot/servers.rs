@@ -108,15 +108,31 @@ impl Servers {
             println!("found in DB");
 
             for s in results {
-                match ctx.http.get_guild((s.guild_id as u64).into()).await {
+                // Safe conversion with overflow check
+                let guild_id_u64 = match u64::try_from(s.guild_id) {
+                    Ok(gid) => gid,
+                    Err(e) => {
+                        eprintln!("Guild ID conversion error for server {}: {}", s.id, e);
+                        continue;
+                    }
+                };
+                let gulag_id_u64 = match u64::try_from(s.gulag_id) {
+                    Ok(rid) => rid,
+                    Err(e) => {
+                        eprintln!("Gulag ID conversion error for server {}: {}", s.id, e);
+                        continue;
+                    }
+                };
+
+                match ctx.http.get_guild(guild_id_u64.into()).await {
                     Ok(guildid) => {
                         serverss.push(Servers {
                             guild_id: guildid.id,
-                            gulag_id: RoleId::new(s.gulag_id as u64),
+                            gulag_id: RoleId::new(gulag_id_u64),
                         });
                     }
                     Err(err) => {
-                        println!("Couldn't connect to server with guild_id {:?}", err);
+                        eprintln!("Couldn't connect to server with guild_id {:?}", err);
                         // Delete server in spawn_blocking to avoid blocking async runtime
                         let pool_clone = pool.clone();
                         let server_id = s.id;

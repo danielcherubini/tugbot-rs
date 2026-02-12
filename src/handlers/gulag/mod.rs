@@ -382,12 +382,18 @@ impl Gulag {
                             }
                             Err(why) => match why.to_string().as_str() {
                                 "Unknown Guild" | "Unknown Message" => {
-                                    diesel::delete(
+                                    if let Err(e) = diesel::delete(
                                         gulag_users.filter(gulag_users::id.eq(result.id)),
                                     )
                                     .execute(&mut conn)
-                                    .expect("delete user");
-                                    println!("Removed from database due to error {}", why);
+                                    {
+                                        eprintln!(
+                                            "Failed to delete gulag user {} on error recovery: {}",
+                                            result.id, e
+                                        );
+                                    } else {
+                                        println!("Removed from database due to error {}", why);
+                                    }
                                 }
                                 _ => {
                                     println!("Error run_gulag_check: {:?}", why.to_string());
