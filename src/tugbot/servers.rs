@@ -134,29 +134,30 @@ impl Servers {
                     Err(err) => {
                         eprintln!("Couldn't connect to server with guild_id {:?}", err);
                         // Delete server in spawn_blocking to avoid blocking async runtime
+                        // Await completion to ensure cleanup finishes before returning
                         let pool_clone = pool.clone();
                         let server_id = s.id;
-                        tokio::spawn(async move {
-                            if let Err(e) = tokio::task::spawn_blocking(move || {
-                                match pool_clone.get() {
-                                    Ok(mut conn) => {
-                                        diesel::delete(servers.filter(id.eq(server_id)))
-                                            .execute(&mut conn)
-                                            .map_err(|e| {
-                                                eprintln!("Failed to delete server {}: {}", server_id, e);
-                                            })
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to get DB connection for delete: {}", e);
-                                        Ok(0)
-                                    }
-                                }
-                            })
-                            .await
-                            {
-                                eprintln!("Task join error during delete: {}", e);
+
+                        match tokio::task::spawn_blocking(move || -> Result<usize, String> {
+                            let mut conn = pool_clone.get()
+                                .map_err(|e| format!("Failed to get DB connection for delete: {}", e))?;
+
+                            diesel::delete(servers.filter(id.eq(server_id)))
+                                .execute(&mut conn)
+                                .map_err(|e| format!("Failed to delete server {}: {}", server_id, e))
+                        })
+                        .await
+                        {
+                            Ok(Ok(rows)) => {
+                                eprintln!("Deleted stale server {} from database ({} rows)", server_id, rows);
                             }
-                        });
+                            Ok(Err(db_err)) => {
+                                eprintln!("Database error during delete: {}", db_err);
+                            }
+                            Err(join_err) => {
+                                eprintln!("Task join error during delete: {}", join_err);
+                            }
+                        }
                     }
                 }
             }
