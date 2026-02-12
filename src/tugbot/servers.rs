@@ -20,10 +20,7 @@ impl Servers {
         let pool_clone = pool.clone();
         let results = match tokio::task::spawn_blocking(move || {
             let mut connection = pool_clone.get().map_err(|e| {
-                diesel::result::Error::DatabaseError(
-                    diesel::result::DatabaseErrorKind::UnableToSendCommand,
-                    Box::new(e.to_string()),
-                )
+                diesel::result::Error::QueryBuilderError(Box::new(e))
             })?;
             servers.load::<Server>(&mut connection)
         })
@@ -83,15 +80,25 @@ impl Servers {
                             }
                         };
 
-                        match create_server(pool, guild_id_i64, role_id_i64) {
-                            Ok(_) => {
+                        // Wrap blocking DB call in spawn_blocking
+                        let pool_clone = pool.clone();
+                        let create_result = tokio::task::spawn_blocking(move || {
+                            create_server(&pool_clone, guild_id_i64, role_id_i64)
+                        })
+                        .await;
+
+                        match create_result {
+                            Ok(Ok(_)) => {
                                 serverss.push(Servers {
                                     guild_id: guild_info.id,
                                     gulag_id: role.id,
                                 });
                             }
-                            Err(e) => {
+                            Ok(Err(e)) => {
                                 eprintln!("Failed to create server in DB: {}", e);
+                            }
+                            Err(e) => {
+                                eprintln!("Task join error creating server: {}", e);
                             }
                         }
                     }
@@ -114,13 +121,25 @@ impl Servers {
                         let pool_clone = pool.clone();
                         let server_id = s.id;
                         tokio::spawn(async move {
-                            let _ = tokio::task::spawn_blocking(move || {
-                                if let Ok(mut conn) = pool_clone.get() {
-                                    let _ = diesel::delete(servers.filter(id.eq(server_id)))
-                                        .execute(&mut conn);
+                            if let Err(e) = tokio::task::spawn_blocking(move || {
+                                match pool_clone.get() {
+                                    Ok(mut conn) => {
+                                        diesel::delete(servers.filter(id.eq(server_id)))
+                                            .execute(&mut conn)
+                                            .map_err(|e| {
+                                                eprintln!("Failed to delete server {}: {}", server_id, e);
+                                            })
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to get DB connection for delete: {}", e);
+                                        Ok(0)
+                                    }
                                 }
                             })
-                            .await;
+                            .await
+                            {
+                                eprintln!("Task join error during delete: {}", e);
+                            }
                         });
                     }
                 }

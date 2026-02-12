@@ -243,13 +243,19 @@ impl Gulag {
                     }
                 };
 
-                let results = gulag_users
+                let results = match gulag_users
                     .filter(gulag_users::in_gulag.eq(true))
                     .filter(gulag_users::release_at.le(SystemTime::now()))
                     .for_update()
                     .skip_locked()
                     .load::<GulagUser>(&mut conn)
-                    .expect("Error loading Servers");
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("Error loading gulag users for release: {}", e);
+                        continue;
+                    }
+                };
                 //println!("{:?}", results.len());
                 if !results.is_empty() {
                     for result in results {
@@ -259,23 +265,52 @@ impl Gulag {
                             result.id
                         );
 
-                        diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
+                        if let Err(e) = diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
                             .set(in_gulag.eq(false))
                             .execute(&mut conn)
-                            .unwrap();
+                        {
+                            eprintln!("Failed to update gulag status for user {}: {}", result.id, e);
+                            continue;
+                        }
+
+                        // Safe conversion for Discord IDs (i64 -> u64)
+                        let user_id_u64 = match u64::try_from(result.user_id) {
+                            Ok(uid) => uid,
+                            Err(e) => {
+                                eprintln!("User ID conversion error for user {}: {}", result.id, e);
+                                continue;
+                            }
+                        };
+                        let guild_id_u64 = match u64::try_from(result.guild_id) {
+                            Ok(gid) => gid,
+                            Err(e) => {
+                                eprintln!("Guild ID conversion error for user {}: {}", result.id, e);
+                                continue;
+                            }
+                        };
+                        let role_id_u64 = match u64::try_from(result.gulag_role_id) {
+                            Ok(rid) => rid,
+                            Err(e) => {
+                                eprintln!("Role ID conversion error for user {}: {}", result.id, e);
+                                continue;
+                            }
+                        };
 
                         match Gulag::remove_from_gulag(
                             http.to_owned(),
-                            result.user_id as u64,
-                            result.guild_id as u64,
-                            RoleId::new(result.gulag_role_id as u64),
+                            user_id_u64,
+                            guild_id_u64,
+                            RoleId::new(role_id_u64),
                         )
                         .await
                         {
                             Ok(_) => {
-                                diesel::delete(gulag_users.filter(gulag_users::id.eq(result.id)))
+                                if let Err(e) = diesel::delete(gulag_users.filter(gulag_users::id.eq(result.id)))
                                     .execute(&mut conn)
-                                    .expect("delete user");
+                                {
+                                    eprintln!("Failed to delete gulag user {}: {}", result.id, e);
+                                    continue;
+                                }
                                 println!("Removed from database");
 
                                 if result.message_id != 0 {

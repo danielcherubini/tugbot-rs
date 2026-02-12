@@ -87,15 +87,52 @@ impl EventHandler for Handler {
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
         let pool = get_pool(&ctx).await;
         if let Some(user) = Gulag::is_user_in_gulag(&pool, member.user.id.get()) {
+            // Safe conversion with overflow check
+            let guild_id = match user.guild_id.try_into() {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("Guild ID conversion error: {}", e);
+                    return;
+                }
+            };
+            let user_id = match user.user_id.try_into() {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("User ID conversion error: {}", e);
+                    return;
+                }
+            };
+            let gulag_role_id = match user.gulag_role_id.try_into() {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("Gulag role ID conversion error: {}", e);
+                    return;
+                }
+            };
+            let gulag_length = match user.gulag_length.try_into() {
+                Ok(len) => len,
+                Err(e) => {
+                    eprintln!("Gulag length conversion error: {}", e);
+                    return;
+                }
+            };
+            let channel_id = match user.channel_id.try_into() {
+                Ok(id) => id,
+                Err(e) => {
+                    eprintln!("Channel ID conversion error: {}", e);
+                    return;
+                }
+            };
+
             if let Err(e) = Gulag::add_to_gulag(
                 &ctx.http,
                 &pool,
                 gulag::GulagParams {
-                    guildid: user.guild_id as u64,
-                    userid: user.user_id as u64,
-                    gulag_roleid: user.gulag_role_id as u64,
-                    gulaglength: user.gulag_length as u32,
-                    channelid: user.channel_id as u64,
+                    guildid: guild_id,
+                    userid: user_id,
+                    gulag_roleid: gulag_role_id,
+                    gulaglength: gulag_length,
+                    channelid: channel_id,
                     messageid: 0,
                 },
             )
@@ -105,7 +142,7 @@ impl EventHandler for Handler {
             }
 
             let message = format!("You can't escape so easily {}", member);
-            if let Ok(channel) = ctx.http.get_channel((user.channel_id as u64).into()).await {
+            if let Ok(channel) = ctx.http.get_channel(channel_id.into()).await {
                 if let Err(why) = channel
                     .id()
                     .send_message(&ctx.http, CreateMessage::new().content(message))

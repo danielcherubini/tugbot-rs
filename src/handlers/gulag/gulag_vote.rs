@@ -181,10 +181,8 @@ impl GulagVoteHandler {
                     .await
                     .unwrap();
 
-                let _r = msg.react(&ctx, '👍').await.unwrap();
-                let _r = msg.react(&ctx, '👎').await.unwrap();
-
-                if let Err(e) = new_gulag_vote(
+                // Create vote first, then add reactions only if successful
+                match new_gulag_vote(
                     &pool,
                     requesterid as i64,
                     user_id.get() as i64,
@@ -193,7 +191,21 @@ impl GulagVoteHandler {
                     msg.id.get() as i64,
                     msg.channel_id.get() as i64,
                 ) {
-                    eprintln!("Failed to create gulag vote: {}", e);
+                    Ok(_) => {
+                        // Vote created successfully, add reactions
+                        if let Err(e) = msg.react(&ctx, '👍').await {
+                            eprintln!("Failed to add thumbs up reaction: {}", e);
+                        }
+                        if let Err(e) = msg.react(&ctx, '👎').await {
+                            eprintln!("Failed to add thumbs down reaction: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to create gulag vote: {}", e);
+                        if let Err(why) = msg.channel_id.say(&ctx.http, "Failed to start vote, please try again.").await {
+                            eprintln!("Failed to send error message: {}", why);
+                        }
+                    }
                 }
             }
         }

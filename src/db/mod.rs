@@ -26,6 +26,11 @@ use std::{
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
+/// Helper to convert pool errors to Diesel errors
+fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
+    diesel::result::Error::QueryBuilderError(Box::new(e))
+}
+
 /// Establishes a connection pool for database operations
 /// This should be called once at application startup
 pub fn establish_pool() -> DbPool {
@@ -57,12 +62,7 @@ pub fn create_server(
     guild_id: i64,
     gulag_id: i64,
 ) -> Result<Server, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     let new_server = NewServer { guild_id, gulag_id };
 
     diesel::insert_into(servers::table)
@@ -87,12 +87,7 @@ pub fn send_to_gulag(
         ));
     }
 
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     let time_now = SystemTime::now();
     let gulag_duration = Duration::from_secs(gulag_length as u64);
     let release_time = time_now.add(gulag_duration);
@@ -122,12 +117,14 @@ pub fn add_time_to_gulag(
     gulag_duration: i32,
     release_at: SystemTime,
 ) -> Result<GulagUser, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    // Validate gulag_duration is non-negative
+    if gulag_duration < 0 {
+        return Err(diesel::result::Error::QueryBuilderError(
+            "gulag_duration must be non-negative".into(),
+        ));
+    }
+
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     let gulag_duration = Duration::from_secs(gulag_duration as u64);
     let new_release_time = release_at.add(gulag_duration);
     diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
@@ -147,12 +144,7 @@ pub fn new_gulag_vote(
     message_id: i64,
     channel_id: i64,
 ) -> Result<GulagVote, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     let new_gulag_vote = NewGulagVote {
         requester_id,
         sender_id,
@@ -173,12 +165,7 @@ pub fn get_or_create_ai_slop_usage(
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     use self::ai_slop_usage::dsl::*;
 
     // Try to get existing record
@@ -211,12 +198,7 @@ pub fn increment_ai_slop_usage(
     usage_id: i32,
     new_count: i32,
 ) -> Result<AiSlopUsage, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     use self::ai_slop_usage::dsl::*;
 
     diesel::update(ai_slop_usage.find(usage_id))
@@ -232,12 +214,7 @@ pub fn atomic_increment_ai_slop(
     target_user_id: i64,
     target_guild_id: i64,
 ) -> Result<i32, diesel::result::Error> {
-    let mut conn = pool.get().map_err(|e| {
-        diesel::result::Error::DatabaseError(
-            diesel::result::DatabaseErrorKind::UnableToSendCommand,
-            Box::new(e.to_string()),
-        )
-    })?;
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
     use self::ai_slop_usage::dsl::*;
 
     // Upsert: insert with count=1 or increment existing
