@@ -1,0 +1,50 @@
+use crate::db::{models, schema::features::dsl::*, DbPool};
+use diesel::prelude::*;
+
+/// Helper to convert pool errors to Diesel errors
+fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
+    diesel::result::Error::QueryBuilderError(Box::new(e))
+}
+
+pub struct FeatureQueries;
+
+impl FeatureQueries {
+    /// Get all features
+    pub fn all(pool: &DbPool) -> Result<Vec<models::Features>, diesel::result::Error> {
+        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+        features.load(&mut conn)
+    }
+
+    /// Check if a feature is enabled
+    pub fn is_enabled(pool: &DbPool, feature_name: &str) -> bool {
+        let mut conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to get database connection: {}", e);
+                return false;
+            }
+        };
+        features
+            .filter(name.eq(feature_name))
+            .select(enabled)
+            .first::<bool>(&mut conn)
+            .optional()
+            .unwrap_or_else(|e| {
+                eprintln!("Error checking feature '{}': {}", feature_name, e);
+                None
+            })
+            .unwrap_or(false)
+    }
+
+    /// Update a feature's enabled status
+    pub fn update(
+        pool: &DbPool,
+        feature_name: &str,
+        enable: bool,
+    ) -> Result<usize, diesel::result::Error> {
+        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+        diesel::update(features.filter(name.eq(feature_name)))
+            .set(enabled.eq(enable))
+            .execute(&mut conn)
+    }
+}
