@@ -1,6 +1,6 @@
 use super::Gulag;
-use crate::db::{establish_connection, schema::gulag_users::dsl::*};
-use crate::handlers::HandlerResponse;
+use crate::db::schema::gulag_users::dsl::*;
+use crate::handlers::{get_pool, HandlerResponse};
 use diesel::*;
 use serenity::{
     all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
@@ -21,6 +21,7 @@ impl GulagRemoveHandler {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
+        let pool = get_pool(ctx).await;
         let user_options = match command.data.options.first() {
             Some(opt) => &opt.value,
             None => {
@@ -42,7 +43,7 @@ impl GulagRemoveHandler {
                 Some(guildid) => {
                     match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
                         Some(gulag_role) => {
-                            match Gulag::is_user_in_gulag(user.get()) {
+                            match Gulag::is_user_in_gulag(&pool, user.get()) {
                                 Some(db_gulag_user) => {
                                     // release
                                     match Gulag::find_channel(
@@ -89,17 +90,23 @@ impl GulagRemoveHandler {
                                                             "Couldn't Send message to release",
                                                         );
                                                     };
-                                                    let conn = &mut establish_connection();
-                                                    match diesel::delete(
-                                                        gulag_users.filter(id.eq(db_gulag_user.id)),
-                                                    )
-                                                    .execute(conn)
-                                                    {
-                                                        Ok(_) => println!("Removed from database"),
-                                                        Err(e) => eprintln!(
-                                                            "Failed to delete gulag user from DB: {}",
-                                                            e
-                                                        ),
+                                                    match pool.get() {
+                                                        Ok(mut conn) => {
+                                                            match diesel::delete(
+                                                                gulag_users.filter(id.eq(db_gulag_user.id)),
+                                                            )
+                                                            .execute(&mut conn)
+                                                            {
+                                                                Ok(_) => println!("Removed from database"),
+                                                                Err(e) => eprintln!(
+                                                                    "Failed to delete gulag user from DB: {}",
+                                                                    e
+                                                                ),
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            eprintln!("Failed to get database connection for cleanup: {}", e);
+                                                        }
                                                     }
 
                                                     HandlerResponse {

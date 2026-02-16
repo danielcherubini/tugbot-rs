@@ -1,5 +1,5 @@
 use crate::features::Features;
-use crate::handlers::HandlerResponse;
+use crate::handlers::{get_pool, HandlerResponse};
 use serenity::{
     all::{CommandDataOptionValue, CommandInteraction, CommandOptionType},
     builder::{CreateCommand, CreateCommandOption},
@@ -33,7 +33,8 @@ impl GulagHandler {
     }
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
-        if !Features::is_enabled("gulag") {
+        let pool = get_pool(ctx).await;
+        if !Features::is_enabled(&pool, "gulag") {
             return HandlerResponse {
                 content: String::from("Gulag feature is currently disabled"),
                 components: None,
@@ -96,16 +97,29 @@ impl GulagHandler {
                         ephemeral: false,
                     },
                     Some(gulag_role) => {
-                        let gulag_user = Gulag::add_to_gulag(
+                        let gulag_user = match Gulag::add_to_gulag(
                             &ctx.http,
-                            guildid.get(),
-                            user.get(),
-                            gulag_role.id.get(),
-                            gulaglength as u32,
-                            channelid,
-                            0,
+                            &pool,
+                            super::GulagParams {
+                                guildid: guildid.get(),
+                                userid: user.get(),
+                                gulag_roleid: gulag_role.id.get(),
+                                gulaglength: gulaglength as u32,
+                                channelid,
+                                messageid: 0,
+                            },
                         )
-                        .await;
+                        .await
+                        {
+                            Ok(u) => u,
+                            Err(e) => {
+                                return HandlerResponse {
+                                    content: format!("Failed to send to gulag: {}", e),
+                                    components: None,
+                                    ephemeral: true,
+                                };
+                            }
+                        };
 
                         if let CommandDataOptionValue::String(reason) = reason_options {
                             let content = format!(

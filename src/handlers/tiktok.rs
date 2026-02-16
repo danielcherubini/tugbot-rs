@@ -2,12 +2,14 @@ use regex::Regex;
 use serenity::{builder::EditMessage, model::channel::Message, prelude::Context};
 
 use crate::features::Features;
+use crate::handlers::get_pool;
 
 pub struct TikTok;
 
 impl TikTok {
     pub async fn handler(ctx: &Context, msg: &Message) {
-        if Features::is_enabled("tiktok") {
+        let pool = get_pool(ctx).await;
+        if Features::is_enabled(&pool, "tiktok") {
             if let Some(fixed_message) = Self::fx_rewriter(&msg.content.to_owned()).await {
                 if let Err(why) = msg
                     .clone()

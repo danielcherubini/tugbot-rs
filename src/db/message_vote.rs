@@ -1,10 +1,10 @@
 use super::{
     models::{JobStatus, MessageVotes, NewMessageVotes},
     schema::message_votes::{self},
+    DbPool,
 };
 use anyhow::{anyhow, Result};
 use diesel::prelude::*;
-use diesel::PgConnection;
 
 pub struct MessageVoteHandler;
 pub enum MessageVoteHanderResponseType {
@@ -19,11 +19,12 @@ pub struct MessageVoteHandlerResponse {
 impl MessageVoteHandler {
     /// Get the user_id from an existing message vote entry
     /// Returns None if the message vote doesn't exist
-    pub fn get_user_id_from_message(conn: &mut PgConnection, message_id: u64) -> Option<u64> {
+    pub fn get_user_id_from_message(pool: &DbPool, message_id: u64) -> Option<u64> {
+        let mut conn = pool.get().ok()?;
         message_votes::table
             .find(message_id as i64)
             .select(message_votes::user_id)
-            .first::<i64>(conn)
+            .first::<i64>(&mut conn)
             .optional()
             .ok()
             .flatten()
@@ -33,20 +34,23 @@ impl MessageVoteHandler {
     /// Sync message vote data from Discord reactions (source of truth)
     /// Takes the actual list of voters from Discord and updates the database
     pub fn sync_from_discord(
-        conn: &mut PgConnection,
+        pool: &DbPool,
         message_id: u64,
         guild_id: u64,
         channel_id: u64,
         user_id: u64,
         voters: Vec<i64>,
     ) -> Result<MessageVotes> {
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let current_vote_tally = voters.len() as i32;
         let voters_option: Vec<Option<i64>> = voters.into_iter().map(Some).collect();
 
         let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
             .find(message_id as i64)
             .select(MessageVotes::as_select())
-            .first(conn)
+            .first(&mut conn)
             .optional();
 
         match message {
@@ -57,7 +61,7 @@ impl MessageVoteHandler {
                         message_votes::current_vote_tally.eq(current_vote_tally),
                         message_votes::voters.eq(voters_option),
                     ))
-                    .get_result(conn)
+                    .get_result(&mut conn)
                     .map_err(|e| anyhow!("Failed to update vote from Discord: {}", e))
             }
             Ok(None) => {
@@ -75,7 +79,7 @@ impl MessageVoteHandler {
                 diesel::insert_into(message_votes::table)
                     .values(&new_message_vote)
                     .returning(MessageVotes::as_returning())
-                    .get_result(conn)
+                    .get_result(&mut conn)
                     .map_err(|e| anyhow!("Failed to create vote from Discord: {}", e))
             }
             Err(e) => Err(e.into()),
@@ -83,17 +87,20 @@ impl MessageVoteHandler {
     }
 
     pub fn message_vote_create_or_update(
-        conn: &mut PgConnection,
+        pool: &DbPool,
         message_id: u64,
         guild_id: u64,
         channel_id: u64,
         user_id: u64,
         voter_id: u64,
     ) -> Result<MessageVoteHandlerResponse> {
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
             .find(message_id as i64)
             .select(MessageVotes::as_select())
-            .first(conn)
+            .first(&mut conn)
             .optional();
 
         match message {
@@ -109,7 +116,7 @@ impl MessageVoteHandler {
                             message_votes::current_vote_tally.eq(current_vote_tally),
                             message_votes::voters.eq(message.voters),
                         ))
-                        .get_result(conn)
+                        .get_result(&mut conn)
                     {
                         Ok(c) => Ok(MessageVoteHandlerResponse {
                             response_type: MessageVoteHanderResponseType::ADDED,
@@ -133,7 +140,7 @@ impl MessageVoteHandler {
                 match diesel::insert_into(message_votes::table)
                     .values(&new_message_vote)
                     .returning(MessageVotes::as_returning())
-                    .get_result(conn)
+                    .get_result(&mut conn)
                 {
                     Ok(c) => Ok(MessageVoteHandlerResponse {
                         response_type: MessageVoteHanderResponseType::ADDED,
@@ -147,14 +154,17 @@ impl MessageVoteHandler {
     }
 
     pub fn message_vote_remove(
-        conn: &mut PgConnection,
+        pool: &DbPool,
         message_id: u64,
         voter_id: u64,
     ) -> Result<MessageVoteHandlerResponse> {
+        let mut conn = pool
+            .get()
+            .map_err(|e| anyhow!("Failed to get database connection: {}", e))?;
         let message: Result<Option<MessageVotes>, diesel::result::Error> = message_votes::table
             .find(message_id as i64)
             .select(MessageVotes::as_select())
-            .first(conn)
+            .first(&mut conn)
             .optional();
 
         match message {
@@ -175,7 +185,7 @@ impl MessageVoteHandler {
                             message_votes::current_vote_tally.eq(message.current_vote_tally),
                             message_votes::voters.eq(message.voters),
                         ))
-                        .get_result(conn)
+                        .get_result(&mut conn)
                     {
                         Ok(c) => Ok(MessageVoteHandlerResponse {
                             response_type: MessageVoteHanderResponseType::REMOVED,
