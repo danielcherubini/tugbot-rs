@@ -4,6 +4,7 @@ use crate::db::{
     schema::{gulag_users, gulag_votes},
     DbPool,
 };
+use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use std::{
     ops::Add,
@@ -55,19 +56,33 @@ impl GulagQueries {
 
     /// Find a user in the gulag by user ID
     pub fn find_by_user_id(pool: &DbPool, user_id: i64) -> Option<GulagUser> {
-        let mut conn = pool.get().ok()?;
+        let mut conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to acquire database connection in find_by_user_id for user {}: {}", user_id, e);
+                return None;
+            }
+        };
         use crate::db::schema::gulag_users::dsl;
 
-        dsl::gulag_users
+        match dsl::gulag_users
             .filter(dsl::user_id.eq(user_id))
             .first::<GulagUser>(&mut conn)
-            .optional()
-            .ok()?
+        {
+            Ok(user) => Some(user),
+            Err(diesel::result::Error::NotFound) => None,
+            Err(e) => {
+                eprintln!("Database error in find_by_user_id for user {}: {}", user_id, e);
+                None
+            }
+        }
     }
 
-    /// Find all users currently in the gulag whose release time has passed
-    pub fn find_expired(pool: &DbPool) -> Result<Vec<GulagUser>, diesel::result::Error> {
-        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    /// Find all users currently in the gulag whose release time has passed.
+    ///
+    /// Takes a connection reference so the caller can wrap this + mark_released
+    /// in a single transaction, keeping FOR UPDATE locks held until commit.
+    pub fn find_expired(conn: &mut PgConnection) -> Result<Vec<GulagUser>, diesel::result::Error> {
         use crate::db::schema::gulag_users::dsl::*;
 
         gulag_users
@@ -75,7 +90,7 @@ impl GulagQueries {
             .filter(release_at.le(SystemTime::now()))
             .for_update()
             .skip_locked()
-            .load::<GulagUser>(&mut conn)
+            .load::<GulagUser>(conn)
     }
 
     /// Find all active gulag users for a guild
@@ -130,17 +145,19 @@ impl GulagQueries {
         })
     }
 
-    /// Mark a user as no longer in gulag
+    /// Mark a user as no longer in gulag.
+    ///
+    /// Takes a connection reference so it can be called within the same
+    /// transaction as find_expired.
     pub fn mark_released(
-        pool: &DbPool,
+        conn: &mut PgConnection,
         gulag_user_id: i32,
     ) -> Result<usize, diesel::result::Error> {
-        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
         use crate::db::schema::gulag_users::dsl::*;
 
         diesel::update(gulag_users.filter(id.eq(gulag_user_id)))
             .set(in_gulag.eq(false))
-            .execute(&mut conn)
+            .execute(conn)
     }
 
     /// Delete a gulag entry
@@ -151,7 +168,10 @@ impl GulagQueries {
         diesel::delete(gulag_users.filter(id.eq(gulag_user_id))).execute(&mut conn)
     }
 
-    /// Create a new gulag vote
+    /// Create a new gulag vote.
+    ///
+    /// Returns `DatabaseError(UniqueViolation, ...)` if an unprocessed vote
+    /// already exists for this sender targeting this requester in the same guild.
     pub fn create_vote(
         pool: &DbPool,
         requester_id: i64,
@@ -162,6 +182,23 @@ impl GulagQueries {
         channel_id: i64,
     ) -> Result<GulagVote, diesel::result::Error> {
         let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+
+        // Check for existing unprocessed vote from this sender for this target in this guild
+        let existing: Option<GulagVote> = gulag_votes::table
+            .filter(gulag_votes::sender_id.eq(sender_id))
+            .filter(gulag_votes::requester_id.eq(requester_id))
+            .filter(gulag_votes::guild_id.eq(guild_id))
+            .filter(gulag_votes::processed.eq(false))
+            .first::<GulagVote>(&mut conn)
+            .optional()?;
+
+        if existing.is_some() {
+            return Err(diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                Box::new("An unprocessed vote already exists for this sender/target/guild".to_string()),
+            ));
+        }
+
         let new_gulag_vote = NewGulagVote {
             requester_id,
             sender_id,
@@ -179,14 +216,15 @@ impl GulagQueries {
 
     /// Find message votes that have reached the threshold and need processing.
     ///
-    /// Note: This includes both `Created` and `Done` statuses to support idempotent
-    /// re-processing. `Done` votes that reach the threshold again (e.g., after more
-    /// reactions are added) can be re-queued for processing.
+    /// Takes a connection reference so the caller can wrap this + update_vote_status
+    /// in a single transaction, keeping FOR UPDATE locks held until commit.
+    ///
+    /// Includes both `Created` and `Done` statuses to support idempotent
+    /// re-processing.
     pub fn find_votes_ready_for_processing(
-        pool: &DbPool,
+        conn: &mut PgConnection,
         threshold: i32,
     ) -> Result<Vec<MessageVotes>, diesel::result::Error> {
-        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
         use crate::db::schema::message_votes::dsl::*;
 
         let job_status_predicate = job_status
@@ -198,30 +236,34 @@ impl GulagQueries {
             .filter(job_status_predicate)
             .for_update()
             .skip_locked()
-            .load::<MessageVotes>(&mut conn)
+            .load::<MessageVotes>(conn)
     }
 
-    /// Update a message vote's job status
+    /// Update a message vote's job status.
+    ///
+    /// Takes a connection reference so it can be called within the same
+    /// transaction as find_votes_ready_for_processing.
     pub fn update_vote_status(
-        pool: &DbPool,
+        conn: &mut PgConnection,
         target_message_id: i64,
         new_status: JobStatus,
     ) -> Result<MessageVotes, diesel::result::Error> {
-        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
         use crate::db::schema::message_votes::dsl::*;
 
         diesel::update(message_votes.find(target_message_id))
             .set(job_status.eq(new_status))
-            .get_result(&mut conn)
+            .get_result(conn)
     }
 
-    /// Mark a vote as done and reset counters
+    /// Mark a vote as done and reset counters.
+    ///
+    /// Takes a connection reference so it can be called within the same
+    /// transaction as find_votes_ready_for_processing.
     pub fn mark_vote_done(
-        pool: &DbPool,
+        conn: &mut PgConnection,
         target_message_id: i64,
         total_votes: i32,
     ) -> Result<MessageVotes, diesel::result::Error> {
-        let mut conn = pool.get().map_err(pool_error_to_diesel)?;
         use crate::db::schema::message_votes::dsl::*;
 
         let empty_vec: Vec<i64> = vec![];
@@ -232,6 +274,6 @@ impl GulagQueries {
                 current_vote_tally.eq(0),
                 voters.eq(empty_vec),
             ))
-            .get_result(&mut conn)
+            .get_result(conn)
     }
 }
