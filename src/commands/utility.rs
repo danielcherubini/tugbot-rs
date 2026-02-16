@@ -64,20 +64,14 @@ pub async fn feature(
 
     match name {
         Some(feature_name) => {
-            let features = FeatureQueries::all(pool)?;
-            let mut found = false;
-
-            for feat in features {
-                if feat.name == feature_name {
-                    found = true;
-                    FeatureQueries::update(pool, &feat.name, !feat.enabled)?;
-                    break;
+            let is_currently_enabled = FeatureQueries::is_enabled(pool, &feature_name);
+            match FeatureQueries::update(pool, &feature_name, !is_currently_enabled) {
+                Err(diesel::result::Error::NotFound) => {
+                    ctx.send(ephemeral_reply("Couldn't match feature")).await?;
+                    return Ok(());
                 }
-            }
-
-            if !found {
-                ctx.send(ephemeral_reply("Couldn't match feature")).await?;
-                return Ok(());
+                Err(e) => return Err(e.into()),
+                Ok(_) => {}
             }
 
             list_features(ctx).await?;
@@ -92,15 +86,14 @@ pub async fn feature(
 
 /// Helper to list all features
 async fn list_features(ctx: Context<'_>) -> Result<(), Error> {
+    use std::fmt::Write;
+    
     let pool = &ctx.data().db_pool;
     let features = FeatureQueries::all(pool)?;
 
-    let mut content = "Here's all the features".to_string();
+    let mut content = String::from("Here's all the features");
     for feat in features {
-        content = format!(
-            "{}\nName: `{}` Enabled: `{}`",
-            content, feat.name, feat.enabled
-        );
+        write!(content, "\nName: `{}` Enabled: `{}`", feat.name, feat.enabled).unwrap();
     }
 
     ctx.send(ephemeral_reply(content)).await?;

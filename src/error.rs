@@ -29,6 +29,12 @@ pub enum BotError {
     #[error("Feature '{0}' is not enabled")]
     FeatureDisabled(String),
 
+    /// Anyhow error wrapper for interop with existing code using anyhow.
+    ///
+    /// Note: The #[from] attribute creates bidirectional conversion between BotError
+    /// and anyhow::Error. This means errors can round-trip (BotError -> anyhow -> BotError)
+    /// and lose their original variant, becoming Anyhow(...) instead. This is an acceptable
+    /// tradeoff for compatibility with existing anyhow-based code.
     #[error("Anyhow error: {0}")]
     Anyhow(#[from] anyhow::Error),
 

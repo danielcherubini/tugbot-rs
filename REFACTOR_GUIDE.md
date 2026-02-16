@@ -25,7 +25,7 @@ Old handlers remain functional. Nothing is wired up to `main.rs` yet.
 
 ### Phase 2: Link Rewriters
 
-- Move twitter/tiktok/bsky/instagram rewrite logic into Poise's `event_handler`
+- Move Twitter/TikTok/Bsky/Instagram rewrite logic into Poise's `event_handler`
 - Extract pure URL rewrite functions into a shared module
 - Delete old handler files
 

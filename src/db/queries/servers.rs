@@ -25,13 +25,32 @@ impl ServerQueries {
 
     /// Find a server by guild ID
     pub fn find_by_guild_id(pool: &DbPool, target_guild_id: i64) -> Option<Server> {
-        let mut conn = pool.get().ok()?;
+        let mut conn = match pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "Failed to acquire database connection in find_by_guild_id for guild {}: {}",
+                    target_guild_id, e
+                );
+                return None;
+            }
+        };
         use crate::db::schema::servers::dsl::*;
 
-        servers
+        match servers
             .filter(guild_id.eq(target_guild_id))
             .first::<Server>(&mut conn)
-            .ok()
+        {
+            Ok(server) => Some(server),
+            Err(diesel::result::Error::NotFound) => None,
+            Err(e) => {
+                eprintln!(
+                    "Database error in find_by_guild_id for guild {}: {}",
+                    target_guild_id, e
+                );
+                None
+            }
+        }
     }
 
     /// Get all servers

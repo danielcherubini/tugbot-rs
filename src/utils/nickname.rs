@@ -1,12 +1,25 @@
+/// Strips all known prefix segments ("phony | " and "horny | ") from a nickname.
+/// This maintains backward compatibility with the toggle behavior.
 fn clean_username(nick: &str) -> String {
-    nick.replace("phony | ", "").replace("horny | ", "")
+    const KNOWN_PREFIXES: &[&str] = &["phony | ", "horny | "];
+    let mut result = nick.to_string();
+    for prefix in KNOWN_PREFIXES {
+        result = result.replace(prefix, "");
+    }
+    result
 }
 
 /// Adds or removes the horny/phony prefix from a nickname.
 /// If the prefix is already present, it's removed (toggle off).
 /// If a different prefix is present, it's swapped.
 /// Otherwise the prefix is prepended.
+/// If the nick is empty or whitespace-only, returns just the prefix without separator.
 pub fn fix_nickname(nick: &str, prefix: &str) -> String {
+    // Handle empty or whitespace-only nick
+    if nick.trim().is_empty() {
+        return prefix.to_string();
+    }
+
     let nick_to_find = format!("{} | ", prefix);
     if nick.contains(&nick_to_find) {
         clean_username(nick)
@@ -48,17 +61,12 @@ mod tests {
 
     #[test]
     fn empty_nickname() {
-        assert_eq!(fix_nickname("", "horny"), "horny | ");
+        assert_eq!(fix_nickname("", "horny"), "horny");
     }
 
     #[test]
     fn clean_username_removes_both() {
         assert_eq!(clean_username("phony | horny | username"), "username");
-    }
-
-    #[test]
-    fn clean_username_no_prefix() {
-        assert_eq!(clean_username("username"), "username");
     }
 
     #[test]

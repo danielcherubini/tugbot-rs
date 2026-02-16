@@ -25,9 +25,8 @@ impl GulagQueries {
     ) -> Result<GulagUser, diesel::result::Error> {
         // Validate gulag_length is non-negative
         if gulag_length < 0 {
-            return Err(diesel::result::Error::DatabaseError(
-                diesel::result::DatabaseErrorKind::CheckViolation,
-                Box::new("gulag_length must be non-negative".to_string()),
+            return Err(diesel::result::Error::QueryBuilderError(
+                "gulag_length must be non-negative".into(),
             ));
         }
 
@@ -93,31 +92,42 @@ impl GulagQueries {
             .load::<GulagUser>(&mut conn)
     }
 
-    /// Add time to an existing gulag sentence
+    /// Add time to an existing gulag sentence atomically.
+    ///
+    /// This function reads the current gulag_length and release_at, then atomically
+    /// updates them by adding the specified duration. This avoids TOCTOU issues.
     pub fn add_time(
         pool: &DbPool,
         gulag_user_id: i32,
-        gulag_length: i32,
-        gulag_duration: i32,
-        release_at: SystemTime,
+        additional_duration_secs: i32,
     ) -> Result<GulagUser, diesel::result::Error> {
-        // Validate gulag_duration is non-negative
-        if gulag_duration < 0 {
+        // Validate duration is non-negative
+        if additional_duration_secs < 0 {
             return Err(diesel::result::Error::QueryBuilderError(
-                "gulag_duration must be non-negative".into(),
+                "additional_duration_secs must be non-negative".into(),
             ));
         }
 
         let mut conn = pool.get().map_err(pool_error_to_diesel)?;
-        let gulag_duration = Duration::from_secs(gulag_duration as u64);
-        let new_release_time = release_at.add(gulag_duration);
 
-        diesel::update(gulag_users::dsl::gulag_users.find(gulag_user_id))
-            .set((
-                gulag_users::gulag_length.eq(gulag_length),
-                gulag_users::release_at.eq(new_release_time),
-            ))
-            .get_result(&mut conn)
+        // Start a transaction to ensure atomicity
+        conn.transaction(|conn| {
+            use crate::db::schema::gulag_users::dsl::*;
+
+            // Read current values with FOR UPDATE lock
+            let current_user: GulagUser =
+                gulag_users.find(gulag_user_id).for_update().first(conn)?;
+
+            // Compute new values
+            let duration_to_add = Duration::from_secs(additional_duration_secs as u64);
+            let new_length = current_user.gulag_length + additional_duration_secs;
+            let new_release_at = current_user.release_at.add(duration_to_add);
+
+            // Update atomically
+            diesel::update(gulag_users.find(gulag_user_id))
+                .set((gulag_length.eq(new_length), release_at.eq(new_release_at)))
+                .get_result(conn)
+        })
     }
 
     /// Mark a user as no longer in gulag
@@ -167,7 +177,11 @@ impl GulagQueries {
             .get_result(&mut conn)
     }
 
-    /// Find message votes that have reached the threshold and need processing
+    /// Find message votes that have reached the threshold and need processing.
+    ///
+    /// Note: This includes both `Created` and `Done` statuses to support idempotent
+    /// re-processing. `Done` votes that reach the threshold again (e.g., after more
+    /// reactions are added) can be re-queued for processing.
     pub fn find_votes_ready_for_processing(
         pool: &DbPool,
         threshold: i32,
