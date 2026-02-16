@@ -40,8 +40,7 @@ async fn nickname_command(ctx: Context<'_>, prefix: &str) -> Result<(), Error> {
     // Get current nickname or display name
     let current_nick = member
         .nick
-        .as_ref()
-        .map(|s| s.as_str())
+        .as_deref()
         .unwrap_or_else(|| member.display_name());
 
     // Apply nickname transformation

@@ -3,7 +3,7 @@
 pub mod message;
 pub mod reaction;
 
-use crate::{Data, Error};
+use crate::Data;
 use poise::serenity_prelude as serenity;
 use serenity::async_trait;
 

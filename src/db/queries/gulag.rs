@@ -1,6 +1,6 @@
 use crate::db::{
     models::{GulagUser, GulagVote, JobStatus, MessageVotes, NewGulagUser, NewGulagVote},
-    schema::{gulag_users, gulag_votes, message_votes},
+    schema::{gulag_users, gulag_votes},
     DbPool,
 };
 use diesel::prelude::*;
