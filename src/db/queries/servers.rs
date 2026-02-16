@@ -1,14 +1,10 @@
 use crate::db::{
     models::{NewServer, Server},
+    pool_error_to_diesel,
     schema::servers,
     DbPool,
 };
 use diesel::prelude::*;
-
-/// Helper to convert pool errors to Diesel errors
-fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
-    diesel::result::Error::QueryBuilderError(Box::new(e))
-}
 
 pub struct ServerQueries;
 

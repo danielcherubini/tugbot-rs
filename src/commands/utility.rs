@@ -1,11 +1,15 @@
-// Utility commands (phony, horny, feature)
-
-use crate::{db::queries::features::FeatureQueries, Context, Error};
-use poise::serenity_prelude as serenity;
+use crate::{db::queries::features::FeatureQueries, utils::nickname, Context, Error};
+use poise::CreateReply;
 use serenity::EditMember;
+use poise::serenity_prelude as serenity;
 
 pub fn commands() -> Vec<poise::Command<crate::Data, Error>> {
     vec![phony(), horny(), feature()]
+}
+
+/// Helper to send an ephemeral reply
+fn ephemeral_reply(content: impl Into<String>) -> CreateReply {
+    CreateReply::default().content(content).ephemeral(true)
 }
 
 /// Mark yourself as phony/watching
@@ -22,46 +26,36 @@ pub async fn horny(ctx: Context<'_>) -> Result<(), Error> {
 
 /// Shared logic for nickname commands
 async fn nickname_command(ctx: Context<'_>, prefix: &str) -> Result<(), Error> {
-    // Check if feature is enabled
     let pool = &ctx.data().db_pool;
     if !FeatureQueries::is_enabled(pool, prefix) {
-        ctx.say("This feature is currently disabled").await?;
+        ctx.send(ephemeral_reply("This feature is currently disabled")).await?;
         return Ok(());
     }
 
-    // Get guild and member
     let guild_id = ctx
         .guild_id()
         .ok_or_else(|| Error::from("This command can only be used in a server"))?;
-    
+
     let author = ctx.author();
     let mut member = ctx.http().get_member(guild_id, author.id).await?;
 
-    // Get current nickname or display name
     let current_nick = member
         .nick
         .as_deref()
         .unwrap_or_else(|| member.display_name());
 
-    // Apply nickname transformation
-    let new_nick = fix_nickname(current_nick, prefix);
+    let new_nick = nickname::fix_nickname(current_nick, prefix);
 
-    // Update nickname
     member
         .edit(ctx.http(), EditMember::new().nickname(&new_nick))
         .await?;
 
-    ctx.say("Done").await?;
+    ctx.send(ephemeral_reply("Done")).await?;
     Ok(())
 }
 
-/// Toggle or manage feature flags
-#[poise::command(
-    slash_command,
-    guild_only,
-    required_permissions = "ADMINISTRATOR",
-    category = "Utility"
-)]
+/// Toggle or list feature flags
+#[poise::command(slash_command, guild_only, category = "Utility")]
 pub async fn feature(
     ctx: Context<'_>,
     #[description = "Feature name to toggle"] name: Option<String>,
@@ -70,7 +64,6 @@ pub async fn feature(
 
     match name {
         Some(feature_name) => {
-            // Toggle specific feature
             let features = FeatureQueries::all(pool)?;
             let mut found = false;
 
@@ -83,15 +76,13 @@ pub async fn feature(
             }
 
             if !found {
-                ctx.say("Couldn't match feature").await?;
+                ctx.send(ephemeral_reply("Couldn't match feature")).await?;
                 return Ok(());
             }
 
-            // Show updated list
             list_features(ctx).await?;
         }
         None => {
-            // List all features
             list_features(ctx).await?;
         }
     }
@@ -112,111 +103,6 @@ async fn list_features(ctx: Context<'_>) -> Result<(), Error> {
         );
     }
 
-    ctx.say(content).await?;
+    ctx.send(ephemeral_reply(content)).await?;
     Ok(())
-}
-
-// Nickname transformation logic (copied from handlers/nickname.rs)
-
-fn clean_username(nick: &str) -> String {
-    nick.replace("phony | ", "").replace("horny | ", "")
-}
-
-/// fix_nickname is a function to add the nickname for horny/phony
-fn fix_nickname(nick: &str, prefix: &str) -> String {
-    // check if the nickname has the prefix in it
-    let nick_to_find = format!("{} | ", prefix);
-    if nick.contains(&nick_to_find) {
-        // the prefix is already in the nick so just clean
-        clean_username(nick)
-    } else if nick.contains(" | ") {
-        // the prefix doesn't match, but there's a pipe in there
-        format!("{} | {}", prefix, clean_username(nick))
-    } else {
-        format!("{} | {}", prefix, nick)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_horny() {
-        let nick = String::from("foo");
-        let prefix = String::from("horny");
-        let positive_test = fix_nickname(&nick, &prefix);
-        assert_eq!(positive_test, String::from("horny | foo"));
-    }
-
-    #[test]
-    fn test_phony() {
-        let nick = String::from("foo");
-        let prefix = String::from("phony");
-        let positive_test = fix_nickname(&nick, &prefix);
-        assert_eq!(positive_test, String::from("phony | foo"));
-    }
-
-    #[test]
-    fn test_swap() {
-        let nick = String::from("horny | foo");
-        let prefix = String::from("phony");
-        let positive_test = fix_nickname(&nick, &prefix);
-        assert_eq!(positive_test, String::from("phony | foo"));
-    }
-
-    #[test]
-    fn test_nickname_clean_one() {
-        let nick = String::from("horny | foo");
-        let prefix = String::from("horny");
-        let positive_test = fix_nickname(&nick, &prefix);
-        assert_eq!(positive_test, String::from("foo"));
-    }
-
-    #[test]
-    fn test_nickname_clean_all() {
-        let nick = String::from("phony | horny | foo");
-        let prefix = String::from("phony");
-        let positive_test = fix_nickname(&nick, &prefix);
-        assert_eq!(positive_test, String::from("foo"));
-    }
-
-    #[test]
-    fn test_empty_nickname() {
-        let nick = String::from("");
-        let prefix = String::from("horny");
-        let result = fix_nickname(&nick, &prefix);
-        assert_eq!(result, String::from("horny | "));
-    }
-
-    #[test]
-    fn test_clean_username_removes_both_prefixes() {
-        let nick = String::from("phony | horny | username");
-        let result = clean_username(&nick);
-        assert_eq!(result, String::from("username"));
-    }
-
-    #[test]
-    fn test_clean_username_no_prefix() {
-        let nick = String::from("username");
-        let result = clean_username(&nick);
-        assert_eq!(result, String::from("username"));
-    }
-
-    #[test]
-    fn test_nickname_with_multiple_pipes() {
-        let nick = String::from("other | prefix | username");
-        let prefix = String::from("horny");
-        let result = fix_nickname(&nick, &prefix);
-        assert_eq!(result, String::from("horny | other | prefix | username"));
-    }
-
-    #[test]
-    fn test_nickname_already_has_correct_prefix() {
-        let nick = String::from("phony | username");
-        let prefix = String::from("phony");
-        let result = fix_nickname(&nick, &prefix);
-        // Should clean it (toggle off)
-        assert_eq!(result, String::from("username"));
-    }
 }

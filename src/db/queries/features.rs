@@ -1,10 +1,5 @@
-use crate::db::{models, schema::features::dsl::*, DbPool};
+use crate::db::{models, pool_error_to_diesel, schema::features::dsl::*, DbPool};
 use diesel::prelude::*;
-
-/// Helper to convert pool errors to Diesel errors
-fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
-    diesel::result::Error::QueryBuilderError(Box::new(e))
-}
 
 pub struct FeatureQueries;
 
@@ -36,15 +31,22 @@ impl FeatureQueries {
             .unwrap_or(false)
     }
 
-    /// Update a feature's enabled status
+    /// Update a feature's enabled status.
+    /// Returns NotFound if the feature doesn't exist.
     pub fn update(
         pool: &DbPool,
         feature_name: &str,
         enable: bool,
     ) -> Result<usize, diesel::result::Error> {
         let mut conn = pool.get().map_err(pool_error_to_diesel)?;
-        diesel::update(features.filter(name.eq(feature_name)))
+        let rows_affected = diesel::update(features.filter(name.eq(feature_name)))
             .set(enabled.eq(enable))
-            .execute(&mut conn)
+            .execute(&mut conn)?;
+
+        if rows_affected == 0 {
+            return Err(diesel::result::Error::NotFound);
+        }
+
+        Ok(rows_affected)
     }
 }

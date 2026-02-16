@@ -28,7 +28,7 @@ use std::{
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 /// Helper to convert pool errors to Diesel errors
-fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
+pub fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
     diesel::result::Error::QueryBuilderError(Box::new(e))
 }
 

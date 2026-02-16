@@ -2,12 +2,10 @@ pub mod commands;
 pub mod data;
 pub mod db;
 pub mod error;
-pub mod event_handlers;
 pub mod features;
 pub mod handlers;
-pub mod services;
-pub mod tasks;
 pub mod tugbot;
+pub mod utils;
 
 // Re-export commonly used types
 pub use data::Data;

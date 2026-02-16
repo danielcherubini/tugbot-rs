@@ -7,7 +7,9 @@ use std::sync::Arc;
 pub struct Data {
     /// Database connection pool
     pub db_pool: DbPool,
-    /// HTTP client for Discord API calls outside of command context
+    /// HTTP client for Discord API calls in background tasks where no
+    /// command context is available (e.g. gulag expiry checker, vote processor).
+    /// Commands should use `ctx.http()` instead.
     pub http: Arc<Http>,
 }
 
