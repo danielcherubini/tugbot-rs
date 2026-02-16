@@ -1,5 +1,6 @@
 pub mod message_vote;
 pub mod models;
+pub mod queries;
 pub mod schema;
 
 use self::{
@@ -27,7 +28,7 @@ use std::{
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 /// Helper to convert pool errors to Diesel errors
-fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
+pub fn pool_error_to_diesel(e: diesel::r2d2::PoolError) -> diesel::result::Error {
     diesel::result::Error::QueryBuilderError(Box::new(e))
 }
 
@@ -233,10 +234,7 @@ pub fn atomic_increment_ai_slop(
         .values(&new_record)
         .on_conflict((user_id, guild_id))
         .do_update()
-        .set((
-            usage_count.eq(usage_count + 1),
-            last_slop_at.eq(time_now),
-        ))
+        .set((usage_count.eq(usage_count + 1), last_slop_at.eq(time_now)))
         .get_result(&mut conn)?;
 
     Ok(result.usage_count)
