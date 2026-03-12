@@ -187,7 +187,7 @@ impl AiSlopHandler {
                 target_user.name,
                 Gulag::format_duration(duration_seconds),
                 new_count,
-                match new_count.saturating_add(1).try_into() {
+                match new_count.try_into() {
                     Ok(u32_count) => Gulag::format_duration(Gulag::get_gulag_duration_for_offense(u32_count)),
                     Err(_) => Gulag::format_duration(2_592_000), // Max ~30 days for overflow protection
                 }

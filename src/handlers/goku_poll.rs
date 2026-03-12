@@ -92,7 +92,7 @@ impl GokuPoll {
         let duration_seconds = match current_count.try_into() {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
             Err(_) => {
-                eprintln!("Goku poll: usage count too high for gulag calculation");
+                eprintln!("Goku poll: usage count was negative ({}), skipping gulag", current_count);
                 return;
             }
         };
