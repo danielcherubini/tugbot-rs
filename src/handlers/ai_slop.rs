@@ -109,16 +109,21 @@ impl AiSlopHandler {
             Some(s) => s,
             None => {
                 return HandlerResponse {
-                    content: "Error: This server is not configured. Please ensure a gulag role exists."
-                        .to_string(),
+                    content:
+                        "Error: This server is not configured. Please ensure a gulag role exists."
+                            .to_string(),
                     components: None,
                     ephemeral: true,
                 };
             }
         };
 
-// Get current usage count (don't increment yet)
-        let current_count = match get_or_create_ai_slop_usage(&pool, target_user.id.get() as i64, guild_id as i64) {
+        // Get current usage count (don't increment yet)
+        let current_count = match get_or_create_ai_slop_usage(
+            &pool,
+            target_user.id.get() as i64,
+            guild_id as i64,
+        ) {
             Ok(u) => u.usage_count,
             Err(_) => {
                 return HandlerResponse {
@@ -129,26 +134,29 @@ impl AiSlopHandler {
             }
         };
 
-// Calculate duration based on CURRENT usage count (before increment)
+        // Calculate duration based on CURRENT usage count (before increment)
         let duration_seconds = match current_count.try_into() {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
-            Err(_) => return HandlerResponse {
-                content: "Error: Usage count too high for gulag calculation".to_string(),
-                components: None,
-                ephemeral: true,
-            },
-        };
-
-// Increment usage count after getting duration
-        let new_count = match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
-            Ok(count) => count,
             Err(_) => {
-                // Failed to increment - estimate for display
-                current_count + 1
+                return HandlerResponse {
+                    content: "Error: Usage count too high for gulag calculation".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
             }
         };
 
-// Send to gulag with calculated duration
+        // Increment usage count after getting duration
+        let new_count =
+            match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
+                Ok(count) => count,
+                Err(_) => {
+                    // Failed to increment - estimate for display
+                    current_count + 1
+                }
+            };
+
+        // Send to gulag with calculated duration
         if let Err(e) = Gulag::add_to_gulag(
             &ctx.http,
             &pool,

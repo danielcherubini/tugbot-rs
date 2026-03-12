@@ -234,10 +234,7 @@ pub fn atomic_increment_ai_slop(
         .values(&new_record)
         .on_conflict((user_id, guild_id))
         .do_update()
-        .set((
-            usage_count.eq(usage_count + 1),
-            last_slop_at.eq(time_now),
-        ))
+        .set((usage_count.eq(usage_count + 1), last_slop_at.eq(time_now)))
         .get_result(&mut conn)?;
 
     Ok(result.usage_count)
@@ -295,10 +292,7 @@ pub fn atomic_increment_goku_poll(
         .values(&new_record)
         .on_conflict((user_id, guild_id))
         .do_update()
-        .set((
-            usage_count.eq(usage_count + 1),
-            last_goku_at.eq(time_now),
-        ))
+        .set((usage_count.eq(usage_count + 1), last_goku_at.eq(time_now)))
         .get_result(&mut conn)?;
 
     Ok(result.usage_count)

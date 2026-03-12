@@ -96,19 +96,13 @@ impl EventHandler for Handler {
         // Try to use the full message if available, otherwise fetch it
         let message = match new {
             Some(msg) => msg,
-            None => {
-                match ctx
-                    .http
-                    .get_message(event.channel_id, event.id)
-                    .await
-                {
-                    Ok(msg) => msg,
-                    Err(e) => {
-                        eprintln!("Failed to fetch message for update event: {}", e);
-                        return;
-                    }
+            None => match ctx.http.get_message(event.channel_id, event.id).await {
+                Ok(msg) => msg,
+                Err(e) => {
+                    eprintln!("Failed to fetch message for update event: {}", e);
+                    return;
                 }
-            }
+            },
         };
 
         GokuPoll::handle_message_update(&ctx, &message).await;

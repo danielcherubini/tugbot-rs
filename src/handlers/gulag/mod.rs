@@ -59,7 +59,7 @@ impl Gulag {
         let hours = seconds / 3600;
         let minutes = (seconds % 3600) / 60;
         let secs = seconds % 60;
-        
+
         if hours > 0 {
             format!("{}h {}m", hours, minutes)
         } else if minutes > 0 {
@@ -179,7 +179,8 @@ impl Gulag {
             .with_context(|| "Failed to add gulag role")?;
 
         // Safe conversion of gulag length from u32 to i32
-        let gulag_length_i32: i32 = params.gulaglength
+        let gulag_length_i32: i32 = params
+            .gulaglength
             .try_into()
             .with_context(|| format!("Gulag length {} exceeds i32::MAX", params.gulaglength))?;
 
@@ -215,15 +216,18 @@ impl Gulag {
                     .guildid
                     .try_into()
                     .with_context(|| format!("Guild ID {} exceeds i64::MAX", params.guildid))?;
-                let role_id_i64: i64 = params.gulag_roleid.try_into().with_context(|| {
-                    format!("Role ID {} exceeds i64::MAX", params.gulag_roleid)
-                })?;
-                let channel_id_i64: i64 = params.channelid.try_into().with_context(|| {
-                    format!("Channel ID {} exceeds i64::MAX", params.channelid)
-                })?;
-                let message_id_i64: i64 = params.messageid.try_into().with_context(|| {
-                    format!("Message ID {} exceeds i64::MAX", params.messageid)
-                })?;
+                let role_id_i64: i64 = params
+                    .gulag_roleid
+                    .try_into()
+                    .with_context(|| format!("Role ID {} exceeds i64::MAX", params.gulag_roleid))?;
+                let channel_id_i64: i64 = params
+                    .channelid
+                    .try_into()
+                    .with_context(|| format!("Channel ID {} exceeds i64::MAX", params.channelid))?;
+                let message_id_i64: i64 = params
+                    .messageid
+                    .try_into()
+                    .with_context(|| format!("Message ID {} exceeds i64::MAX", params.messageid))?;
 
                 send_to_gulag(
                     pool,
@@ -324,7 +328,10 @@ impl Gulag {
                 let mut conn = match pool.get() {
                     Ok(conn) => conn,
                     Err(e) => {
-                        eprintln!("Failed to get database connection in run_gulag_check: {}", e);
+                        eprintln!(
+                            "Failed to get database connection in run_gulag_check: {}",
+                            e
+                        );
                         continue; // Skip this iteration and try again
                     }
                 };
@@ -351,11 +358,15 @@ impl Gulag {
                             result.id
                         );
 
-                        if let Err(e) = diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
-                            .set(in_gulag.eq(false))
-                            .execute(&mut conn)
+                        if let Err(e) =
+                            diesel::update(gulag_users.filter(gulag_users::id.eq(result.id)))
+                                .set(in_gulag.eq(false))
+                                .execute(&mut conn)
                         {
-                            eprintln!("Failed to update gulag status for user {}: {}", result.id, e);
+                            eprintln!(
+                                "Failed to update gulag status for user {}: {}",
+                                result.id, e
+                            );
                             continue;
                         }
 
@@ -370,7 +381,10 @@ impl Gulag {
                         let guild_id_u64 = match u64::try_from(result.guild_id) {
                             Ok(gid) => gid,
                             Err(e) => {
-                                eprintln!("Guild ID conversion error for user {}: {}", result.id, e);
+                                eprintln!(
+                                    "Guild ID conversion error for user {}: {}",
+                                    result.id, e
+                                );
                                 continue;
                             }
                         };
@@ -391,8 +405,10 @@ impl Gulag {
                         .await
                         {
                             Ok(_) => {
-                                if let Err(e) = diesel::delete(gulag_users.filter(gulag_users::id.eq(result.id)))
-                                    .execute(&mut conn)
+                                if let Err(e) = diesel::delete(
+                                    gulag_users.filter(gulag_users::id.eq(result.id)),
+                                )
+                                .execute(&mut conn)
                                 {
                                     eprintln!("Failed to delete gulag user {}: {}", result.id, e);
                                     continue;
@@ -463,7 +479,10 @@ impl Gulag {
                 let mut conn = match pool.get() {
                     Ok(conn) => conn,
                     Err(e) => {
-                        eprintln!("Failed to get database connection in run_gulag_vote_check: {}", e);
+                        eprintln!(
+                            "Failed to get database connection in run_gulag_vote_check: {}",
+                            e
+                        );
                         continue; // Skip this iteration and try again
                     }
                 };
@@ -488,12 +507,14 @@ impl Gulag {
                 if !results.is_empty() {
                     for result in results {
                         if let Err(err) =
-                            Self::gulag_check_handler(http.to_owned(), &pool, &mut conn, &result).await
+                            Self::gulag_check_handler(http.to_owned(), &pool, &mut conn, &result)
+                                .await
                         {
                             println!("Error running gulag vote {:?}", err);
-                            if let Err(update_err) = diesel::update(message_votes.find(result.message_id))
-                                .set(message_votes::job_status.eq(JobStatus::Failure))
-                                .execute(&mut conn)
+                            if let Err(update_err) =
+                                diesel::update(message_votes.find(result.message_id))
+                                    .set(message_votes::job_status.eq(JobStatus::Failure))
+                                    .execute(&mut conn)
                             {
                                 eprintln!(
                                     "Failed to update JobStatus to Failure for message {}: {}",
@@ -547,9 +568,8 @@ impl Gulag {
             let guild_id_u64 = u64::try_from(updated_result.guild_id).with_context(|| {
                 format!("Guild ID {} exceeds u64::MAX", updated_result.guild_id)
             })?;
-            let user_id_u64 = u64::try_from(updated_result.user_id).with_context(|| {
-                format!("User ID {} exceeds u64::MAX", updated_result.user_id)
-            })?;
+            let user_id_u64 = u64::try_from(updated_result.user_id)
+                .with_context(|| format!("User ID {} exceeds u64::MAX", updated_result.user_id))?;
             let channel_id_u64 = u64::try_from(updated_result.channel_id).with_context(|| {
                 format!("Channel ID {} exceeds u64::MAX", updated_result.channel_id)
             })?;
@@ -598,7 +618,10 @@ impl Gulag {
         let mut conn = match pool.get() {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Failed to get database connection in is_user_in_gulag: {}", e);
+                eprintln!(
+                    "Failed to get database connection in is_user_in_gulag: {}",
+                    e
+                );
                 return None;
             }
         };

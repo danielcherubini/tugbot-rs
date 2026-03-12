@@ -1,5 +1,7 @@
 use super::get_pool;
-use crate::db::{atomic_increment_goku_poll, get_or_create_goku_poll_usage, get_server_by_guild_id};
+use crate::db::{
+    atomic_increment_goku_poll, get_or_create_goku_poll_usage, get_server_by_guild_id,
+};
 use crate::features::Features;
 use crate::handlers::gulag::Gulag;
 use serenity::{
@@ -75,7 +77,11 @@ impl GokuPoll {
         };
 
         // Get current usage count for exponential duration
-        let current_count = match get_or_create_goku_poll_usage(&pool, poll_creator.id.get() as i64, guild_id as i64) {
+        let current_count = match get_or_create_goku_poll_usage(
+            &pool,
+            poll_creator.id.get() as i64,
+            guild_id as i64,
+        ) {
             Ok(u) => u.usage_count,
             Err(e) => {
                 eprintln!("Goku poll: failed to get usage count: {}", e);
@@ -92,13 +98,14 @@ impl GokuPoll {
         };
 
         // Find a channel to post in - use the-gulag channel
-        let gulag_channel = match Gulag::find_channel(&ctx.http, guild_id, "the-gulag".to_string()).await {
-            Some(c) => c,
-            None => {
-                eprintln!("Goku poll: could not find the-gulag channel");
-                return;
-            }
-        };
+        let gulag_channel =
+            match Gulag::find_channel(&ctx.http, guild_id, "the-gulag".to_string()).await {
+                Some(c) => c,
+                None => {
+                    eprintln!("Goku poll: could not find the-gulag channel");
+                    return;
+                }
+            };
 
         // Send to gulag - cast duration_seconds from u64 to u32
         if let Err(e) = Gulag::add_to_gulag(
@@ -120,7 +127,11 @@ impl GokuPoll {
         }
 
         // Increment usage count after successful gulag
-        let new_count = match atomic_increment_goku_poll(&pool, poll_creator.id.get() as i64, guild_id as i64) {
+        let new_count = match atomic_increment_goku_poll(
+            &pool,
+            poll_creator.id.get() as i64,
+            guild_id as i64,
+        ) {
             Ok(count) => count,
             Err(e) => {
                 eprintln!("Goku poll: failed to increment usage count: {}", e);

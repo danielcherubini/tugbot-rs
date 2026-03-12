@@ -1,5 +1,9 @@
 use serenity::Client;
-use tugbot::{db::establish_pool, handlers::{DbPoolKey, Handler}, tugbot::config::Config};
+use tugbot::{
+    db::establish_pool,
+    handlers::{DbPoolKey, Handler},
+    tugbot::config::Config,
+};
 
 #[tokio::main]
 async fn main() {

@@ -14,7 +14,10 @@ use std::{
 
 use crate::{
     db::{
-        models::GulagVote, new_gulag_vote, schema::gulag_votes::{self, dsl::*}, DbPool,
+        models::GulagVote,
+        new_gulag_vote,
+        schema::gulag_votes::{self, dsl::*},
+        DbPool,
     },
     handlers::{get_pool, HandlerResponse},
 };
@@ -202,7 +205,11 @@ impl GulagVoteHandler {
                     }
                     Err(e) => {
                         eprintln!("Failed to create gulag vote: {}", e);
-                        if let Err(why) = msg.channel_id.say(&ctx.http, "Failed to start vote, please try again.").await {
+                        if let Err(why) = msg
+                            .channel_id
+                            .say(&ctx.http, "Failed to start vote, please try again.")
+                            .await
+                        {
                             eprintln!("Failed to send error message: {}", why);
                         }
                     }
