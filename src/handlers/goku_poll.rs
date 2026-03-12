@@ -107,7 +107,7 @@ impl GokuPoll {
                 }
             };
 
-        // Send to gulag - cast duration_seconds from u64 to u32
+        // Send to gulag with calculated duration
         if let Err(e) = Gulag::add_to_gulag(
             &ctx.http,
             &pool,
@@ -115,7 +115,7 @@ impl GokuPoll {
                 guildid: guild_id,
                 userid: poll_creator.id.get(),
                 gulag_roleid: server.gulag_id as u64,
-                gulaglength: duration_seconds as u32,
+                gulaglength: duration_seconds.try_into().unwrap_or(u32::MAX),
                 channelid: gulag_channel.id.get(),
                 messageid: message.id.get(),
             },
@@ -139,7 +139,7 @@ impl GokuPoll {
             }
         };
 
-        let next_duration_seconds = match new_count.try_into() {
+        let next_duration_seconds = match new_count.saturating_add(1).try_into() {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
             Err(_) => 2_592_000, // Max ~30 days for overflow protection
         };
