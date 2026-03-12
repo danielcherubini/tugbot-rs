@@ -140,7 +140,7 @@ impl AiSlopHandler {
         };
 
 // Increment usage count after getting duration
-        let _new_count = match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
+        let new_count = match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
             Ok(count) => count,
             Err(_) => {
                 // Failed to increment - estimate for display
@@ -180,7 +180,7 @@ impl AiSlopHandler {
                 target_user.mention(),
                 Gulag::format_duration(duration_seconds),
                 target_message.link(),
-                _new_count
+                new_count
             );
 
             let _ = gulag_channel.say(&ctx.http, channel_message).await;
@@ -191,10 +191,10 @@ impl AiSlopHandler {
                 "Sent {} to the gulag for {} for posting AI slop!\nThis is their offense #{} (next offense will be {})",
                 target_user.name,
                 Gulag::format_duration(duration_seconds),
-                _new_count,
-                match _new_count.try_into() {
-                    Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
-                    Err(_) => 2_592_000, // Max ~30 days for overflow protection
+                new_count,
+                match new_count.try_into() {
+                    Ok(u32_count) => Gulag::format_duration(Gulag::get_gulag_duration_for_offense(u32_count)),
+                    Err(_) => Gulag::format_duration(2_592_000), // Max ~30 days for overflow protection
                 }
             ),
             components: None,
