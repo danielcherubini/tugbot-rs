@@ -45,6 +45,49 @@ pub struct GulagParams {
 }
 
 impl Gulag {
+    pub fn get_gulag_duration_for_offense(count: u32) -> u64 {
+        // Base duration of 1 minute (60 seconds), increases by 5 minutes per offense up to max of ~96 minutes at 20 offenses
+        let base: i64 = 60;
+        let increment: i64 = ((count.saturating_sub(1)).min(19) as u32 * 300u32) as i64; // 5 minutes per offense, capped at 19 offenses
+        (base + increment) as u64
+    }
+
+    pub fn format_duration(seconds: u64) -> String {
+        let hours = seconds / 3600;
+        let minutes = (seconds % 3600) / 60;
+        let secs = seconds % 60;
+        
+        if hours > 0 {
+            format!("{}h {}m", hours, minutes)
+        } else if minutes > 0 {
+            format!("{}m", minutes)
+        } else {
+            format!("{}s", secs)
+        }
+    }
+}
+
+impl Gulag {
+    pub async fn member_has_any_role(
+        http: &Arc<Http>,
+        guildid: u64,
+        member: &Member,
+        role_names: &[&str],
+    ) -> bool {
+        for role_name in role_names {
+            if let Some(role) = Self::find_role(http, guildid, *role_name).await {
+                for member_role_id in member.roles.iter().copied() {
+                    if member_role_id.get() == role.id.get() {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+}
+
+impl Gulag {
     fn send_error(err: &str) -> HandlerResponse {
         HandlerResponse {
             content: format!("Error: {}", err),
