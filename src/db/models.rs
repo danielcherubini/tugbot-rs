@@ -28,6 +28,27 @@ pub struct NewAiSlopUsage {
     pub created_at: SystemTime,
 }
 
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = goku_poll_usage)]
+pub struct GokuPollUsage {
+    pub id: i32,
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub usage_count: i32,
+    pub last_goku_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = goku_poll_usage)]
+pub struct NewGokuPollUsage {
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub usage_count: i32,
+    pub last_goku_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
 #[derive(Queryable)]
 pub struct Server {
     pub id: i32,

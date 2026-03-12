@@ -4,6 +4,7 @@ pub mod bsky;
 pub mod derpies;
 pub mod elon;
 pub mod feat;
+pub mod goku_poll;
 pub mod gulag;
 pub mod horny;
 pub mod instagram;
@@ -35,6 +36,7 @@ use crate::handlers::{
     ai_slop::AiSlopHandler,
     bsky::Bsky,
     feat::Feat,
+    goku_poll::GokuPoll,
     gulag::{
         gulag_handler::GulagHandler,
         gulag_list_handler::GulagListHandler,
@@ -51,7 +53,7 @@ use crate::handlers::{
 use crate::tugbot::servers::Servers;
 use instagram::Instagram;
 use serenity::{
-    all::{Interaction, Member, Message, Reaction, Ready},
+    all::{Interaction, Member, Message, MessageUpdateEvent, Reaction, Ready},
     async_trait,
     builder::{CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage},
     client::{Context, EventHandler},
@@ -82,6 +84,34 @@ impl EventHandler for Handler {
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
         GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::REMOVED).await;
+    }
+
+    async fn message_update(
+        &self,
+        ctx: Context,
+        _old_if_available: Option<Message>,
+        new: Option<Message>,
+        event: MessageUpdateEvent,
+    ) {
+        // Try to use the full message if available, otherwise fetch it
+        let message = match new {
+            Some(msg) => msg,
+            None => {
+                match ctx
+                    .http
+                    .get_message(event.channel_id, event.id)
+                    .await
+                {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        eprintln!("Failed to fetch message for update event: {}", e);
+                        return;
+                    }
+                }
+            }
+        };
+
+        GokuPoll::handle_message_update(&ctx, &message).await;
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: Member) {
