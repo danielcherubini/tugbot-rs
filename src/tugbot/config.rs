@@ -23,7 +23,8 @@ impl Config {
 
         let intents = GatewayIntents::privileged()
             .union(GatewayIntents::GUILD_MESSAGES)
-            .union(GatewayIntents::GUILD_MESSAGE_REACTIONS);
+            .union(GatewayIntents::GUILD_MESSAGE_REACTIONS)
+            .union(GatewayIntents::GUILD_MESSAGE_POLLS);
         Config {
             db_url,
             token,

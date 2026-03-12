@@ -4,11 +4,12 @@ pub mod schema;
 
 use self::{
     models::{
-        AiSlopUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGulagUser, NewGulagVote, NewServer,
-        Server,
+        AiSlopUsage, GokuPollUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGokuPollUsage,
+        NewGulagUser, NewGulagVote, NewServer, Server,
     },
     schema::{
         ai_slop_usage::{self},
+        goku_poll_usage::{self},
         gulag_users::{self},
         gulag_votes::{self},
         servers,
@@ -236,6 +237,67 @@ pub fn atomic_increment_ai_slop(
         .set((
             usage_count.eq(usage_count + 1),
             last_slop_at.eq(time_now),
+        ))
+        .get_result(&mut conn)?;
+
+    Ok(result.usage_count)
+}
+
+pub fn get_or_create_goku_poll_usage(
+    pool: &DbPool,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> Result<GokuPollUsage, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use self::goku_poll_usage::dsl::*;
+
+    match goku_poll_usage
+        .filter(user_id.eq(target_user_id))
+        .filter(guild_id.eq(target_guild_id))
+        .first::<GokuPollUsage>(&mut conn)
+    {
+        Ok(usage) => Ok(usage),
+        Err(diesel::result::Error::NotFound) => {
+            let new_usage = NewGokuPollUsage {
+                user_id: target_user_id,
+                guild_id: target_guild_id,
+                usage_count: 0,
+                last_goku_at: SystemTime::now(),
+                created_at: SystemTime::now(),
+            };
+
+            diesel::insert_into(goku_poll_usage)
+                .values(&new_usage)
+                .get_result(&mut conn)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub fn atomic_increment_goku_poll(
+    pool: &DbPool,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> Result<i32, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use self::goku_poll_usage::dsl::*;
+
+    let time_now = SystemTime::now();
+    let new_record = NewGokuPollUsage {
+        user_id: target_user_id,
+        guild_id: target_guild_id,
+        usage_count: 1,
+        last_goku_at: time_now,
+        created_at: time_now,
+    };
+
+    let result: GokuPollUsage = diesel::insert_into(goku_poll_usage)
+        .values(&new_record)
+        .on_conflict((user_id, guild_id))
+        .do_update()
+        .set((
+            usage_count.eq(usage_count + 1),
+            last_goku_at.eq(time_now),
         ))
         .get_result(&mut conn)?;
 
