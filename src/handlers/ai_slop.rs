@@ -151,7 +151,7 @@ impl AiSlopHandler {
                 gulag_roleid: server.gulag_id as u64,
                 gulaglength: duration_seconds
                     .try_into()
-                    .unwrap_or_else(|_| 2_592_000u32), // Max ~30 days cap
+                    .unwrap_or(2_592_000u32), // Max ~30 days cap
                 channelid: command.channel_id.get(),
                 messageid: target_message.id.get(),
             },
