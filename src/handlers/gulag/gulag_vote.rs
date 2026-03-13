@@ -36,7 +36,7 @@ impl GulagVoteHandler {
             )
     }
 
-pub async fn setup_interaction(
+    pub async fn setup_interaction(
         ctx: &serenity::client::Context,
         command: &CommandInteraction,
     ) -> HandlerResponse {
