@@ -36,7 +36,7 @@ impl GulagVoteHandler {
             )
     }
 
-    pub async fn setup_interaction(
+pub async fn setup_interaction(
         ctx: &serenity::client::Context,
         command: &CommandInteraction,
     ) -> HandlerResponse {
@@ -45,7 +45,7 @@ impl GulagVoteHandler {
         // Check for required user option with proper error handling
         let options = match command.data.options.first() {
             Some(opt) => &opt.value,
-            None => return Gulag::send_error("Error: Missing required user option"),
+            None => return Gulag::send_error("Missing required user option"),
         };
 
         let guildid = match command.guild_id {
@@ -62,15 +62,12 @@ impl GulagVoteHandler {
             Ok(_) => {
                 if let CommandDataOptionValue::User(user_id) = options {
                     // Get user with proper error handling instead of unwrap
-                    if command.data.resolved.users.get(user_id).is_none() {
-                        return Gulag::send_error("Error: User not found in resolved users");
+                    if !command.data.resolved.users.contains_key(user_id) {
+                        return Gulag::send_error("User not found in resolved users");
                     }
                     let user = command.data.resolved.users.get(user_id).unwrap();
 
-                    let is_tugbot = match Gulag::is_tugbot(&ctx.http, user).await {
-                        Some(true) => true,
-                        _ => false,
-                    };
+                    let is_tugbot = matches!(Gulag::is_tugbot(&ctx.http, user).await, Some(true));
 
                     if is_tugbot {
                         HandlerResponse {
@@ -175,19 +172,19 @@ impl GulagVoteHandler {
         let requesterid = if let Some(member) = command.member.as_ref() {
             member.user.id.get()
         } else {
-            eprintln!("Error: Could not get requester information");
+            eprintln!("Could not get requester information");
             return;
         };
 
         if let CommandDataOptionValue::User(user_id) = options {
             // Get user with proper error handling instead of unwrap
-            if command.data.resolved.users.get(user_id).is_none() {
-                eprintln!("Error: User not found in resolved users");
+            if !command.data.resolved.users.contains_key(user_id) {
+                eprintln!("User not found in resolved users");
                 return;
             }
             let user = command.data.resolved.users.get(user_id).unwrap();
 
-        if !Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false) {
+            if !Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false) {
                 let guildid = match command.guild_id {
                     Some(guild) => guild.get(),
                     None => return,
