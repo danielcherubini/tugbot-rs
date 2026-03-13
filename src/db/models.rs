@@ -125,7 +125,7 @@ pub struct NewGulagVote {
 #[diesel(table_name = reversal_of_fortunes)]
 pub struct ReversalOfFortune {
     pub user_id: i64,
-    pub current_percentage: i32,
+    pub current_percentage: i64,
 }
 
 #[derive(Insertable)]

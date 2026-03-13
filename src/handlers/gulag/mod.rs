@@ -82,16 +82,26 @@ impl Gulag {
         member: &Member,
         role_names: &[&str],
     ) -> bool {
-        for role_name in role_names {
-            if let Some(role) = Self::find_role(http, guildid, role_name).await {
-                for member_role_id in member.roles.iter().copied() {
-                    if member_role_id.get() == role.id.get() {
-                        return true;
+        // Fetch all roles in a single API call instead of N calls
+        match http.get_guild_roles(guildid.into()).await {
+            Err(_) => false,
+            Ok(roles) => {
+                let guild_roles: Vec<Role> = roles;
+
+                for role_name in role_names {
+                    // Find the matching role by name
+                    if let Some(role) = guild_roles.iter().find(|r| r.name == *role_name) {
+                        // Check if member has this role
+                        for member_role_id in member.roles.iter().copied() {
+                            if member_role_id.get() == role.id.get() {
+                                return true;
+                            }
+                        }
                     }
                 }
+                false
             }
         }
-        false
     }
 }
 
@@ -557,7 +567,7 @@ impl Gulag {
                 .await
                 .with_context(|| "Failed to get Message")?;
 
-            // Iterate throught the message reactions and find the gulag type and remove it
+            // Iterate through the message reactions and find the gulag type and remove it
             for reaction in message.reactions.iter().cloned() {
                 if reaction.reaction_type.to_string().contains(":gulag") {
                     message
@@ -639,9 +649,10 @@ impl Gulag {
             }
         };
 
-        // Use .first().optional() for cleaner code
+        // Filter by both user_id AND in_gulag=true to ensure we only get active gulag users
         match gulag_users
             .filter(gulag_users::user_id.eq(userid_i64))
+            .filter(gulag_users::in_gulag.eq(true))
             .first::<GulagUser>(&mut conn)
             .optional()
         {

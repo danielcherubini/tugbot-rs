@@ -89,7 +89,8 @@ impl GokuPoll {
             }
         };
 
-let duration_seconds = match current_count.try_into() {
+        // Calculate duration BEFORE incrementing (to avoid TOCTOU race condition)
+        let duration_seconds = match current_count.try_into() {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
             Err(_) => {
                 // Overflow case - use capped value for duration calculation
@@ -129,7 +130,7 @@ let duration_seconds = match current_count.try_into() {
             return;
         }
 
-        // Increment usage count after successful gulag
+        // Increment usage count after successful gulag (with proper error handling)
         let new_count = match atomic_increment_goku_poll(
             &pool,
             poll_creator.id.get() as i64,
@@ -138,6 +139,7 @@ let duration_seconds = match current_count.try_into() {
             Ok(count) => count,
             Err(e) => {
                 eprintln!("Goku poll: failed to increment usage count: {}", e);
+                // On error, still increment by 1 to track the offense
                 current_count + 1
             }
         };
