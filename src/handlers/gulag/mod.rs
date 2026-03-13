@@ -45,13 +45,19 @@ pub struct GulagParams {
 }
 
 impl Gulag {
-    /// Calculate gulag duration based on offense count.
-    /// - Base: 1 minute (60 seconds)
-    /// - +5 minutes per offense, capped at 19 offenses (~96 min max)
+    /// Calculate gulag duration based on offense count (exponential).
+    /// - Base: 30 minutes (1800 seconds)
+    /// - Formula: 30 * 2^offense_count minutes
     pub fn get_gulag_duration_for_offense(count: u32) -> u64 {
-        let base: i64 = 60;
-        let increment: i64 = ((count.saturating_sub(1)).min(19) * 300u32) as i64; // 5 minutes per offense, capped at 19 offenses
-        (base + increment) as u64
+        let base_seconds: u64 = 1800; // 30 minutes
+
+        // Use checked operations to prevent overflow, capped at ~30 days
+        let multiplier = match count.try_into() {
+            Ok(c) if c < 32 => 2u64.checked_pow(c).unwrap_or(u64::MAX),
+            _ => u64::MAX,
+        };
+
+        base_seconds.saturating_mul(multiplier)
     }
 
     /// Format duration in human-readable format (h/m/s).
@@ -68,9 +74,7 @@ impl Gulag {
             format!("{}s", secs)
         }
     }
-}
 
-impl Gulag {
     /// Check if member has any of the specified roles.
     pub async fn member_has_any_role(
         http: &Arc<Http>,
