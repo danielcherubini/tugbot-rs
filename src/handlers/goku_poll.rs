@@ -140,7 +140,7 @@ impl GokuPoll {
             Err(e) => {
                 eprintln!("Goku poll: failed to increment usage count: {}", e);
                 // On error, still increment by 1 to track the offense
-                current_count + 1
+                current_count.saturating_add(1)
             }
         };
 

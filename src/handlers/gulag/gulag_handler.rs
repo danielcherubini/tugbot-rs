@@ -70,7 +70,7 @@ impl GulagHandler {
             };
         }
 
-        let user_options = match command.data.options.first() {
+        let user_option = match command.data.options.iter().find(|opt| opt.name == "user") {
             Some(opt) => &opt.value,
             None => return HandlerResponse {
                 content: "Error: Missing required user option".to_string(),
@@ -79,7 +79,7 @@ impl GulagHandler {
             },
         };
 
-        let reason_options = match command.data.options.get(1) {
+        let reason_option = match command.data.options.iter().find(|opt| opt.name == "reason") {
             Some(opt) => &opt.value,
             None => return HandlerResponse {
                 content: "Error: Missing required reason option".to_string(),
@@ -88,7 +88,7 @@ impl GulagHandler {
             },
         };
 
-        let length_options = match command.data.options.get(2) {
+        let length_option = match command.data.options.iter().find(|opt| opt.name == "length") {
             Some(opt) => &opt.value,
             None => return HandlerResponse {
                 content: "Error: Missing required length option".to_string(),
@@ -100,7 +100,7 @@ impl GulagHandler {
         let channelid = command.channel_id.get();
 
         let mut gulaglength = 300;
-        if let CommandDataOptionValue::Integer(length) = length_options {
+        if let CommandDataOptionValue::Integer(length) = length_option {
             if *length > 0 && *length <= 10080 {
                 // Max 1 week
                 gulaglength = length * 60;
@@ -119,7 +119,7 @@ impl GulagHandler {
             }
         }
 
-        if let CommandDataOptionValue::User(user) = user_options {
+        if let CommandDataOptionValue::User(user) = user_option {
             match command.guild_id {
                 None => HandlerResponse {
                     content: "no member".to_string(),
@@ -157,7 +157,7 @@ impl GulagHandler {
                             }
                         };
 
-                        if let CommandDataOptionValue::String(reason) = reason_options {
+                        if let CommandDataOptionValue::String(reason) = reason_option {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes, because {}",
                                 user,
