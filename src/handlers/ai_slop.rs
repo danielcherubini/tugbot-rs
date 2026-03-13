@@ -1,5 +1,5 @@
 use super::{get_pool, HandlerResponse};
-use crate::db::{atomic_increment_ai_slop, get_or_create_ai_slop_usage, get_server_by_guild_id};
+use crate::db::{atomic_increment_ai_slop, get_server_by_guild_id};
 use crate::features::Features;
 use crate::handlers::gulag::Gulag;
 use serenity::{
