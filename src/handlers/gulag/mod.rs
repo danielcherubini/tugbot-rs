@@ -52,8 +52,8 @@ impl Gulag {
         let base_seconds: u64 = 1800; // 30 minutes
 
         // Use checked operations to prevent overflow, capped at ~30 days
-        let multiplier = match count.try_into() {
-            Ok(c) if c < 32 => 2u64.checked_pow(c).unwrap_or(u64::MAX),
+        let multiplier = match count {
+            c if c < 32 => 2u64.checked_pow(c).unwrap_or(u64::MAX),
             _ => u64::MAX,
         };
 
