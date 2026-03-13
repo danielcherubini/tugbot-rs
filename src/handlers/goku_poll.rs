@@ -115,7 +115,9 @@ impl GokuPoll {
                 guildid: guild_id,
                 userid: poll_creator.id.get(),
                 gulag_roleid: server.gulag_id as u64,
-                gulaglength: duration_seconds.try_into().unwrap_or(u32::MAX),
+                gulaglength: duration_seconds
+                    .try_into()
+                    .unwrap_or_else(|_| 2_592_000u32), // Max ~30 days cap
                 channelid: gulag_channel.id.get(),
                 messageid: message.id.get(),
             },
