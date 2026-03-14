@@ -19,7 +19,7 @@ impl GulagListHandler {
                 components: None,
                 ephemeral: false,
             },
-            Some(_guildid) => {
+            Some(guildid) => {
                 let pool = get_pool(ctx).await;
                 let mut conn = match pool.get() {
                     Ok(c) => c,
@@ -35,6 +35,7 @@ impl GulagListHandler {
                 };
                 let gulagusers = match gulag_users
                     .filter(in_gulag.eq(true))
+                    .filter(guild_id.eq(guildid.get() as i64))
                     .select(GulagUser::as_select())
                     .load(&mut conn)
                 {

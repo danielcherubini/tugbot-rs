@@ -14,7 +14,10 @@ use std::{
 
 use crate::{
     db::{
-        models::GulagVote, new_gulag_vote, schema::gulag_votes::{self, dsl::*}, DbPool,
+        models::GulagVote,
+        new_gulag_vote,
+        schema::gulag_votes::{self, dsl::*},
+        DbPool,
     },
     handlers::{get_pool, HandlerResponse},
 };
@@ -38,12 +41,12 @@ impl GulagVoteHandler {
         command: &CommandInteraction,
     ) -> HandlerResponse {
         let pool = get_pool(ctx).await;
-        let options = &command
-            .data
-            .options
-            .first()
-            .expect("Expected user option")
-            .value;
+
+        // Check for required user option with proper error handling
+        let options = match command.data.options.first() {
+            Some(opt) => &opt.value,
+            None => return Gulag::send_error("Missing required user option"),
+        };
 
         let guildid = match command.guild_id {
             Some(gid) => gid,
@@ -58,14 +61,13 @@ impl GulagVoteHandler {
         match GulagVoteHandler::gulag_spam_detection(requesterid, &pool).await {
             Ok(_) => {
                 if let CommandDataOptionValue::User(user_id) = options {
-                    let user = command
-                        .data
-                        .resolved
-                        .users
-                        .get(user_id)
-                        .expect("User not found");
+                    // Get user with proper error handling instead of unwrap
+                    if !command.data.resolved.users.contains_key(user_id) {
+                        return Gulag::send_error("User not found in resolved users");
+                    }
+                    let user = command.data.resolved.users.get(user_id).unwrap();
 
-                    let is_tugbot = Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false);
+                    let is_tugbot = matches!(Gulag::is_tugbot(&ctx.http, user).await, Some(true));
 
                     if is_tugbot {
                         HandlerResponse {
@@ -159,34 +161,46 @@ impl GulagVoteHandler {
         msg: Message,
     ) {
         let pool = get_pool(ctx).await;
-        let options = &command
-            .data
-            .options
-            .first()
-            .expect("Expected user option")
-            .value;
 
-        let requesterid = command.member.to_owned().unwrap().user.id.get();
+        // Check for required user option with proper error handling
+        let options = match command.data.options.first() {
+            Some(opt) => &opt.value,
+            None => return,
+        };
+
+        // Get requester ID with proper error handling instead of unwrap
+        let requesterid = if let Some(member) = command.member.as_ref() {
+            member.user.id.get()
+        } else {
+            eprintln!("Could not get requester information");
+            return;
+        };
 
         if let CommandDataOptionValue::User(user_id) = options {
-            let user = command
-                .data
-                .resolved
-                .users
-                .get(user_id)
-                .expect("User not found");
-            if !Gulag::is_tugbot(&ctx.http, user).await.unwrap() {
-                let guildid = command.guild_id.unwrap();
-                let role = Gulag::find_gulag_role(&ctx.http, guildid.get())
-                    .await
-                    .unwrap();
+            // Get user with proper error handling instead of unwrap
+            if !command.data.resolved.users.contains_key(user_id) {
+                eprintln!("User not found in resolved users");
+                return;
+            }
+            let user = command.data.resolved.users.get(user_id).unwrap();
+
+            if !Gulag::is_tugbot(&ctx.http, user).await.unwrap_or(false) {
+                let guildid = match command.guild_id {
+                    Some(guild) => guild.get(),
+                    None => return,
+                };
+
+                let role = match Gulag::find_gulag_role(&ctx.http, guildid).await {
+                    Some(r) => r,
+                    None => return,
+                };
 
                 // Create vote first, then add reactions only if successful
                 match new_gulag_vote(
                     &pool,
                     requesterid as i64,
                     user_id.get() as i64,
-                    guildid.get() as i64,
+                    guildid as i64,
                     role.id.get() as i64,
                     msg.id.get() as i64,
                     msg.channel_id.get() as i64,
@@ -202,7 +216,11 @@ impl GulagVoteHandler {
                     }
                     Err(e) => {
                         eprintln!("Failed to create gulag vote: {}", e);
-                        if let Err(why) = msg.channel_id.say(&ctx.http, "Failed to start vote, please try again.").await {
+                        if let Err(why) = msg
+                            .channel_id
+                            .say(&ctx.http, "Failed to start vote, please try again.")
+                            .await
+                        {
                             eprintln!("Failed to send error message: {}", why);
                         }
                     }

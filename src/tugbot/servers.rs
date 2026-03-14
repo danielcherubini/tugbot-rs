@@ -19,9 +19,9 @@ impl Servers {
         // Use spawn_blocking to avoid blocking async runtime
         let pool_clone = pool.clone();
         let results = match tokio::task::spawn_blocking(move || {
-            let mut connection = pool_clone.get().map_err(|e| {
-                diesel::result::Error::QueryBuilderError(Box::new(e))
-            })?;
+            let mut connection = pool_clone
+                .get()
+                .map_err(|e| diesel::result::Error::QueryBuilderError(Box::new(e)))?;
             servers.load::<Server>(&mut connection)
         })
         .await
@@ -139,17 +139,23 @@ impl Servers {
                         let server_id = s.id;
 
                         match tokio::task::spawn_blocking(move || -> Result<usize, String> {
-                            let mut conn = pool_clone.get()
-                                .map_err(|e| format!("Failed to get DB connection for delete: {}", e))?;
+                            let mut conn = pool_clone.get().map_err(|e| {
+                                format!("Failed to get DB connection for delete: {}", e)
+                            })?;
 
                             diesel::delete(servers.filter(id.eq(server_id)))
                                 .execute(&mut conn)
-                                .map_err(|e| format!("Failed to delete server {}: {}", server_id, e))
+                                .map_err(|e| {
+                                    format!("Failed to delete server {}: {}", server_id, e)
+                                })
                         })
                         .await
                         {
                             Ok(Ok(rows)) => {
-                                eprintln!("Deleted stale server {} from database ({} rows)", server_id, rows);
+                                eprintln!(
+                                    "Deleted stale server {} from database ({} rows)",
+                                    server_id, rows
+                                );
                             }
                             Ok(Err(db_err)) => {
                                 eprintln!("Database error during delete: {}", db_err);

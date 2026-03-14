@@ -42,29 +42,65 @@ impl GulagHandler {
             };
         }
 
-        let user_options = &command
-            .data
-            .options
-            .first()
-            .expect("Expected user option")
-            .value;
-        let reason_options = &command
-            .data
-            .options
-            .get(1)
-            .expect("Expected reason option")
-            .value;
-        let length_options = &command
-            .data
-            .options
-            .get(2)
-            .expect("Expected length option")
-            .value;
+        // Check permissions: require Highly Regarded or admin role
+        let guild_id = match command.guild_id {
+            Some(id) => id.get(),
+            None => return HandlerResponse {
+                content: "Error: This command can only be used in a guild".to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        };
+
+        let member = match ctx.http.get_member(guild_id.into(), command.user.id).await {
+            Ok(m) => m,
+            Err(_) => return HandlerResponse {
+                content: "Error: Could not verify your permissions".to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        };
+
+        let allowed_roles = ["Highly Regarded", "admin"];
+        if !Gulag::member_has_any_role(&ctx.http, guild_id, &member, &allowed_roles).await {
+            return HandlerResponse {
+                content: "Error: You need Highly Regarded or admin role to use this command".to_string(),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
+        let user_option = match command.data.options.iter().find(|opt| opt.name == "user") {
+            Some(opt) => &opt.value,
+            None => return HandlerResponse {
+                content: "Error: Missing required user option".to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        };
+
+        let reason_option = match command.data.options.iter().find(|opt| opt.name == "reason") {
+            Some(opt) => &opt.value,
+            None => return HandlerResponse {
+                content: "Error: Missing required reason option".to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        };
+
+        let length_option = match command.data.options.iter().find(|opt| opt.name == "length") {
+            Some(opt) => &opt.value,
+            None => return HandlerResponse {
+                content: "Error: Missing required length option".to_string(),
+                components: None,
+                ephemeral: true,
+            },
+        };
 
         let channelid = command.channel_id.get();
 
         let mut gulaglength = 300;
-        if let CommandDataOptionValue::Integer(length) = length_options {
+        if let CommandDataOptionValue::Integer(length) = length_option {
             if *length > 0 && *length <= 10080 {
                 // Max 1 week
                 gulaglength = length * 60;
@@ -83,7 +119,7 @@ impl GulagHandler {
             }
         }
 
-        if let CommandDataOptionValue::User(user) = user_options {
+        if let CommandDataOptionValue::User(user) = user_option {
             match command.guild_id {
                 None => HandlerResponse {
                     content: "no member".to_string(),
@@ -121,7 +157,7 @@ impl GulagHandler {
                             }
                         };
 
-                        if let CommandDataOptionValue::String(reason) = reason_options {
+                        if let CommandDataOptionValue::String(reason) = reason_option {
                             let content = format!(
                                 "Sending {} to the Gulag for {} minutes, because {}",
                                 user,

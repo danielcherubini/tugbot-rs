@@ -22,6 +22,27 @@ impl GulagRemoveHandler {
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
         let pool = get_pool(ctx).await;
+
+        // Check permissions: require Highly Regarded or admin role
+        let guildid = match command.guild_id {
+            Some(guild) => guild.get(),
+            None => return Gulag::send_error("This command can only be used in a server"),
+        };
+
+        let member = match ctx.http.get_member(guildid.into(), command.user.id).await {
+            Ok(m) => m,
+            Err(_) => return Gulag::send_error("Could not verify your permissions"),
+        };
+
+        let allowed_roles = ["Highly Regarded", "admin"];
+        if !Gulag::member_has_any_role(&ctx.http, guildid, &member, &allowed_roles).await {
+            return HandlerResponse {
+                content: "Error: You need Highly Regarded or admin role to use this command".to_string(),
+                components: None,
+                ephemeral: true,
+            };
+        }
+
         let user_options = match command.data.options.first() {
             Some(opt) => &opt.value,
             None => {
