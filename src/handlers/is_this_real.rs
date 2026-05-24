@@ -85,7 +85,7 @@ impl IsThisReal {
         // 5. Fetch referenced message
         let referenced_msg = match ctx
             .http
-            .get_message(msg.channel_id, referenced_id.into())
+            .get_message(msg.channel_id, referenced_id)
             .await
         {
             Ok(m) => m,
