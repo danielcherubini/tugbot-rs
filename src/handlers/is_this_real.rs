@@ -16,6 +16,7 @@ use serenity::{
 pub struct IsThisReal;
 
 const SPECIAL_USER_ID: u64 = 163055057254875136;
+const ADMIN_USER_ID: u64 = 212879017257205760;
 const COOLDOWN_HOURS: u64 = 24;
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
@@ -158,10 +159,12 @@ impl IsThisReal {
                         .channel_id
                         .send_message(
                             &ctx.http,
-                            CreateMessage::new().content(format!(
-                                "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
-                                msg.author.mention()
-                            )),
+                            CreateMessage::new()
+                                .content(format!(
+                                    "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
+                                    msg.author.mention()
+                                ))
+                                .reference_message((msg.channel_id, msg.id)),
                         )
                         .await
                     {
@@ -176,30 +179,35 @@ impl IsThisReal {
             return;
         }
 
-        // 8. Cooldown check (normal users)
+        // 8. Cooldown check (normal users, admin gets unlimited)
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
         // Only check existing records — if none exists, user hasn't used the feature yet
-        if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
-            let elapsed = SystemTime::now()
-                .duration_since(usage.last_used_at)
-                .unwrap_or_default()
-                .as_secs();
-            let cooldown_secs = COOLDOWN_HOURS * 3600;
+        // Admin user skips cooldown entirely
+        if user_id != ADMIN_USER_ID {
+            if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
+                let elapsed = SystemTime::now()
+                    .duration_since(usage.last_used_at)
+                    .unwrap_or_default()
+                    .as_secs();
+                let cooldown_secs = COOLDOWN_HOURS * 3600;
 
-            if elapsed < cooldown_secs {
-                if let Err(why) = msg
-                    .channel_id
-                    .send_message(
-                        &ctx.http,
-                        CreateMessage::new().content("Come back tomorrow, I need my sleep"),
-                    )
-                    .await
-                {
-                    eprintln!("Failed to send cooldown message: {}", why);
+                if elapsed < cooldown_secs {
+                    if let Err(why) = msg
+                        .channel_id
+                        .send_message(
+                            &ctx.http,
+                            CreateMessage::new()
+                                .content("Come back tomorrow, I need my sleep")
+                                .reference_message((msg.channel_id, msg.id)),
+                        )
+                        .await
+                    {
+                        eprintln!("Failed to send cooldown message: {}", why);
+                    }
+                    return;
                 }
-                return;
             }
         }
 
@@ -293,20 +301,27 @@ impl IsThisReal {
             return;
         }
 
-        // 12. Post response
+        // 12. Post response (reply to the user's question)
         if let Err(why) = msg
             .channel_id
-            .send_message(&ctx.http, CreateMessage::new().content(llm_text.trim()))
+            .send_message(
+                &ctx.http,
+                CreateMessage::new()
+                    .content(llm_text.trim())
+                    .reference_message((msg.channel_id, msg.id)),
+            )
             .await
         {
             eprintln!("Failed to post LLM response: {}", why);
         }
 
-        // 13. Update cooldown (fire and forget) — record first use or update existing
-        let usage_result = get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
-        if let Ok(u) = usage_result {
-            if let Err(e) = update_is_this_real_usage(&pool, u.id) {
-                eprintln!("Failed to update cooldown: {}", e);
+        // 13. Update cooldown (fire and forget) — skip for admin
+        if user_id != ADMIN_USER_ID {
+            let usage_result = get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
+            if let Ok(u) = usage_result {
+                if let Err(e) = update_is_this_real_usage(&pool, u.id) {
+                    eprintln!("Failed to update cooldown: {}", e);
+                }
             }
         }
     }
