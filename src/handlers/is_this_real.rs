@@ -121,6 +121,11 @@ impl IsThisReal {
             return;
         }
 
+        // 6b. Require "is this real?" keyword — case insensitive
+        if !question.to_lowercase().contains("is this real") {
+            return;
+        }
+
         // 7. Special user check
         if msg.author.id.get() == SPECIAL_USER_ID {
             let guild_id_u64 = guild_id.get();
@@ -211,99 +216,74 @@ impl IsThisReal {
             }
         }
 
-        // 9. Web search — search the original claim, not just the question
-        let search_query = format!("{} {}", referenced_msg.content, question);
-        println!("[is_this_real] searching Exa for: {:.100}", search_query);
-        let search_results = exa::search(&search_query).await;
-        let search_context = match search_results {
-            Ok(results) => {
-                println!("[is_this_real] Exa returned {} results: {:?}", results.len(), results.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>());
-                if results.is_empty() {
-                    String::new()
-                } else {
-                    let entries: Vec<String> = results
-                        .iter()
-                        .map(|(title, snippet)| format!("\"{}\": \"{}\"", title, snippet))
-                        .collect();
-                    format!("Research findings:\n{}", entries.join("\n"))
-                }
-            }
-            Err(e) => {
-                eprintln!("Exa search failed: {}", e);
-                String::new()
-            }
-        };
-
-        // 10. Build LLM prompt
+        // 9. First LLM call — without search (save Exa costs)
         let original_content = referenced_msg.content.replace("\"", "\\\"");
-        let prompt = if search_context.is_empty() {
-            format!(
-                "Someone said: \"{}\"\nThe question is: \"{}\"",
-                original_content, question
-            )
-        } else {
-            format!(
-                "Someone said: \"{}\"\nThe question is: \"{}\"\n\n{}",
-                original_content, question, search_context
-            )
-        };
-        println!("[is_this_real] prompt to LLM ({} chars):\n{}", prompt.len(), prompt);
+        let first_prompt = format!(
+            "Someone said: \"{}\"\nThe question is: \"{}\"",
+            original_content, question
+        );
+        println!("[is_this_real] first LLM prompt ({} chars):\n{}", first_prompt.len(), first_prompt);
 
-        // 11. Call Ollama
-        println!("[is_this_real] calling Ollama, prompt length: {}", prompt.len());
-        let ollama_request = OllamaRequest {
-            model: OLLAMA_MODEL,
-            messages: vec![
-                OllamaMessage {
-                    role: "system",
-                    content: SYSTEM_PROMPT.to_string(),
-                },
-                OllamaMessage {
-                    role: "user",
-                    content: prompt,
-                },
-            ],
-        };
+        let first_response =
+            call_ollama(SYSTEM_PROMPT.to_string(), first_prompt, "first pass").await;
 
-        let tama_token = std::env::var("TAMA_TOKEN").expect("TAMA_TOKEN must be set");
-
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()
-            .expect("Failed to build HTTP client");
-
-        println!("[is_this_real] sending request to {}", OLLAMA_URL);
-        let response = match client
-            .post(OLLAMA_URL)
-            .header("Authorization", format!("Bearer {}", tama_token))
-            .json(&ollama_request)
-            .send()
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("Ollama call failed: {}", e);
-                return;
-            }
-        };
-
-        let ollama_response: OllamaResponse = match response.json().await {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("Failed to parse Ollama response: {}", e);
-                return;
-            }
-        };
-
-        let llm_text = ollama_response
-            .choices
-            .first()
-            .and_then(|c| c.message.content.as_deref())
-            .unwrap_or("");
-
-        if llm_text.is_empty() {
+        let Some(llm_text) = first_response else {
             return;
-        }
+        };
+
+        // Check if LLM is uncertain — if so, search and retry
+        let uncertainty_markers = [
+            "i don't know", "i'm not sure", "not sure", "uncertain", "might be",
+            "possibly", "can't verify", "need more", "hard to say", "not enough",
+            "don't have enough", "could be", "it's unclear", "i can't",
+        ];
+        let is_uncertain = uncertainty_markers.iter().any(|m| {
+            llm_text.to_lowercase().contains(m)
+        });
+
+        let final_text = if is_uncertain {
+            println!("[is_this_real] LLM uncertain, searching Exa...");
+            let search_query = format!("{} {}", referenced_msg.content, question);
+            println!("[is_this_real] searching Exa for: {:.100}", search_query);
+            let search_results = exa::search(&search_query).await;
+            let search_context = match search_results {
+                Ok(results) => {
+                    if results.is_empty() {
+                        String::new()
+                    } else {
+                        let entries: Vec<String> = results
+                            .iter()
+                            .map(|(title, snippet)| format!("\"{}\": \"{}\"", title, snippet))
+                            .collect();
+                        format!("Research findings:\n{}", entries.join("\n"))
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Exa search failed: {}", e);
+                    String::new()
+                }
+            };
+
+            let second_prompt = if search_context.is_empty() {
+                format!(
+                    "Someone said: \"{}\"\nThe question is: \"{}\"",
+                    original_content, question
+                )
+            } else {
+                format!(
+                    "Someone said: \"{}\"\nThe question is: \"{}\"\n\n{}",
+                    original_content, question, search_context
+                )
+            };
+            println!("[is_this_real] second LLM prompt ({} chars)", second_prompt.len());
+
+            match call_ollama(SYSTEM_PROMPT.to_string(), second_prompt, "second pass").await {
+                Some(text) => text,
+                None => return,
+            }
+        } else {
+            llm_text
+        };
 
         // 12. Post response (reply to the user's question)
         if let Err(why) = msg
@@ -311,7 +291,7 @@ impl IsThisReal {
             .send_message(
                 &ctx.http,
                 CreateMessage::new()
-                    .content(llm_text.trim())
+                    .content(final_text.trim())
                     .reference_message((msg.channel_id, msg.id)),
             )
             .await
@@ -328,5 +308,65 @@ impl IsThisReal {
                 }
             }
         }
+    }
+}
+
+async fn call_ollama(system: String, user: String, label: &str) -> Option<String> {
+    let ollama_request = OllamaRequest {
+        model: OLLAMA_MODEL,
+        messages: vec![
+            OllamaMessage {
+                role: "system",
+                content: system,
+            },
+            OllamaMessage {
+                role: "user",
+                content: user,
+            },
+        ],
+    };
+
+    let tama_token = std::env::var("TAMA_TOKEN").expect("TAMA_TOKEN must be set");
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .expect("Failed to build HTTP client");
+
+    println!("[is_this_real] calling Ollama ({})", label);
+    let response = match client
+        .post(OLLAMA_URL)
+        .header("Authorization", format!("Bearer {}", tama_token))
+        .json(&ollama_request)
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[is_this_real] Ollama call failed ({}): {}", label, e);
+            return None;
+        }
+    };
+
+    let ollama_response: OllamaResponse = match response.json().await {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[is_this_real] Failed to parse Ollama response ({}): {}", label, e);
+            return None;
+        }
+    };
+
+    let text = ollama_response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.as_deref())
+        .unwrap_or("")
+        .to_string();
+
+    if text.is_empty() {
+        eprintln!("[is_this_real] Ollama returned empty response ({})", label);
+        None
+    } else {
+        Some(text)
     }
 }
