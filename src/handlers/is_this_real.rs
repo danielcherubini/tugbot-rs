@@ -62,13 +62,15 @@ impl IsThisReal {
         let bot_user = match ctx.http.get_current_user().await {
             Ok(user) => user,
             Err(e) => {
-                eprintln!("Failed to get current user: {}", e);
+                eprintln!("[is_this_real] Failed to get current user: {}", e);
                 return;
             }
         };
+        println!("[is_this_real] msg.mentions={:?} bot_id={}", msg.mentions.iter().map(|m| m.id.get()).collect::<Vec<_>>(), bot_user.id.get());
         if !msg.mentions.iter().any(|m| m.id == bot_user.id) {
             return;
         }
+        println!("[is_this_real] Bot mentioned, checking reply...");
 
         // 3. Reply check
         let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
