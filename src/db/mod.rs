@@ -4,14 +4,15 @@ pub mod schema;
 
 use self::{
     models::{
-        AiSlopUsage, GokuPollUsage, GulagUser, GulagVote, NewAiSlopUsage, NewGokuPollUsage,
-        NewGulagUser, NewGulagVote, NewServer, Server,
+        AiSlopUsage, GokuPollUsage, GulagUser, GulagVote, IsThisRealUsage, NewAiSlopUsage,
+        NewGokuPollUsage, NewGulagUser, NewGulagVote, NewIsThisRealUsage, NewServer, Server,
     },
     schema::{
         ai_slop_usage::{self},
         goku_poll_usage::{self},
         gulag_users::{self},
         gulag_votes::{self},
+        is_this_real_usage::{self},
         servers,
     },
 };
@@ -306,4 +307,45 @@ pub fn get_server_by_guild_id(pool: &DbPool, target_guild_id: i64) -> Option<Ser
         .filter(guild_id.eq(target_guild_id))
         .first::<Server>(&mut conn)
         .ok()
+}
+
+pub fn get_or_create_is_this_real_usage(
+    pool: &DbPool,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> Result<IsThisRealUsage, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use self::is_this_real_usage::dsl::*;
+
+    match is_this_real_usage
+        .filter(user_id.eq(target_user_id))
+        .filter(guild_id.eq(target_guild_id))
+        .first::<IsThisRealUsage>(&mut conn)
+    {
+        Ok(usage) => Ok(usage),
+        Err(diesel::result::Error::NotFound) => {
+            let new_usage = NewIsThisRealUsage {
+                user_id: target_user_id,
+                guild_id: target_guild_id,
+                last_used_at: SystemTime::now(),
+                created_at: SystemTime::now(),
+            };
+
+            diesel::insert_into(is_this_real_usage)
+                .values(&new_usage)
+                .get_result(&mut conn)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub fn update_is_this_real_usage(
+    pool: &DbPool,
+    usage_id: i32,
+) -> Result<IsThisRealUsage, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+
+    diesel::update(is_this_real_usage::dsl::is_this_real_usage.find(usage_id))
+        .set(is_this_real_usage::dsl::last_used_at.eq(SystemTime::now()))
+        .get_result(&mut conn)
 }
