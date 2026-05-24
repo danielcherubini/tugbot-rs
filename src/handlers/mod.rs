@@ -73,6 +73,7 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        println!("[message] got message from {} in {}", msg.author.name, msg.channel_id);
         Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
