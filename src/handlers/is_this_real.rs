@@ -122,7 +122,10 @@ impl IsThisReal {
             let server = match get_server_by_guild_id(&pool, guild_id_u64 as i64) {
                 Some(s) => s,
                 None => {
-                    eprintln!("No server config for guild {}", guild_id_u64);
+                    eprintln!(
+                        "No server config for guild {} (or DB unavailable)",
+                        guild_id_u64
+                    );
                     return;
                 }
             };
