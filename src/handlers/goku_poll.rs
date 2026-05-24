@@ -94,7 +94,10 @@ impl GokuPoll {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
             Err(_) => {
                 // Overflow case - use capped value for duration calculation
-                eprintln!("Goku poll: usage count overflowed ({}), using max duration", current_count);
+                eprintln!(
+                    "Goku poll: usage count overflowed ({}), using max duration",
+                    current_count
+                );
                 2_592_000 // Max ~30 days cap
             }
         };
@@ -117,9 +120,7 @@ impl GokuPoll {
                 guildid: guild_id,
                 userid: poll_creator.id.get(),
                 gulag_roleid: server.gulag_id as u64,
-                gulaglength: duration_seconds
-                    .try_into()
-                    .unwrap_or(2_592_000u32), // Max ~30 days cap
+                gulaglength: duration_seconds.try_into().unwrap_or(2_592_000u32), // Max ~30 days cap
                 channelid: gulag_channel.id.get(),
                 messageid: message.id.get(),
             },

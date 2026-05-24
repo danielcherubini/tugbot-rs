@@ -37,7 +37,8 @@ impl GulagRemoveHandler {
         let allowed_roles = ["Highly Regarded", "admin"];
         if !Gulag::member_has_any_role(&ctx.http, guildid, &member, &allowed_roles).await {
             return HandlerResponse {
-                content: "Error: You need Highly Regarded or admin role to use this command".to_string(),
+                content: "Error: You need Highly Regarded or admin role to use this command"
+                    .to_string(),
                 components: None,
                 ephemeral: true,
             };
