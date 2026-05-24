@@ -57,6 +57,7 @@ impl IsThisReal {
         if !Features::is_enabled(&pool, "is_this_real") {
             return;
         }
+        println!("[is_this_real] feature enabled, processing message");
 
         // 2. Bot mention check
         let bot_user = match ctx.http.get_current_user().await {
