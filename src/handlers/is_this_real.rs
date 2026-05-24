@@ -238,6 +238,7 @@ impl IsThisReal {
         };
 
         // 11. Call Ollama
+        println!("[is_this_real] calling Ollama, prompt length: {}", prompt.len());
         let ollama_request = OllamaRequest {
             model: OLLAMA_MODEL,
             messages: vec![
@@ -255,10 +256,11 @@ impl IsThisReal {
         let tama_token = std::env::var("TAMA_TOKEN").expect("TAMA_TOKEN must be set");
 
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(60))
             .build()
             .expect("Failed to build HTTP client");
 
+        println!("[is_this_real] sending request to {}", OLLAMA_URL);
         let response = match client
             .post(OLLAMA_URL)
             .header("Authorization", format!("Bearer {}", tama_token))
