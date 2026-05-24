@@ -83,11 +83,7 @@ impl IsThisReal {
         };
 
         // 5. Fetch referenced message
-        let referenced_msg = match ctx
-            .http
-            .get_message(msg.channel_id, referenced_id)
-            .await
-        {
+        let referenced_msg = match ctx.http.get_message(msg.channel_id, referenced_id).await {
             Ok(m) => m,
             Err(e) => {
                 eprintln!("Failed to fetch referenced message: {}", e);
@@ -209,11 +205,17 @@ impl IsThisReal {
         // 9. Web search
         let search_results = exa::search(&question).await;
         let search_context = match search_results {
-            Ok(results) => results
-                .iter()
-                .map(|(title, snippet)| format!("\"{}\": \"{}\"", title, snippet))
-                .collect::<Vec<_>>()
-                .join("\n"),
+            Ok(results) => {
+                if results.is_empty() {
+                    String::new()
+                } else {
+                    let entries: Vec<String> = results
+                        .iter()
+                        .map(|(title, snippet)| format!("\"{}\": \"{}\"", title, snippet))
+                        .collect();
+                    format!("Research findings:\n{}", entries.join("\n"))
+                }
+            }
             Err(e) => {
                 eprintln!("Exa search failed: {}", e);
                 String::new()
