@@ -309,6 +309,21 @@ pub fn get_server_by_guild_id(pool: &DbPool, target_guild_id: i64) -> Option<Ser
         .ok()
 }
 
+pub fn get_is_this_real_usage(
+    pool: &DbPool,
+    target_user_id: i64,
+    target_guild_id: i64,
+) -> Option<IsThisRealUsage> {
+    let mut conn = pool.get().ok()?;
+    use self::is_this_real_usage::dsl::*;
+
+    is_this_real_usage
+        .filter(user_id.eq(target_user_id))
+        .filter(guild_id.eq(target_guild_id))
+        .first::<IsThisRealUsage>(&mut conn)
+        .ok()
+}
+
 pub fn get_or_create_is_this_real_usage(
     pool: &DbPool,
     target_user_id: i64,

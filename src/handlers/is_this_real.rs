@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime};
 
 use crate::db::{
-    get_or_create_is_this_real_usage, get_server_by_guild_id, update_is_this_real_usage,
+    get_or_create_is_this_real_usage, get_is_this_real_usage, get_server_by_guild_id,
+    update_is_this_real_usage,
 };
 use crate::exa;
 use crate::features::Features;
@@ -179,33 +180,27 @@ impl IsThisReal {
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
-        let usage =
-            match get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
-                Ok(u) => u,
-                Err(e) => {
-                    eprintln!("Failed to check cooldown: {}", e);
-                    return;
+        // Only check existing records — if none exists, user hasn't used the feature yet
+        if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
+            let elapsed = SystemTime::now()
+                .duration_since(usage.last_used_at)
+                .unwrap_or_default()
+                .as_secs();
+            let cooldown_secs = COOLDOWN_HOURS * 3600;
+
+            if elapsed < cooldown_secs {
+                if let Err(why) = msg
+                    .channel_id
+                    .send_message(
+                        &ctx.http,
+                        CreateMessage::new().content("Come back tomorrow, I need my sleep"),
+                    )
+                    .await
+                {
+                    eprintln!("Failed to send cooldown message: {}", why);
                 }
-            };
-
-        let elapsed = SystemTime::now()
-            .duration_since(usage.last_used_at)
-            .unwrap_or_default()
-            .as_secs();
-        let cooldown_secs = COOLDOWN_HOURS * 3600;
-
-        if elapsed < cooldown_secs {
-            if let Err(why) = msg
-                .channel_id
-                .send_message(
-                    &ctx.http,
-                    CreateMessage::new().content("Come back tomorrow, I need my sleep"),
-                )
-                .await
-            {
-                eprintln!("Failed to send cooldown message: {}", why);
+                return;
             }
-            return;
         }
 
         // 9. Web search
@@ -305,9 +300,12 @@ impl IsThisReal {
             eprintln!("Failed to post LLM response: {}", why);
         }
 
-        // 13. Update cooldown (fire and forget)
-        if let Err(e) = update_is_this_real_usage(&pool, usage.id) {
-            eprintln!("Failed to update cooldown: {}", e);
+        // 13. Update cooldown (fire and forget) — record first use or update existing
+        let usage_result = get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
+        if let Ok(u) = usage_result {
+            if let Err(e) = update_is_this_real_usage(&pool, u.id) {
+                eprintln!("Failed to update cooldown: {}", e);
+            }
         }
     }
 }
