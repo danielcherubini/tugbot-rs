@@ -212,9 +212,11 @@ impl IsThisReal {
         }
 
         // 9. Web search
+        println!("[is_this_real] searching Exa for: {}", question);
         let search_results = exa::search(&question).await;
         let search_context = match search_results {
             Ok(results) => {
+                println!("[is_this_real] Exa returned {} results: {:?}", results.len(), results.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>());
                 if results.is_empty() {
                     String::new()
                 } else {
@@ -244,6 +246,7 @@ impl IsThisReal {
                 original_content, question, search_context
             )
         };
+        println!("[is_this_real] prompt to LLM ({} chars):\n{}", prompt.len(), prompt);
 
         // 11. Call Ollama
         println!("[is_this_real] calling Ollama, prompt length: {}", prompt.len());
