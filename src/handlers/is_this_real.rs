@@ -17,7 +17,7 @@ pub struct IsThisReal;
 
 const SPECIAL_USER_ID: u64 = 163055057254875136;
 const ADMIN_USER_ID: u64 = 212879017257205760;
-const COOLDOWN_HOURS: u64 = 24;
+const COOLDOWN_HOURS: u64 = 8; // 24h / 3 = 8h between uses (3 per day)
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
 const SYSTEM_PROMPT: &str = "You are Tugbot, a Discord bot that fact-checks claims. A user has asked you a question about something someone else said. Respond in one or two sentences max. Try to be funny, sarcastic, or sardonic when possible. Be helpful but keep it brief.";
@@ -59,7 +59,6 @@ impl IsThisReal {
         if !Features::is_enabled(&pool, "is_this_real") {
             return;
         }
-        println!("[is_this_real] feature enabled, processing message");
 
         // 2. Bot mention check
         let bot_user = match ctx.http.get_current_user().await {
@@ -69,11 +68,9 @@ impl IsThisReal {
                 return;
             }
         };
-        println!("[is_this_real] msg.mentions={:?} bot_id={}", msg.mentions.iter().map(|m| m.id.get()).collect::<Vec<_>>(), bot_user.id.get());
         if !msg.mentions.iter().any(|m| m.id == bot_user.id) {
             return;
         }
-        println!("[is_this_real] Bot mentioned, checking reply...");
 
         // 3. Reply check
         let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
@@ -222,7 +219,6 @@ impl IsThisReal {
             "Someone said: \"{}\"\nThe question is: \"{}\"",
             original_content, question
         );
-        println!("[is_this_real] first LLM prompt ({} chars):\n{}", first_prompt.len(), first_prompt);
 
         let first_response =
             call_ollama(SYSTEM_PROMPT.to_string(), first_prompt, "first pass").await;
@@ -242,9 +238,7 @@ impl IsThisReal {
         });
 
         let final_text = if is_uncertain {
-            println!("[is_this_real] LLM uncertain, searching Exa...");
             let search_query = format!("{} {}", referenced_msg.content, question);
-            println!("[is_this_real] searching Exa for: {:.100}", search_query);
             let search_results = exa::search(&search_query).await;
             let search_context = match search_results {
                 Ok(results) => {
@@ -275,7 +269,6 @@ impl IsThisReal {
                     original_content, question, search_context
                 )
             };
-            println!("[is_this_real] second LLM prompt ({} chars)", second_prompt.len());
 
             match call_ollama(SYSTEM_PROMPT.to_string(), second_prompt, "second pass").await {
                 Some(text) => text,
@@ -333,7 +326,6 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
         .build()
         .expect("Failed to build HTTP client");
 
-    println!("[is_this_real] calling Ollama ({})", label);
     let response = match client
         .post(OLLAMA_URL)
         .header("Authorization", format!("Bearer {}", tama_token))
