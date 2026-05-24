@@ -211,9 +211,10 @@ impl IsThisReal {
             }
         }
 
-        // 9. Web search
-        println!("[is_this_real] searching Exa for: {}", question);
-        let search_results = exa::search(&question).await;
+        // 9. Web search — search the original claim, not just the question
+        let search_query = format!("{} {}", referenced_msg.content, question);
+        println!("[is_this_real] searching Exa for: {:.100}", search_query);
+        let search_results = exa::search(&search_query).await;
         let search_context = match search_results {
             Ok(results) => {
                 println!("[is_this_real] Exa returned {} results: {:?}", results.len(), results.iter().map(|(t, _)| t.as_str()).collect::<Vec<_>>());
