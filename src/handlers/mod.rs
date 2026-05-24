@@ -220,7 +220,7 @@ impl EventHandler for Handler {
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        println!("{} is connected! intents={:?}", ready.user.name, ready.intents);
 
         let pool = get_pool(&ctx).await;
 
