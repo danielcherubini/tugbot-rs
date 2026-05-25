@@ -123,8 +123,9 @@ impl IsThisReal {
             return;
         }
 
-        // 6b. Require "is this real?" keyword — case insensitive
-        if !question.to_lowercase().contains("is this real") {
+        // 6b. Require "is this real" / "is that real" keyword — case insensitive
+        let lower = question.to_lowercase();
+        if !lower.contains("is this real") && !lower.contains("is that real") {
             return;
         }
 
