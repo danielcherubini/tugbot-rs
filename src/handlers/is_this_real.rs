@@ -22,12 +22,17 @@ const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
 const SYSTEM_PROMPT: &str = "You are Tugbot, a Discord bot that fact-checks claims. A user has asked you a question about something someone else said. Respond in one or two sentences max. Try to be funny, sarcastic, or sardonic when possible. Be helpful but keep it brief.";
 
-const OLLAMA_URL: &str = "http://tama:11434/v1/chat/completions";
-const OLLAMA_MODEL: &str = "whatevers-hot-n-fresh";
+fn get_ollama_url() -> String {
+    std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://tama:11434/v1/chat/completions".to_string())
+}
+
+fn get_ollama_model() -> String {
+    std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "whatevers-hot-n-fresh".to_string())
+}
 
 #[derive(Serialize)]
 struct OllamaRequest {
-    model: &'static str,
+    model: String,
     messages: Vec<OllamaMessage>,
 }
 
@@ -306,7 +311,7 @@ impl IsThisReal {
 
 async fn call_ollama(system: String, user: String, label: &str) -> Option<String> {
     let ollama_request = OllamaRequest {
-        model: OLLAMA_MODEL,
+        model: get_ollama_model(),
         messages: vec![
             OllamaMessage {
                 role: "system",
@@ -320,6 +325,7 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
     };
 
     let tama_token = std::env::var("TAMA_TOKEN").expect("TAMA_TOKEN must be set");
+    let ollama_url = get_ollama_url();
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -327,7 +333,7 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
         .expect("Failed to build HTTP client");
 
     let response = match client
-        .post(OLLAMA_URL)
+        .post(&ollama_url)
         .header("Authorization", format!("Bearer {}", tama_token))
         .json(&ollama_request)
         .send()
@@ -340,10 +346,24 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
         }
     };
 
-    let ollama_response: OllamaResponse = match response.json().await {
+    let status = response.status();
+    let raw_body = match response.text().await {
+        Ok(body) => body,
+        Err(e) => {
+            eprintln!("[is_this_real] Failed to read Ollama response body ({}): {}", label, e);
+            return None;
+        }
+    };
+
+    let ollama_response: OllamaResponse = match serde_json::from_str(&raw_body) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("[is_this_real] Failed to parse Ollama response ({}): {}", label, e);
+            eprintln!(
+                "[is_this_real] Failed to parse Ollama response ({}): status={}, body={}",
+                label,
+                status,
+                raw_body.chars().take(500).collect::<String>()
+            );
             return None;
         }
     };

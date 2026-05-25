@@ -17,7 +17,8 @@ impl GulagReaction {
         _reaction_type: GulagReactionType,
     ) {
         //Match the emoji with the known gulag emoji
-        if add_reaction.emoji.to_string().contains(":gulag") {
+        let trigger_emoji = add_reaction.emoji.to_string();
+        if trigger_emoji.contains("gulag") {
             let pool = get_pool(ctx).await;
 
             // Check if gulag feature is enabled
@@ -48,11 +49,24 @@ impl GulagReaction {
 
             let user_id = message.author.id.get();
 
+            eprintln!(
+                "[gulag_reaction] Message {} has {} reaction(s)",
+                message_id,
+                message.reactions.len()
+            );
+
             // Find the :gulag: reaction and get all users who reacted
             let mut gulag_voters: Vec<i64> = Vec::new();
+            let mut found_gulag_reaction = false;
 
             for reaction in &message.reactions {
-                if reaction.reaction_type.to_string().contains(":gulag") {
+                let emoji_str = reaction.reaction_type.to_string();
+                eprintln!(
+                    "[gulag_reaction]   Checking reaction: '{}' (count: {})",
+                    emoji_str, reaction.count
+                );
+                if emoji_str.contains("gulag") {
+                    found_gulag_reaction = true;
                     // Get users who reacted with this emoji
                     match ctx
                         .http
@@ -66,11 +80,17 @@ impl GulagReaction {
                         .await
                     {
                         Ok(users) => {
+                            let all_count = users.len();
                             gulag_voters = users
                                 .iter()
                                 .filter(|u| !u.bot) // Exclude bots from voting
                                 .map(|u| u.id.get() as i64)
                                 .collect();
+                            eprintln!(
+                                "[gulag_reaction]   Found gulag reaction: {} users total, {} non-bot voters",
+                                all_count,
+                                gulag_voters.len()
+                            );
                             break;
                         }
                         Err(e) => {
@@ -79,6 +99,14 @@ impl GulagReaction {
                         }
                     }
                 }
+            }
+
+            if !found_gulag_reaction {
+                eprintln!(
+                    "[gulag_reaction] NO MATCH - trigger='{}', message reactions: {:?}",
+                    trigger_emoji,
+                    message.reactions.iter().map(|r| r.reaction_type.to_string()).collect::<Vec<_>>()
+                );
             }
 
             // Sync database with actual Discord reaction data
