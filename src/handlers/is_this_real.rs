@@ -163,16 +163,14 @@ impl IsThisReal {
 
             match Gulag::add_to_gulag(&ctx.http, &pool, params).await {
                 Ok(_) => {
-                    if let Err(why) = msg
-                        .channel_id
+                    if let Err(why) = gulag_channel
+                        .id
                         .send_message(
                             &ctx.http,
-                            CreateMessage::new()
-                                .content(format!(
-                                    "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
-                                    msg.author.mention()
-                                ))
-                                .reference_message((msg.channel_id, msg.id)),
+                            CreateMessage::new().content(format!(
+                                "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
+                                msg.author.mention()
+                            )),
                         )
                         .await
                     {

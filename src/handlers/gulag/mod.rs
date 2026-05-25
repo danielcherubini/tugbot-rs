@@ -21,7 +21,7 @@ use serenity::{
     },
 };
 use std::{
-    sync::Arc,
+    sync::{atomic::AtomicU64, Arc},
     time::{Duration, SystemTime},
 };
 use tokio::{task::spawn, time::sleep};
@@ -500,6 +500,17 @@ impl Gulag {
                         continue; // Skip this iteration and try again
                     }
                 };
+
+                // Periodically reset stale Running entries back to Created so they get retried
+                static LAST_RESET: AtomicU64 = AtomicU64::new(0);
+                let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs();
+                if now.saturating_sub(LAST_RESET.load(std::sync::atomic::Ordering::Relaxed)) > 30 {
+                    LAST_RESET.store(now, std::sync::atomic::Ordering::Relaxed);
+                    diesel::update(message_votes.filter(message_votes::job_status.eq(JobStatus::Running)))
+                        .set(message_votes::job_status.eq(JobStatus::Created))
+                        .execute(&mut conn)
+                        .ok();
+                }
 
                 let job_status_predicate = message_votes::job_status
                     .eq(JobStatus::Created)
