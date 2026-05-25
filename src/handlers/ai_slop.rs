@@ -119,16 +119,17 @@ impl AiSlopHandler {
         };
 
         // Calculate duration for the offense that just occurred (new_count - 1)
-        let new_count = match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
-            Ok(count) => count,
-            Err(_) => {
-                return HandlerResponse {
-                    content: "Error: Failed to record AI slop usage".to_string(),
-                    components: None,
-                    ephemeral: true,
-                };
-            }
-        };
+        let new_count =
+            match atomic_increment_ai_slop(&pool, target_user.id.get() as i64, guild_id as i64) {
+                Ok(count) => count,
+                Err(_) => {
+                    return HandlerResponse {
+                        content: "Error: Failed to record AI slop usage".to_string(),
+                        components: None,
+                        ephemeral: true,
+                    };
+                }
+            };
 
         let duration_seconds = match new_count.saturating_sub(1).try_into() {
             Ok(u32_count) => Gulag::get_gulag_duration_for_offense(u32_count),
@@ -149,9 +150,7 @@ impl AiSlopHandler {
                 guildid: guild_id,
                 userid: target_user.id.get(),
                 gulag_roleid: server.gulag_id as u64,
-                gulaglength: duration_seconds
-                    .try_into()
-                    .unwrap_or(2_592_000u32), // Max ~30 days cap
+                gulaglength: duration_seconds.try_into().unwrap_or(2_592_000u32), // Max ~30 days cap
                 channelid: command.channel_id.get(),
                 messageid: target_message.id.get(),
             },

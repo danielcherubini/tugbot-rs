@@ -22,6 +22,7 @@ impl Config {
             .expect("application id is not a valid id");
 
         let intents = GatewayIntents::privileged()
+            .union(GatewayIntents::MESSAGE_CONTENT)
             .union(GatewayIntents::GUILD_MESSAGES)
             .union(GatewayIntents::GUILD_MESSAGE_REACTIONS)
             .union(GatewayIntents::GUILD_MESSAGE_POLLS);

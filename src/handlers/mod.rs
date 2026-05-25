@@ -8,6 +8,7 @@ pub mod goku_poll;
 pub mod gulag;
 pub mod horny;
 pub mod instagram;
+pub mod is_this_real;
 pub mod nickname;
 pub mod phony;
 pub mod teh;
@@ -46,6 +47,7 @@ use crate::handlers::{
         Gulag,
     },
     horny::Horny,
+    is_this_real::IsThisReal,
     phony::Phony,
     teh::Teh,
     twitter::Twitter,
@@ -76,6 +78,7 @@ impl EventHandler for Handler {
         //TikTok::handler(&ctx, &msg).await;
         Bsky::handler(&ctx, &msg).await;
         Instagram::handler(&ctx, &msg).await;
+        IsThisReal::handler(&ctx, &msg).await;
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {

@@ -45,26 +45,31 @@ impl GulagHandler {
         // Check permissions: require Highly Regarded or admin role
         let guild_id = match command.guild_id {
             Some(id) => id.get(),
-            None => return HandlerResponse {
-                content: "Error: This command can only be used in a guild".to_string(),
-                components: None,
-                ephemeral: true,
-            },
+            None => {
+                return HandlerResponse {
+                    content: "Error: This command can only be used in a guild".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
+            }
         };
 
         let member = match ctx.http.get_member(guild_id.into(), command.user.id).await {
             Ok(m) => m,
-            Err(_) => return HandlerResponse {
-                content: "Error: Could not verify your permissions".to_string(),
-                components: None,
-                ephemeral: true,
-            },
+            Err(_) => {
+                return HandlerResponse {
+                    content: "Error: Could not verify your permissions".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
+            }
         };
 
         let allowed_roles = ["Highly Regarded", "admin"];
         if !Gulag::member_has_any_role(&ctx.http, guild_id, &member, &allowed_roles).await {
             return HandlerResponse {
-                content: "Error: You need Highly Regarded or admin role to use this command".to_string(),
+                content: "Error: You need Highly Regarded or admin role to use this command"
+                    .to_string(),
                 components: None,
                 ephemeral: true,
             };
@@ -72,29 +77,35 @@ impl GulagHandler {
 
         let user_option = match command.data.options.iter().find(|opt| opt.name == "user") {
             Some(opt) => &opt.value,
-            None => return HandlerResponse {
-                content: "Error: Missing required user option".to_string(),
-                components: None,
-                ephemeral: true,
-            },
+            None => {
+                return HandlerResponse {
+                    content: "Error: Missing required user option".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
+            }
         };
 
         let reason_option = match command.data.options.iter().find(|opt| opt.name == "reason") {
             Some(opt) => &opt.value,
-            None => return HandlerResponse {
-                content: "Error: Missing required reason option".to_string(),
-                components: None,
-                ephemeral: true,
-            },
+            None => {
+                return HandlerResponse {
+                    content: "Error: Missing required reason option".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
+            }
         };
 
         let length_option = match command.data.options.iter().find(|opt| opt.name == "length") {
             Some(opt) => &opt.value,
-            None => return HandlerResponse {
-                content: "Error: Missing required length option".to_string(),
-                components: None,
-                ephemeral: true,
-            },
+            None => {
+                return HandlerResponse {
+                    content: "Error: Missing required length option".to_string(),
+                    components: None,
+                    ephemeral: true,
+                }
+            }
         };
 
         let channelid = command.channel_id.get();

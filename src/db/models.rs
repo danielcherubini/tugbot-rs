@@ -197,6 +197,25 @@ pub struct NewMessageVotes {
     pub total_vote_tally: i32,
 }
 
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = is_this_real_usage)]
+pub struct IsThisRealUsage {
+    pub id: i32,
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub last_used_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = is_this_real_usage)]
+pub struct NewIsThisRealUsage {
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub last_used_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
 #[derive(Queryable, Insertable, Debug, Serialize, Deserialize)]
 #[diesel(table_name = features)]
 pub struct Features {
