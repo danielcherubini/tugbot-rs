@@ -357,7 +357,7 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
 
     let ollama_response: OllamaResponse = match serde_json::from_str(&raw_body) {
         Ok(r) => r,
-        Err(e) => {
+        Err(_e) => {
             eprintln!(
                 "[is_this_real] Failed to parse Ollama response ({}): status={}, body={}",
                 label,
