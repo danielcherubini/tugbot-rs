@@ -130,9 +130,25 @@ impl IsThisReal {
             return;
         }
 
-        // 8. Require "is this real" / "is that real" keyword — case insensitive
+        // 8. Fuzzy trigger match
         let lower = question.to_lowercase();
-        if !lower.contains("is this real") && !lower.contains("is that real") {
+        let triggers = [
+            "is this real", "is that real",
+            "is this true", "is that true",
+            "is this legit", "is that legit",
+        ];
+        let mut matched = false;
+        for trigger in &triggers {
+            let score = rapidfuzz::fuzz::ratio(
+                lower.as_bytes(),
+                trigger.as_bytes(),
+            ) as f64 / 100.0;
+            if score >= 0.8 {
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
             return;
         }
 
@@ -168,7 +184,14 @@ impl IsThisReal {
             }
         }
 
-        // 9. First LLM call — without search (save Exa costs)
+        // 10. React with :eyes: to acknowledge
+        let _ = msg.channel_id.create_reaction(
+            &ctx.http,
+            msg.id,
+            '\u{1F440}',
+        ).await;
+
+        // 11. First LLM call — without search (save Exa costs)
         let original_content = referenced_msg.content.replace("\"", "\\\"");
         let first_prompt = format!(
             "Someone said: \"{}\"\nThe question is: \"{}\"",
