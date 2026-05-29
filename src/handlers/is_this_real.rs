@@ -155,9 +155,9 @@ impl IsThisReal {
             let score = rapidfuzz::fuzz::ratio(
                 cleaned_question.chars(),
                 trigger.chars(),
-            ) as f64;
-            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score);
-            if score >= 80.0 {
+            );
+            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score * 100.0);
+            if score >= 0.8 {
                 matched = true;
                 break;
             }
@@ -429,5 +429,64 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
         None
     } else {
         Some(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rapidfuzz::fuzz;
+
+    #[test]
+    fn test_rapidfuzz_ratio_scale() {
+        // rapidfuzz::fuzz::ratio returns 0.0-1.0
+        let perfect = fuzz::ratio("is this real".chars(), "is this real".chars());
+        assert!((perfect - 1.0).abs() < 0.001, "perfect match should be 1.0, got {}", perfect);
+
+        let one_off = fuzz::ratio("is this reai".chars(), "is this real".chars());
+        assert!(one_off > 0.9, "one char diff should be >90%, got {}", one_off);
+
+        let diff = fuzz::ratio("something else".chars(), "is this real".chars());
+        assert!(diff < 0.6, "unrelated strings should be <60%, got {}", diff);
+    }
+
+    #[test]
+    fn test_fuzzy_trigger_matching() {
+        let clean = |s: &str| -> String {
+            s.to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric() || *c == ' ')
+                .collect::<String>()
+                .trim()
+                .to_string()
+        };
+
+        let triggers = [
+            "is this real", "is that real",
+            "is this true", "is that true",
+            "is this legit", "is that legit",
+        ];
+
+        let test_inputs = vec![
+            ("is this reaI?", true),
+            ("is this real?", true),
+            ("is this real", true),
+            ("is that legit?", true),
+            ("is dis real", true),
+            ("what's for dinner", false),
+            ("hello world", false),
+        ];
+
+        for (input, should_match) in test_inputs {
+            let cleaned = clean(input);
+            let mut matched = false;
+            for trigger in &triggers {
+                let score = fuzz::ratio(cleaned.chars(), trigger.chars());
+                if score >= 0.8 {
+                    matched = true;
+                    break;
+                }
+            }
+            assert_eq!(matched, should_match, "input='{}' cleaned='{}'", input, cleaned);
+        }
     }
 }
