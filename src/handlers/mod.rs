@@ -16,6 +16,7 @@ pub mod tiktok;
 pub mod twitter;
 
 use crate::db::DbPool;
+use crate::pi_rpc::PiRpc;
 use serenity::prelude::TypeMapKey;
 
 // TypeMapKey for storing the database pool in Serenity's context
@@ -30,6 +31,21 @@ pub async fn get_pool(ctx: &serenity::client::Context) -> DbPool {
     let data = ctx.data.read().await;
     data.get::<DbPoolKey>()
         .expect("Expected DbPool in TypeMap")
+        .clone()
+}
+
+// TypeMapKey for storing the pi RPC client in Serenity's context
+pub struct PiRpcKey;
+
+impl TypeMapKey for PiRpcKey {
+    type Value = std::sync::Arc<PiRpc>;
+}
+
+// Helper function to get the pi RPC client from context
+pub async fn get_pi_rpc(ctx: &serenity::client::Context) -> std::sync::Arc<PiRpc> {
+    let data = ctx.data.read().await;
+    data.get::<PiRpcKey>()
+        .expect("Expected PiRpc in TypeMap")
         .clone()
 }
 
@@ -226,6 +242,21 @@ impl EventHandler for Handler {
         let servers = Servers::get_servers(&ctx, &pool).await;
         Gulag::run_gulag_check(&ctx.http, pool.clone());
         Gulag::run_gulag_vote_check(&ctx.http, pool.clone());
+
+        // Start pi RPC subprocess
+        match PiRpc::spawn().await {
+            Ok(pi_rpc) => {
+                let mut data = ctx.data.write().await;
+                data.insert::<PiRpcKey>(pi_rpc);
+                println!("pi RPC subprocess started");
+            }
+            Err(e) => {
+                eprintln!(
+                    "Failed to start pi RPC subprocess: {} — is_this_real feature will not work",
+                    e
+                );
+            }
+        }
 
         for server in servers {
             let commands = server
