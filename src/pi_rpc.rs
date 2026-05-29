@@ -61,7 +61,7 @@ impl PiRpc {
     }
 
     /// Send a prompt with optional base64-encoded images.
-    /// Each image should be a `(mime_type, base64_data)` tuple, e.g. `("image/png", "iVBORw...")`.
+    /// Each image is a `(mime_type, base64_data)` tuple.
     pub async fn ask_with_images(
         &self,
         prompt: &str,
@@ -78,10 +78,10 @@ impl PiRpc {
         // This serializes concurrent requests, but for this bot's workload
         // (8h cooldown per user on is_this_real), concurrency is not a concern.
         // A channel-based design would be needed for true concurrent access.
-        Self::do_ask_with_images(&mut inner, prompt, images).await
+        Self::do_ask(&mut inner, prompt, images).await
     }
 
-    async fn do_ask_with_images(
+    async fn do_ask(
         inner: &mut PiRpcInner,
         prompt: &str,
         images: &[(String, String)],
@@ -89,28 +89,20 @@ impl PiRpc {
         let req_id = next_id();
 
         // Build the JSONL command
-        let message = if images.is_empty() {
-            serde_json::Value::String(prompt.to_string())
-        } else {
-            let content_blocks: Vec<serde_json::Value> = std::iter::once(serde_json::json!({
-                "type": "text",
-                "text": prompt,
-            }))
-            .chain(images.iter().map(|(mime, b64)| {
-                serde_json::json!({
-                    "type": "image_url",
-                    "image_url": { "url": format!("data:{};base64,{}", mime, b64) },
+        let mut cmd = serde_json::Map::new();
+        cmd.insert("id".into(), req_id.as_str().into());
+        cmd.insert("type".into(), "prompt".into());
+        cmd.insert("message".into(), prompt.into());
+        if !images.is_empty() {
+            let images_json: Vec<serde_json::Value> = images
+                .iter()
+                .map(|(mime, b64)| {
+                    serde_json::json!({ "type": "image", "data": b64, "mimeType": mime })
                 })
-            }))
-            .collect();
-            serde_json::json!({ "content": content_blocks })
-        };
-
-        let command = serde_json::json!({
-            "id": req_id,
-            "type": "prompt",
-            "message": message,
-        });
+                .collect();
+            cmd.insert("images".into(), images_json.into());
+        }
+        let command = serde_json::Value::Object(cmd);
         let command_str = serde_json::to_string(&command).context("Failed to serialize command")?;
 
         // Write to stdin

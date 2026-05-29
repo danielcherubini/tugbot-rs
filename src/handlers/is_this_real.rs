@@ -225,7 +225,7 @@ impl IsThisReal {
             }
         };
 
-        // If no text but images exist, describe the attachment
+        // If no text but images exist, note the attachment
         let claim_text = if referenced_msg.content.is_empty() && !images.is_empty() {
             format!("[shared an image ({})]", images.len())
         } else {
