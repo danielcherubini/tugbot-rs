@@ -135,8 +135,16 @@ impl IsThisReal {
             return;
         }
 
-        // 8. Fuzzy trigger match
-        let lower = question.to_lowercase();
+        // 8. Fuzzy trigger match — strip punctuation then compare
+        let clean = |s: &str| -> String {
+            s.to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric() || *c == ' ')
+                .collect::<String>()
+                .trim()
+                .to_string()
+        };
+        let cleaned_question = clean(&question);
         let triggers = [
             "is this real", "is that real",
             "is this true", "is that true",
@@ -145,10 +153,10 @@ impl IsThisReal {
         let mut matched = false;
         for trigger in &triggers {
             let score = rapidfuzz::fuzz::ratio(
-                lower.as_bytes(),
+                cleaned_question.as_bytes(),
                 trigger.as_bytes(),
             ) as f64 / 100.0;
-            eprintln!("[is_this_real] Fuzzy match '{}': {:.0}%", trigger, score * 100.0);
+            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score * 100.0);
             if score >= 0.8 {
                 matched = true;
                 break;
