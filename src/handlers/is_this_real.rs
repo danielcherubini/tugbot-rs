@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::{Duration, SystemTime}};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use crate::db::{
-    get_or_create_is_this_real_usage, get_is_this_real_usage, get_server_by_guild_id,
+    get_is_this_real_usage, get_or_create_is_this_real_usage, get_server_by_guild_id,
     update_is_this_real_usage, DbPool,
 };
 use crate::exa;
@@ -10,7 +13,10 @@ use crate::features::Features;
 use crate::handlers::get_pool;
 use crate::handlers::gulag::{Gulag, GulagParams};
 use serenity::{
-    all::{Http, Mentionable}, builder::CreateMessage, model::prelude::Message, prelude::Context,
+    all::{Http, Mentionable},
+    builder::CreateMessage,
+    model::prelude::Message,
+    prelude::Context,
 };
 
 pub struct IsThisReal;
@@ -23,7 +29,8 @@ const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 const SYSTEM_PROMPT: &str = "You are Tugbot, a Discord bot that fact-checks claims. A user has asked you a question about something someone else said. Respond in one or two sentences max. Try to be funny, sarcastic, or sardonic when possible. Be helpful but keep it brief.";
 
 fn get_ollama_url() -> String {
-    std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://tama:11434/v1/chat/completions".to_string())
+    std::env::var("OLLAMA_URL")
+        .unwrap_or_else(|_| "http://tama:11434/v1/chat/completions".to_string())
 }
 
 fn get_ollama_model() -> String {
@@ -64,7 +71,11 @@ impl IsThisReal {
         if !Features::is_enabled(&pool, "is_this_real") {
             return;
         }
-        eprintln!("[is_this_real] Handler called by {} in guild {:?}", msg.author.id.get(), msg.guild_id.map(|g| g.get()));
+        eprintln!(
+            "[is_this_real] Handler called by {} in guild {:?}",
+            msg.author.id.get(),
+            msg.guild_id.map(|g| g.get())
+        );
 
         // 2. Bot mention check
         let bot_user = match ctx.http.get_current_user().await {
@@ -146,17 +157,22 @@ impl IsThisReal {
         };
         let cleaned_question = clean(&question);
         let triggers = [
-            "is this real", "is that real",
-            "is this true", "is that true",
-            "is this legit", "is that legit",
+            "is this real",
+            "is that real",
+            "is this true",
+            "is that true",
+            "is this legit",
+            "is that legit",
         ];
         let mut matched = false;
         for trigger in &triggers {
-            let score = rapidfuzz::fuzz::ratio(
-                cleaned_question.chars(),
-                trigger.chars(),
+            let score = rapidfuzz::fuzz::ratio(cleaned_question.chars(), trigger.chars());
+            eprintln!(
+                "[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%",
+                cleaned_question,
+                trigger,
+                score * 100.0
             );
-            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score * 100.0);
             if score >= 0.8 {
                 matched = true;
                 break;
@@ -174,7 +190,8 @@ impl IsThisReal {
         // Only check existing records — if none exists, user hasn't used the feature yet
         // Admin user skips cooldown entirely
         if user_id != ADMIN_USER_ID {
-            if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
+            if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64)
+            {
                 let elapsed = SystemTime::now()
                     .duration_since(usage.last_used_at)
                     .unwrap_or_default()
@@ -200,11 +217,11 @@ impl IsThisReal {
         }
 
         // 10. React with :eyes: to acknowledge
-        match msg.channel_id.create_reaction(
-            &ctx.http,
-            msg.id,
-            '\u{1F440}',
-        ).await {
+        match msg
+            .channel_id
+            .create_reaction(&ctx.http, msg.id, '\u{1F440}')
+            .await
+        {
             Ok(_) => eprintln!("[is_this_real] Reacted with :eyes:"),
             Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
         }
@@ -224,17 +241,31 @@ impl IsThisReal {
             eprintln!("[is_this_real] LLM returned None");
             return;
         };
-        eprintln!("[is_this_real] LLM response: {}", llm_text.chars().take(200).collect::<String>());
+        eprintln!(
+            "[is_this_real] LLM response: {}",
+            llm_text.chars().take(200).collect::<String>()
+        );
 
         // Check if LLM is uncertain — if so, search and retry
         let uncertainty_markers = [
-            "i don't know", "i'm not sure", "not sure", "uncertain", "might be",
-            "possibly", "can't verify", "need more", "hard to say", "not enough",
-            "don't have enough", "could be", "it's unclear", "i can't",
+            "i don't know",
+            "i'm not sure",
+            "not sure",
+            "uncertain",
+            "might be",
+            "possibly",
+            "can't verify",
+            "need more",
+            "hard to say",
+            "not enough",
+            "don't have enough",
+            "could be",
+            "it's unclear",
+            "i can't",
         ];
-        let is_uncertain = uncertainty_markers.iter().any(|m| {
-            llm_text.to_lowercase().contains(m)
-        });
+        let is_uncertain = uncertainty_markers
+            .iter()
+            .any(|m| llm_text.to_lowercase().contains(m));
 
         let final_text = if is_uncertain {
             let search_query = format!("{} {}", referenced_msg.content, question);
@@ -295,7 +326,8 @@ impl IsThisReal {
 
         // 13. Update cooldown (fire and forget) — skip for admin
         if user_id != ADMIN_USER_ID {
-            let usage_result = get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
+            let usage_result =
+                get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
             if let Ok(u) = usage_result {
                 if let Err(e) = update_is_this_real_usage(&pool, u.id) {
                     eprintln!("Failed to update cooldown: {}", e);
@@ -305,7 +337,12 @@ impl IsThisReal {
     }
 
     /// Special user gulag handler — triggers on ANY bot mention, no reply or keyword needed
-    async fn handle_special_user_gulag(http: &Arc<Http>, pool: &DbPool, guild_id_u64: u64, msg: &Message) {
+    async fn handle_special_user_gulag(
+        http: &Arc<Http>,
+        pool: &DbPool,
+        guild_id_u64: u64,
+        msg: &Message,
+    ) {
         let server = match get_server_by_guild_id(pool, guild_id_u64 as i64) {
             Some(s) => s,
             None => {
@@ -399,7 +436,10 @@ async fn call_ollama(system: String, user: String, label: &str) -> Option<String
     let raw_body = match response.text().await {
         Ok(body) => body,
         Err(e) => {
-            eprintln!("[is_this_real] Failed to read Ollama response body ({}): {}", label, e);
+            eprintln!(
+                "[is_this_real] Failed to read Ollama response body ({}): {}",
+                label, e
+            );
             return None;
         }
     };
@@ -440,10 +480,18 @@ mod tests {
     fn test_rapidfuzz_ratio_scale() {
         // rapidfuzz::fuzz::ratio returns 0.0-1.0
         let perfect = fuzz::ratio("is this real".chars(), "is this real".chars());
-        assert!((perfect - 1.0).abs() < 0.001, "perfect match should be 1.0, got {}", perfect);
+        assert!(
+            (perfect - 1.0).abs() < 0.001,
+            "perfect match should be 1.0, got {}",
+            perfect
+        );
 
         let one_off = fuzz::ratio("is this reai".chars(), "is this real".chars());
-        assert!(one_off > 0.9, "one char diff should be >90%, got {}", one_off);
+        assert!(
+            one_off > 0.9,
+            "one char diff should be >90%, got {}",
+            one_off
+        );
 
         let diff = fuzz::ratio("something else".chars(), "is this real".chars());
         assert!(diff < 0.6, "unrelated strings should be <60%, got {}", diff);
@@ -461,9 +509,12 @@ mod tests {
         };
 
         let triggers = [
-            "is this real", "is that real",
-            "is this true", "is that true",
-            "is this legit", "is that legit",
+            "is this real",
+            "is that real",
+            "is this true",
+            "is that true",
+            "is this legit",
+            "is that legit",
         ];
 
         let test_inputs = vec![
@@ -486,7 +537,11 @@ mod tests {
                     break;
                 }
             }
-            assert_eq!(matched, should_match, "input='{}' cleaned='{}'", input, cleaned);
+            assert_eq!(
+                matched, should_match,
+                "input='{}' cleaned='{}'",
+                input, cleaned
+            );
         }
     }
 }

@@ -105,7 +105,11 @@ impl GulagReaction {
                 eprintln!(
                     "[gulag_reaction] NO MATCH - trigger='{}', message reactions: {:?}",
                     trigger_emoji,
-                    message.reactions.iter().map(|r| r.reaction_type.to_string()).collect::<Vec<_>>()
+                    message
+                        .reactions
+                        .iter()
+                        .map(|r| r.reaction_type.to_string())
+                        .collect::<Vec<_>>()
                 );
             }
 
