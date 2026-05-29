@@ -75,6 +75,7 @@ impl IsThisReal {
             }
         };
         if !msg.mentions.iter().any(|m| m.id == bot_user.id) {
+            eprintln!("[is_this_real] Bot not mentioned");
             return;
         }
 
@@ -93,7 +94,10 @@ impl IsThisReal {
         // 5. Reply check
         let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
             Some(id) => id,
-            None => return,
+            None => {
+                eprintln!("[is_this_real] Not a reply");
+                return;
+            }
         };
 
         // 6. Fetch referenced message
@@ -114,6 +118,7 @@ impl IsThisReal {
             .replace(&bot_mention_with_exclamation, "")
             .trim()
             .to_string();
+        eprintln!("[is_this_real] Question: '{}'", question);
 
         if question.is_empty() {
             if let Err(why) = msg
@@ -143,12 +148,14 @@ impl IsThisReal {
                 lower.as_bytes(),
                 trigger.as_bytes(),
             ) as f64 / 100.0;
+            eprintln!("[is_this_real] Fuzzy match '{}': {:.0}%", trigger, score * 100.0);
             if score >= 0.8 {
                 matched = true;
                 break;
             }
         }
         if !matched {
+            eprintln!("[is_this_real] No fuzzy match found");
             return;
         }
 
@@ -185,11 +192,14 @@ impl IsThisReal {
         }
 
         // 10. React with :eyes: to acknowledge
-        let _ = msg.channel_id.create_reaction(
+        match msg.channel_id.create_reaction(
             &ctx.http,
             msg.id,
             '\u{1F440}',
-        ).await;
+        ).await {
+            Ok(_) => eprintln!("[is_this_real] Reacted with :eyes:"),
+            Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
+        }
 
         // 11. First LLM call — without search (save Exa costs)
         let original_content = referenced_msg.content.replace("\"", "\\\"");
@@ -197,13 +207,16 @@ impl IsThisReal {
             "Someone said: \"{}\"\nThe question is: \"{}\"",
             original_content, question
         );
+        eprintln!("[is_this_real] Sending to LLM...");
 
         let first_response =
             call_ollama(SYSTEM_PROMPT.to_string(), first_prompt, "first pass").await;
 
         let Some(llm_text) = first_response else {
+            eprintln!("[is_this_real] LLM returned None");
             return;
         };
+        eprintln!("[is_this_real] LLM response: {}", llm_text.chars().take(200).collect::<String>());
 
         // Check if LLM is uncertain — if so, search and retry
         let uncertainty_markers = [
@@ -257,7 +270,8 @@ impl IsThisReal {
         };
 
         // 12. Post response (reply to the user's question)
-        if let Err(why) = msg
+        eprintln!("[is_this_real] Posting response...");
+        match msg
             .channel_id
             .send_message(
                 &ctx.http,
@@ -267,7 +281,8 @@ impl IsThisReal {
             )
             .await
         {
-            eprintln!("Failed to post LLM response: {}", why);
+            Ok(_) => eprintln!("[is_this_real] Response posted"),
+            Err(why) => eprintln!("[is_this_real] Failed to post response: {}", why),
         }
 
         // 13. Update cooldown (fire and forget) — skip for admin
