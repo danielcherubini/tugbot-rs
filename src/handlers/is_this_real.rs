@@ -1,3 +1,5 @@
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use std::{sync::Arc, time::SystemTime};
 
 use crate::db::{
@@ -183,7 +185,38 @@ impl IsThisReal {
             Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
         }
 
-        // 11. Ask pi via RPC
+        // 11. Download any image attachments as base64
+        let mut images: Vec<(String, String)> = Vec::new();
+        for attachment in &referenced_msg.attachments {
+            // Only handle images
+            let content_type = attachment
+                .content_type
+                .as_deref()
+                .unwrap_or("application/octet-stream");
+            if !content_type.starts_with("image/") {
+                continue;
+            }
+            eprintln!(
+                "[is_this_real] Downloading image: {} ({})",
+                attachment.url, content_type
+            );
+            match reqwest::get(&attachment.url).await {
+                Ok(resp) => match resp.bytes().await {
+                    Ok(bytes) => {
+                        let b64 = BASE64_STANDARD.encode(&bytes);
+                        images.push((content_type.to_string(), b64));
+                    }
+                    Err(e) => {
+                        eprintln!("[is_this_real] Failed to read image bytes: {}", e);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("[is_this_real] Failed to download image: {}", e);
+                }
+            }
+        }
+
+        // 12. Ask pi via RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
             None => {
@@ -192,12 +225,19 @@ impl IsThisReal {
             }
         };
 
+        // If no text but images exist, describe the attachment
+        let claim_text = if referenced_msg.content.is_empty() && !images.is_empty() {
+            format!("[shared an image ({})]", images.len())
+        } else {
+            referenced_msg.content.clone()
+        };
+
         let prompt = format!(
             "/skill:is-this-real Someone said: \"{}\" — The question is: \"{}\"",
-            referenced_msg.content, question
+            claim_text, question
         );
 
-        let final_text = match pi_rpc.ask(&prompt).await {
+        let final_text = match pi_rpc.ask_with_images(&prompt, &images).await {
             Ok(text) => text.trim().to_string(),
             Err(e) => {
                 eprintln!("[is_this_real] pi RPC ask failed: {}", e);
@@ -217,7 +257,7 @@ impl IsThisReal {
             }
         };
 
-        // 12. Post response (reply to the user's question)
+        // 13. Post response (reply to the user's question)
         eprintln!("[is_this_real] Posting response...");
         match msg
             .channel_id

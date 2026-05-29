@@ -57,6 +57,16 @@ impl PiRpc {
     /// Send a prompt to the pi RPC subprocess and wait for the agent_end event.
     /// Returns the text of the last assistant message.
     pub async fn ask(&self, prompt: &str) -> Result<String> {
+        self.ask_with_images(prompt, &[]).await
+    }
+
+    /// Send a prompt with optional base64-encoded images.
+    /// Each image should be a `(mime_type, base64_data)` tuple, e.g. `("image/png", "iVBORw...")`.
+    pub async fn ask_with_images(
+        &self,
+        prompt: &str,
+        images: &[(String, String)],
+    ) -> Result<String> {
         let mut inner = self.inner.lock().await;
 
         // Restart if process is dead or previous ask crashed mid-stream
@@ -68,17 +78,38 @@ impl PiRpc {
         // This serializes concurrent requests, but for this bot's workload
         // (8h cooldown per user on is_this_real), concurrency is not a concern.
         // A channel-based design would be needed for true concurrent access.
-        Self::do_ask(&mut inner, prompt).await
+        Self::do_ask_with_images(&mut inner, prompt, images).await
     }
 
-    async fn do_ask(inner: &mut PiRpcInner, prompt: &str) -> Result<String> {
+    async fn do_ask_with_images(
+        inner: &mut PiRpcInner,
+        prompt: &str,
+        images: &[(String, String)],
+    ) -> Result<String> {
         let req_id = next_id();
 
         // Build the JSONL command
+        let message = if images.is_empty() {
+            serde_json::Value::String(prompt.to_string())
+        } else {
+            let content_blocks: Vec<serde_json::Value> = std::iter::once(serde_json::json!({
+                "type": "text",
+                "text": prompt,
+            }))
+            .chain(images.iter().map(|(mime, b64)| {
+                serde_json::json!({
+                    "type": "image_url",
+                    "image_url": { "url": format!("data:{};base64,{}", mime, b64) },
+                })
+            }))
+            .collect();
+            serde_json::json!({ "content": content_blocks })
+        };
+
         let command = serde_json::json!({
             "id": req_id,
             "type": "prompt",
-            "message": prompt,
+            "message": message,
         });
         let command_str = serde_json::to_string(&command).context("Failed to serialize command")?;
 

@@ -1879,6 +1879,7 @@ name = "tugbot"
 version = "1.7.13"
 dependencies = [
  "anyhow",
+ "base64",
  "diesel",
  "dotenv",
  "rapidfuzz",
