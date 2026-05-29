@@ -11,7 +11,6 @@ name = "tugbot"
 path = "src/lib.rs"
 
 [dependencies]
-snailquote = "0.3.1"
 dotenv = "0.15.0"
 serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "rustls_backend", "model"] }
 diesel = { version = "2.3.6", features = ["postgres", "r2d2"] }
