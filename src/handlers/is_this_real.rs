@@ -1,16 +1,19 @@
-use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::{Duration, SystemTime}};
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
+use std::{sync::Arc, time::SystemTime};
 
 use crate::db::{
-    get_or_create_is_this_real_usage, get_is_this_real_usage, get_server_by_guild_id,
+    get_is_this_real_usage, get_or_create_is_this_real_usage, get_server_by_guild_id,
     update_is_this_real_usage, DbPool,
 };
-use crate::exa;
 use crate::features::Features;
 use crate::handlers::get_pool;
 use crate::handlers::gulag::{Gulag, GulagParams};
 use serenity::{
-    all::{Http, Mentionable}, builder::CreateMessage, model::prelude::Message, prelude::Context,
+    all::{Http, Mentionable},
+    builder::CreateMessage,
+    model::prelude::Message,
+    prelude::Context,
 };
 
 pub struct IsThisReal;
@@ -20,43 +23,6 @@ const ADMIN_USER_ID: u64 = 212879017257205760;
 const COOLDOWN_HOURS: u64 = 8; // 24h / 3 = 8h between uses (3 per day)
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
-const SYSTEM_PROMPT: &str = "You are Tugbot, a Discord bot that fact-checks claims. A user has asked you a question about something someone else said. Respond in one or two sentences max. Try to be funny, sarcastic, or sardonic when possible. Be helpful but keep it brief.";
-
-fn get_ollama_url() -> String {
-    std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://tama:11434/v1/chat/completions".to_string())
-}
-
-fn get_ollama_model() -> String {
-    std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "whatevers-hot-n-fresh".to_string())
-}
-
-#[derive(Serialize)]
-struct OllamaRequest {
-    model: String,
-    messages: Vec<OllamaMessage>,
-}
-
-#[derive(Serialize)]
-struct OllamaMessage {
-    role: &'static str,
-    content: String,
-}
-
-#[derive(Deserialize)]
-struct OllamaResponse {
-    choices: Vec<OllamaChoice>,
-}
-
-#[derive(Deserialize)]
-struct OllamaChoice {
-    message: OllamaMessageContent,
-}
-
-#[derive(Deserialize)]
-struct OllamaMessageContent {
-    content: Option<String>,
-}
-
 impl IsThisReal {
     pub async fn handler(ctx: &Context, msg: &Message) {
         // 1. Feature flag check
@@ -64,7 +30,11 @@ impl IsThisReal {
         if !Features::is_enabled(&pool, "is_this_real") {
             return;
         }
-        eprintln!("[is_this_real] Handler called by {} in guild {:?}", msg.author.id.get(), msg.guild_id.map(|g| g.get()));
+        eprintln!(
+            "[is_this_real] Handler called by {} in guild {:?}",
+            msg.author.id.get(),
+            msg.guild_id.map(|g| g.get())
+        );
 
         // 2. Bot mention check
         let bot_user = match ctx.http.get_current_user().await {
@@ -146,17 +116,22 @@ impl IsThisReal {
         };
         let cleaned_question = clean(&question);
         let triggers = [
-            "is this real", "is that real",
-            "is this true", "is that true",
-            "is this legit", "is that legit",
+            "is this real",
+            "is that real",
+            "is this true",
+            "is that true",
+            "is this legit",
+            "is that legit",
         ];
         let mut matched = false;
         for trigger in &triggers {
-            let score = rapidfuzz::fuzz::ratio(
-                cleaned_question.chars(),
-                trigger.chars(),
+            let score = rapidfuzz::fuzz::ratio(cleaned_question.chars(), trigger.chars());
+            eprintln!(
+                "[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%",
+                cleaned_question,
+                trigger,
+                score * 100.0
             );
-            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score * 100.0);
             if score >= 0.8 {
                 matched = true;
                 break;
@@ -174,7 +149,8 @@ impl IsThisReal {
         // Only check existing records — if none exists, user hasn't used the feature yet
         // Admin user skips cooldown entirely
         if user_id != ADMIN_USER_ID {
-            if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64) {
+            if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64)
+            {
                 let elapsed = SystemTime::now()
                     .duration_since(usage.last_used_at)
                     .unwrap_or_default()
@@ -200,84 +176,88 @@ impl IsThisReal {
         }
 
         // 10. React with :eyes: to acknowledge
-        match msg.channel_id.create_reaction(
-            &ctx.http,
-            msg.id,
-            '\u{1F440}',
-        ).await {
+        match msg
+            .channel_id
+            .create_reaction(&ctx.http, msg.id, '\u{1F440}')
+            .await
+        {
             Ok(_) => eprintln!("[is_this_real] Reacted with :eyes:"),
             Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
         }
 
-        // 11. First LLM call — without search (save Exa costs)
-        let original_content = referenced_msg.content.replace("\"", "\\\"");
-        let first_prompt = format!(
-            "Someone said: \"{}\"\nThe question is: \"{}\"",
-            original_content, question
-        );
-        eprintln!("[is_this_real] Sending to LLM...");
-
-        let first_response =
-            call_ollama(SYSTEM_PROMPT.to_string(), first_prompt, "first pass").await;
-
-        let Some(llm_text) = first_response else {
-            eprintln!("[is_this_real] LLM returned None");
-            return;
-        };
-        eprintln!("[is_this_real] LLM response: {}", llm_text.chars().take(200).collect::<String>());
-
-        // Check if LLM is uncertain — if so, search and retry
-        let uncertainty_markers = [
-            "i don't know", "i'm not sure", "not sure", "uncertain", "might be",
-            "possibly", "can't verify", "need more", "hard to say", "not enough",
-            "don't have enough", "could be", "it's unclear", "i can't",
-        ];
-        let is_uncertain = uncertainty_markers.iter().any(|m| {
-            llm_text.to_lowercase().contains(m)
-        });
-
-        let final_text = if is_uncertain {
-            let search_query = format!("{} {}", referenced_msg.content, question);
-            let search_results = exa::search(&search_query).await;
-            let search_context = match search_results {
-                Ok(results) => {
-                    if results.is_empty() {
-                        String::new()
-                    } else {
-                        let entries: Vec<String> = results
-                            .iter()
-                            .map(|(title, snippet)| format!("\"{}\": \"{}\"", title, snippet))
-                            .collect();
-                        format!("Research findings:\n{}", entries.join("\n"))
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Exa search failed: {}", e);
-                    String::new()
-                }
-            };
-
-            let second_prompt = if search_context.is_empty() {
-                format!(
-                    "Someone said: \"{}\"\nThe question is: \"{}\"",
-                    original_content, question
-                )
-            } else {
-                format!(
-                    "Someone said: \"{}\"\nThe question is: \"{}\"\n\n{}",
-                    original_content, question, search_context
-                )
-            };
-
-            match call_ollama(SYSTEM_PROMPT.to_string(), second_prompt, "second pass").await {
-                Some(text) => text,
-                None => return,
+        // 11. Download any image attachments as base64
+        let mut images: Vec<(String, String)> = Vec::new();
+        for attachment in &referenced_msg.attachments {
+            // Only handle images
+            let content_type = attachment
+                .content_type
+                .as_deref()
+                .unwrap_or("application/octet-stream");
+            if !content_type.starts_with("image/") {
+                continue;
             }
-        } else {
-            llm_text
+            eprintln!(
+                "[is_this_real] Downloading image: {} ({})",
+                attachment.url, content_type
+            );
+            match reqwest::get(&attachment.url).await {
+                Ok(resp) => match resp.bytes().await {
+                    Ok(bytes) => {
+                        let b64 = BASE64_STANDARD.encode(&bytes);
+                        images.push((content_type.to_string(), b64));
+                    }
+                    Err(e) => {
+                        eprintln!("[is_this_real] Failed to read image bytes: {}", e);
+                    }
+                },
+                Err(e) => {
+                    eprintln!("[is_this_real] Failed to download image: {}", e);
+                }
+            }
+        }
+
+        // 12. Ask pi via RPC
+        let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
+            Some(rpc) => rpc.clone(),
+            None => {
+                eprintln!("[is_this_real] pi RPC not available");
+                return;
+            }
         };
 
-        // 12. Post response (reply to the user's question)
+        // If no text but images exist, note the attachment
+        let claim_text = if referenced_msg.content.is_empty() && !images.is_empty() {
+            format!("[shared an image ({})]", images.len())
+        } else {
+            referenced_msg.content.clone()
+        };
+
+        let prompt = format!(
+            "/skill:is-this-real Someone said: \"{}\" — The question is: \"{}\"",
+            claim_text, question
+        );
+
+        let final_text = match pi_rpc.ask_with_images(&prompt, &images).await {
+            Ok(text) => text.trim().to_string(),
+            Err(e) => {
+                eprintln!("[is_this_real] pi RPC ask failed: {}", e);
+                if let Err(why) = msg
+                    .channel_id
+                    .send_message(
+                        &ctx.http,
+                        CreateMessage::new()
+                            .content("I'm having trouble thinking right now, try again later")
+                            .reference_message((msg.channel_id, msg.id)),
+                    )
+                    .await
+                {
+                    eprintln!("[is_this_real] Failed to send error message: {}", why);
+                }
+                return;
+            }
+        };
+
+        // 13. Post response (reply to the user's question)
         eprintln!("[is_this_real] Posting response...");
         match msg
             .channel_id
@@ -295,7 +275,8 @@ impl IsThisReal {
 
         // 13. Update cooldown (fire and forget) — skip for admin
         if user_id != ADMIN_USER_ID {
-            let usage_result = get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
+            let usage_result =
+                get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
             if let Ok(u) = usage_result {
                 if let Err(e) = update_is_this_real_usage(&pool, u.id) {
                     eprintln!("Failed to update cooldown: {}", e);
@@ -305,7 +286,12 @@ impl IsThisReal {
     }
 
     /// Special user gulag handler — triggers on ANY bot mention, no reply or keyword needed
-    async fn handle_special_user_gulag(http: &Arc<Http>, pool: &DbPool, guild_id_u64: u64, msg: &Message) {
+    async fn handle_special_user_gulag(
+        http: &Arc<Http>,
+        pool: &DbPool,
+        guild_id_u64: u64,
+        msg: &Message,
+    ) {
         let server = match get_server_by_guild_id(pool, guild_id_u64 as i64) {
             Some(s) => s,
             None => {
@@ -358,80 +344,6 @@ impl IsThisReal {
     }
 }
 
-async fn call_ollama(system: String, user: String, label: &str) -> Option<String> {
-    let ollama_request = OllamaRequest {
-        model: get_ollama_model(),
-        messages: vec![
-            OllamaMessage {
-                role: "system",
-                content: system,
-            },
-            OllamaMessage {
-                role: "user",
-                content: user,
-            },
-        ],
-    };
-
-    let tama_token = std::env::var("TAMA_TOKEN").expect("TAMA_TOKEN must be set");
-    let ollama_url = get_ollama_url();
-
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .expect("Failed to build HTTP client");
-
-    let response = match client
-        .post(&ollama_url)
-        .header("Authorization", format!("Bearer {}", tama_token))
-        .json(&ollama_request)
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("[is_this_real] Ollama call failed ({}): {}", label, e);
-            return None;
-        }
-    };
-
-    let status = response.status();
-    let raw_body = match response.text().await {
-        Ok(body) => body,
-        Err(e) => {
-            eprintln!("[is_this_real] Failed to read Ollama response body ({}): {}", label, e);
-            return None;
-        }
-    };
-
-    let ollama_response: OllamaResponse = match serde_json::from_str(&raw_body) {
-        Ok(r) => r,
-        Err(_e) => {
-            eprintln!(
-                "[is_this_real] Failed to parse Ollama response ({}): status={}, body={}",
-                label,
-                status,
-                raw_body.chars().take(500).collect::<String>()
-            );
-            return None;
-        }
-    };
-
-    let text = ollama_response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.as_deref())
-        .unwrap_or("")
-        .to_string();
-
-    if text.is_empty() {
-        eprintln!("[is_this_real] Ollama returned empty response ({})", label);
-        None
-    } else {
-        Some(text)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use rapidfuzz::fuzz;
@@ -440,10 +352,18 @@ mod tests {
     fn test_rapidfuzz_ratio_scale() {
         // rapidfuzz::fuzz::ratio returns 0.0-1.0
         let perfect = fuzz::ratio("is this real".chars(), "is this real".chars());
-        assert!((perfect - 1.0).abs() < 0.001, "perfect match should be 1.0, got {}", perfect);
+        assert!(
+            (perfect - 1.0).abs() < 0.001,
+            "perfect match should be 1.0, got {}",
+            perfect
+        );
 
         let one_off = fuzz::ratio("is this reai".chars(), "is this real".chars());
-        assert!(one_off > 0.9, "one char diff should be >90%, got {}", one_off);
+        assert!(
+            one_off > 0.9,
+            "one char diff should be >90%, got {}",
+            one_off
+        );
 
         let diff = fuzz::ratio("something else".chars(), "is this real".chars());
         assert!(diff < 0.6, "unrelated strings should be <60%, got {}", diff);
@@ -461,9 +381,12 @@ mod tests {
         };
 
         let triggers = [
-            "is this real", "is that real",
-            "is this true", "is that true",
-            "is this legit", "is that legit",
+            "is this real",
+            "is that real",
+            "is this true",
+            "is that true",
+            "is this legit",
+            "is that legit",
         ];
 
         let test_inputs = vec![
@@ -486,7 +409,11 @@ mod tests {
                     break;
                 }
             }
-            assert_eq!(matched, should_match, "input='{}' cleaned='{}'", input, cleaned);
+            assert_eq!(
+                matched, should_match,
+                "input='{}' cleaned='{}'",
+                input, cleaned
+            );
         }
     }
 }
