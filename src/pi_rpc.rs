@@ -58,14 +58,14 @@ impl PiRpc {
 
         // Restart if process is dead or previous ask crashed mid-stream
         if inner.child.is_none() || inner.stdin.is_none() {
-            Self::restart_inner(&mut *inner).await?;
+            Self::restart_inner(&mut inner).await?;
         }
 
         // Note: Mutex is held for the entire ask() operation including the timeout.
         // This serializes concurrent requests, but for this bot's workload
         // (8h cooldown per user on is_this_real), concurrency is not a concern.
         // A channel-based design would be needed for true concurrent access.
-        Self::do_ask(&mut *inner, prompt).await
+        Self::do_ask(&mut inner, prompt).await
     }
 
     async fn do_ask(inner: &mut PiRpcInner, prompt: &str) -> Result<String> {
