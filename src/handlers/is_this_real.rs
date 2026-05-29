@@ -64,6 +64,7 @@ impl IsThisReal {
         if !Features::is_enabled(&pool, "is_this_real") {
             return;
         }
+        eprintln!("[is_this_real] Handler called by {} in guild {:?}", msg.author.id.get(), msg.guild_id.map(|g| g.get()));
 
         // 2. Bot mention check
         let bot_user = match ctx.http.get_current_user().await {
@@ -130,6 +131,7 @@ impl IsThisReal {
         }
 
         // 7. Special user check
+        eprintln!("[is_this_real] Special user check: author={}, special={}", msg.author.id.get(), SPECIAL_USER_ID);
         if msg.author.id.get() == SPECIAL_USER_ID {
             let guild_id_u64 = guild_id.get();
             let server = match get_server_by_guild_id(&pool, guild_id_u64 as i64) {
