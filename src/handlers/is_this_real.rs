@@ -194,8 +194,7 @@ impl IsThisReal {
 
         let prompt = format!(
             "/skill:is-this-real Someone said: \"{}\" — The question is: \"{}\"",
-            referenced_msg.content.replace('"', "\\\""),
-            question.replace('"', "\\\"")
+            referenced_msg.content, question
         );
 
         let final_text = match pi_rpc.ask(&prompt).await {
