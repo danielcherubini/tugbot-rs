@@ -2,14 +2,18 @@
 
 ## Quick Stats
 - **Total Plans:** 2
-- **In Progress:** 1
-- **Completed:** 0
+- **In Progress:** 0
+- **Completed:** 1
 
 ## Active Plans
 
-| Plan | Status | Date |
-|------|--------|------|
-| [pi RPC Integration](2026-05-29-pi-rpc-integration.md) | 🚧 IN PROGRESS | 2026-05-29 |
+None.
+
+## Completed Plans
+
+| Plan | Status | Date | PR | Key Commits |
+|------|--------|------|-----|-------------|
+| [pi RPC Integration](2026-05-29-pi-rpc-integration.md) | ✅ COMPLETED | 2026-05-29 | [#34](https://github.com/danielcherubini/tugbot-rs/pull/34) | [716b698](https://github.com/danielcherubini/tugbot-rs/commit/716b698), [f530172](https://github.com/danielcherubini/tugbot-rs/commit/f530172) |
 
 ## Superseded Plans
 
