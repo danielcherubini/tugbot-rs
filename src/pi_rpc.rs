@@ -37,6 +37,9 @@ impl PiRpc {
             .spawn()
             .context("Failed to spawn pi RPC subprocess")?;
 
+        // Give pi a moment to initialize its RPC server
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
         let stdin = child.stdin.take().context("Failed to get pi stdin")?;
         let stdout = child.stdout.take().context("Failed to get pi stdout")?;
 
@@ -219,6 +222,9 @@ impl PiRpc {
             .stderr(Stdio::piped())
             .spawn()
             .context("Failed to spawn new pi RPC subprocess during restart")?;
+
+        // Give pi a moment to initialize
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
         let stdin = new_child
             .stdin
