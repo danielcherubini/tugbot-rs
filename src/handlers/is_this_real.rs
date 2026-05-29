@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime};
+use std::{sync::Arc, time::{Duration, SystemTime}};
 
 use crate::db::{
     get_or_create_is_this_real_usage, get_is_this_real_usage, get_server_by_guild_id,
-    update_is_this_real_usage,
+    update_is_this_real_usage, DbPool,
 };
 use crate::exa;
 use crate::features::Features;
 use crate::handlers::get_pool;
 use crate::handlers::gulag::{Gulag, GulagParams};
 use serenity::{
-    all::Mentionable, builder::CreateMessage, model::prelude::Message, prelude::Context,
+    all::{Http, Mentionable}, builder::CreateMessage, model::prelude::Message, prelude::Context,
 };
 
 pub struct IsThisReal;
@@ -78,19 +78,25 @@ impl IsThisReal {
             return;
         }
 
-        // 3. Reply check
-        let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
-            Some(id) => id,
-            None => return,
-        };
-
-        // 4. Guild ID check
+        // 3. Guild ID check (needed for special user)
         let guild_id = match msg.guild_id {
             Some(id) => id,
             None => return,
         };
 
-        // 5. Fetch referenced message
+        // 4. Special user — ANY mention of the bot sends them to gulag
+        if msg.author.id.get() == SPECIAL_USER_ID {
+            IsThisReal::handle_special_user_gulag(&ctx.http, &pool, guild_id.get(), msg).await;
+            return;
+        }
+
+        // 5. Reply check
+        let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
+            Some(id) => id,
+            None => return,
+        };
+
+        // 6. Fetch referenced message
         let referenced_msg = match ctx.http.get_message(msg.channel_id, referenced_id).await {
             Ok(m) => m,
             Err(e) => {
@@ -99,7 +105,7 @@ impl IsThisReal {
             }
         };
 
-        // 6. Extract question — strip bot mention
+        // 7. Extract question — strip bot mention
         let bot_mention = format!("<@{}>", bot_user.id.get());
         let bot_mention_with_exclamation = format!("<@!{}>", bot_user.id.get());
         let question = msg
@@ -124,70 +130,13 @@ impl IsThisReal {
             return;
         }
 
-        // 6b. Require "is this real" / "is that real" keyword — case insensitive
+        // 8. Require "is this real" / "is that real" keyword — case insensitive
         let lower = question.to_lowercase();
         if !lower.contains("is this real") && !lower.contains("is that real") {
             return;
         }
 
-        // 7. Special user check
-        eprintln!("[is_this_real] Special user check: author={}, special={}", msg.author.id.get(), SPECIAL_USER_ID);
-        if msg.author.id.get() == SPECIAL_USER_ID {
-            let guild_id_u64 = guild_id.get();
-            let server = match get_server_by_guild_id(&pool, guild_id_u64 as i64) {
-                Some(s) => s,
-                None => {
-                    eprintln!(
-                        "No server config for guild {} (or DB unavailable)",
-                        guild_id_u64
-                    );
-                    return;
-                }
-            };
-
-            let gulag_channel =
-                match Gulag::find_channel(&ctx.http, guild_id_u64, "the-gulag".to_string()).await {
-                    Some(c) => c,
-                    None => {
-                        eprintln!("No gulag channel found");
-                        return;
-                    }
-                };
-
-            let params = GulagParams {
-                guildid: guild_id_u64,
-                userid: msg.author.id.get(),
-                gulag_roleid: server.gulag_id as u64,
-                gulaglength: GULAG_DURATION_SECS,
-                channelid: gulag_channel.id.get(),
-                messageid: msg.id.get(),
-            };
-
-            match Gulag::add_to_gulag(&ctx.http, &pool, params).await {
-                Ok(_) => {
-                    if let Err(why) = gulag_channel
-                        .id
-                        .send_message(
-                            &ctx.http,
-                            CreateMessage::new().content(format!(
-                                "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
-                                msg.author.mention()
-                            )),
-                        )
-                        .await
-                    {
-                        eprintln!("Failed to send gulag message: {}", why);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Failed to gulag special user: {}", e);
-                    return;
-                }
-            }
-            return;
-        }
-
-        // 8. Cooldown check (normal users, admin gets unlimited)
+        // 9. Cooldown check (normal users, admin gets unlimited)
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
@@ -305,6 +254,59 @@ impl IsThisReal {
                 if let Err(e) = update_is_this_real_usage(&pool, u.id) {
                     eprintln!("Failed to update cooldown: {}", e);
                 }
+            }
+        }
+    }
+
+    /// Special user gulag handler — triggers on ANY bot mention, no reply or keyword needed
+    async fn handle_special_user_gulag(http: &Arc<Http>, pool: &DbPool, guild_id_u64: u64, msg: &Message) {
+        let server = match get_server_by_guild_id(pool, guild_id_u64 as i64) {
+            Some(s) => s,
+            None => {
+                eprintln!(
+                    "[is_this_real] No server config for guild {} (or DB unavailable)",
+                    guild_id_u64
+                );
+                return;
+            }
+        };
+
+        let gulag_channel =
+            match Gulag::find_channel(http, guild_id_u64, "the-gulag".to_string()).await {
+                Some(c) => c,
+                None => {
+                    eprintln!("[is_this_real] No gulag channel found");
+                    return;
+                }
+            };
+
+        let params = GulagParams {
+            guildid: guild_id_u64,
+            userid: msg.author.id.get(),
+            gulag_roleid: server.gulag_id as u64,
+            gulaglength: GULAG_DURATION_SECS,
+            channelid: gulag_channel.id.get(),
+            messageid: msg.id.get(),
+        };
+
+        match Gulag::add_to_gulag(http, pool, params).await {
+            Ok(_) => {
+                if let Err(why) = gulag_channel
+                    .id
+                    .send_message(
+                        http,
+                        CreateMessage::new().content(format!(
+                            "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
+                            msg.author.mention()
+                        )),
+                    )
+                    .await
+                {
+                    eprintln!("[is_this_real] Failed to send gulag message: {}", why);
+                }
+            }
+            Err(e) => {
+                eprintln!("[is_this_real] Failed to gulag special user: {}", e);
             }
         }
     }
