@@ -16,12 +16,27 @@ impl Horny {
 
     pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
         let pool = get_pool(ctx).await;
-        if !Features::is_enabled(&pool, "horny") {
-            return HandlerResponse {
-                content: String::from("This feature is currently disabled"),
-                components: None,
-                ephemeral: true,
-            };
+
+        // Check feature flag with proper error reporting
+        match Features::check_enabled(&pool, "horny") {
+            Ok(true) => {}
+            Ok(false) => {
+                return HandlerResponse {
+                    content: String::from("This feature is currently disabled"),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+            Err(e) => {
+                eprintln!("Failed to check horny feature status: {}", e);
+                return HandlerResponse {
+                    content: String::from(
+                        "Error: Could not connect to the database. Please try again later.",
+                    ),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
         }
 
         let member = match command.member.as_ref() {
@@ -47,52 +62,52 @@ impl Horny {
         let user = &command.user;
         let prefix = &command.data.name;
 
+        let current_nick = member.nick.as_deref().unwrap_or(member.display_name());
+        let new_nick = fix_nickname(current_nick, prefix);
+
+        // Determine if we're adding or removing the prefix
+        let was_already_prefixed = current_nick.contains(&format!("{} | ", prefix));
+        let action_word = if was_already_prefixed {
+            "Removed"
+        } else {
+            "Added"
+        };
+
         let mut mem = match ctx.http.get_member(guild_id, user.id).await {
             Ok(m) => m,
-            Err(_) => {
+            Err(e) => {
+                eprintln!("Failed to fetch member for horny command: {}", e);
                 return HandlerResponse {
-                    content: String::from("Error: Could not fetch member"),
+                    content: String::from(
+                        "Error: Could not fetch your member info. Please try again later.",
+                    ),
                     components: None,
                     ephemeral: true,
                 };
             }
         };
 
-        match member.nick.as_ref() {
-            Some(nick) => {
-                let new_nick = fix_nickname(nick, prefix);
-                if let Err(why) = mem
-                    .edit(&ctx.http, EditMember::new().nickname(new_nick))
-                    .await
-                {
-                    return HandlerResponse {
-                        content: format!("Error: Could not update nickname: {}", why),
-                        components: None,
-                        ephemeral: true,
-                    };
-                }
+        match mem
+            .edit(&ctx.http, EditMember::new().nickname(new_nick.clone()))
+            .await
+        {
+            Ok(_) => HandlerResponse {
+                content: format!("{} | {} your nickname", action_word, prefix),
+                components: None,
+                ephemeral: true,
+            },
+            Err(e) => {
+                eprintln!("Failed to update nickname for horny command: {}", e);
+                // Provide more specific error messages for common cases
+                let error_msg = if e.to_string().contains("Missing Permissions") {
+                    "Error: I don't have permission to change nicknames. Please check my role permissions.".to_string()
+                } else if e.to_string().contains("Cannot exceed the limit") {
+                    "Error: Nickname is too long. Please shorten your nickname first.".to_string()
+                } else {
+                    format!("Error: Could not update nickname: {}", e)
+                };
                 HandlerResponse {
-                    content: String::from("Done"),
-                    components: None,
-                    ephemeral: true,
-                }
-            }
-            None => {
-                let name = member.display_name().to_string();
-                let new_nick = fix_nickname(&name, prefix);
-
-                if let Err(why) = mem
-                    .edit(&ctx.http, EditMember::new().nickname(new_nick))
-                    .await
-                {
-                    return HandlerResponse {
-                        content: format!("Error: Could not update nickname: {}", why),
-                        components: None,
-                        ephemeral: true,
-                    };
-                }
-                HandlerResponse {
-                    content: String::from("Done"),
+                    content: error_msg,
                     components: None,
                     ephemeral: true,
                 }

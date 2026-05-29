@@ -207,8 +207,8 @@ impl EventHandler for Handler {
                     GulagMessageCommandHandler::setup_interaction(&ctx, &command).await
                 }
                 "AI Slop" => AiSlopHandler::setup_interaction(&ctx, &command).await,
-                "phony" => Horny::setup_interaction(&ctx, &command).await,
-                "horny" => Phony::setup_interaction(&ctx, &command).await,
+                "phony" => Phony::setup_interaction(&ctx, &command).await,
+                "horny" => Horny::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implemented".to_string(),

@@ -12,6 +12,23 @@ impl Features {
             .load(&mut conn)
             .with_context(|| "Failed to get features")
     }
+    /// Check if a feature is enabled, returning an error if the database is unreachable.
+    /// Use this for user-facing commands where you want to report the actual error.
+    pub fn check_enabled(pool: &DbPool, feature_name: &str) -> Result<bool> {
+        let mut conn = pool
+            .get()
+            .with_context(|| "Failed to get database connection from pool")?;
+        let is_on = features
+            .filter(name.eq(feature_name))
+            .select(enabled)
+            .first::<bool>(&mut conn)
+            .optional()
+            .with_context(|| format!("Failed to query feature '{}'", feature_name))?;
+        Ok(is_on.unwrap_or(false))
+    }
+
+    /// Check if a feature is enabled, silently returning false on any error.
+    /// Use this for background tasks where you don't want to crash on DB errors.
     pub fn is_enabled(pool: &DbPool, feature_name: &str) -> bool {
         let mut conn = match pool.get() {
             Ok(c) => c,
