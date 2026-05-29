@@ -13,7 +13,7 @@ fn next_id() -> String {
     format!("req-{}", NEXT_REQ_ID.fetch_add(1, Ordering::Relaxed))
 }
 
-const TIMEOUT_SECS: u64 = 120;
+const TIMEOUT_SECS: u64 = 300;
 const PI_BINARY: &str = "pi";
 
 pub struct PiRpc {
