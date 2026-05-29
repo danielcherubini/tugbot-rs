@@ -153,11 +153,11 @@ impl IsThisReal {
         let mut matched = false;
         for trigger in &triggers {
             let score = rapidfuzz::fuzz::ratio(
-                cleaned_question.as_bytes(),
-                trigger.as_bytes(),
-            ) as f64 / 100.0;
-            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score * 100.0);
-            if score >= 0.8 {
+                cleaned_question.chars(),
+                trigger.chars(),
+            ) as f64;
+            eprintln!("[is_this_real] Fuzzy match '{}' vs '{}': {:.0}%", cleaned_question, trigger, score);
+            if score >= 80.0 {
                 matched = true;
                 break;
             }
