@@ -120,10 +120,13 @@ impl IsThisReal {
         let triggers = [
             "is this real",
             "is that real",
+            "are those real",
             "is this true",
             "is that true",
+            "are those true",
             "is this legit",
             "is that legit",
+            "are those legit",
         ];
         let mut matched = false;
         for trigger in &triggers {
@@ -452,10 +455,13 @@ mod tests {
         let triggers = [
             "is this real",
             "is that real",
+            "are those real",
             "is this true",
             "is that true",
+            "are those true",
             "is this legit",
             "is that legit",
+            "are those legit",
         ];
 
         let test_inputs = vec![
