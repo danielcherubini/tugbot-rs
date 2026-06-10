@@ -76,7 +76,7 @@ impl PiRpc {
 
         // Note: Mutex is held for the entire ask() operation including the timeout.
         // This serializes concurrent requests, but for this bot's workload
-        // (8h cooldown per user on is_this_real), concurrency is not a concern.
+        // (2h cooldown per user on is_this_real), concurrency is not a concern.
         // A channel-based design would be needed for true concurrent access.
         Self::do_ask(&mut inner, prompt, images).await
     }

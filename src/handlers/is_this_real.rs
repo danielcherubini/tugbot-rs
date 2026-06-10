@@ -20,7 +20,9 @@ pub struct IsThisReal;
 
 const SPECIAL_USER_ID: u64 = 163055057254875136;
 const ADMIN_USER_ID: u64 = 212879017257205760;
-const COOLDOWN_HOURS: u64 = 8; // 24h / 3 = 8h between uses (3 per day)
+const RESTRICTED_USER_ID: u64 = 776223452758540308;
+const COOLDOWN_SECS: u64 = 7_200; // 2h between uses (12 per day)
+const RESTRICTED_COOLDOWN_SECS: u64 = 86_400; // 24h (1 per day)
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
 impl IsThisReal {
@@ -148,6 +150,11 @@ impl IsThisReal {
 
         // Only check existing records — if none exists, user hasn't used the feature yet
         // Admin user skips cooldown entirely
+        let cooldown_limit = if user_id == RESTRICTED_USER_ID {
+            RESTRICTED_COOLDOWN_SECS
+        } else {
+            COOLDOWN_SECS
+        };
         if user_id != ADMIN_USER_ID {
             if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64)
             {
@@ -155,15 +162,22 @@ impl IsThisReal {
                     .duration_since(usage.last_used_at)
                     .unwrap_or_default()
                     .as_secs();
-                let cooldown_secs = COOLDOWN_HOURS * 3600;
 
-                if elapsed < cooldown_secs {
+                if elapsed < cooldown_limit {
+                    let remaining = cooldown_limit - elapsed;
+                    let hours = remaining / 3600;
+                    let mins = (remaining % 3600) / 60;
+                    let cooldown_msg = if hours > 0 {
+                        format!("I'm still sleeping — try again in {}h {}m", hours, mins)
+                    } else {
+                        format!("I'm still sleeping — try again in {}m", mins)
+                    };
                     if let Err(why) = msg
                         .channel_id
                         .send_message(
                             &ctx.http,
                             CreateMessage::new()
-                                .content("Come back tomorrow, I need my sleep")
+                                .content(cooldown_msg)
                                 .reference_message((msg.channel_id, msg.id)),
                         )
                         .await
