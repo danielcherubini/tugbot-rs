@@ -15,6 +15,8 @@ fn next_id() -> String {
 
 const TIMEOUT_SECS: u64 = 300;
 const PI_BINARY: &str = "pi";
+/// Tools allowed in RPC mode — research only, no bash/read/write/edit.
+const PI_RPC_TOOLS: &str = "web_search,fetch_content,code_search";
 
 pub struct PiRpc {
     inner: Mutex<PiRpcInner>,
@@ -30,7 +32,7 @@ impl PiRpc {
     /// Spawn the `pi --mode rpc --no-session` subprocess and return an `Arc<Self>`.
     pub async fn spawn() -> Result<Arc<Self>> {
         let mut child = Command::new(PI_BINARY)
-            .args(["--mode", "rpc", "--no-session"])
+            .args(["--mode", "rpc", "--no-session", "--tools", PI_RPC_TOOLS])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -239,7 +241,7 @@ impl PiRpc {
 
         // Spawn new subprocess
         let mut new_child = Command::new(PI_BINARY)
-            .args(["--mode", "rpc", "--no-session"])
+            .args(["--mode", "rpc", "--no-session", "--tools", PI_RPC_TOOLS])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
