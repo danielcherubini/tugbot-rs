@@ -238,6 +238,44 @@ impl IsThisReal {
             }
         }
 
+        // 11b. Also grab images from embeds (e.g. pasted image URLs, rich embeds)
+        for embed in &referenced_msg.embeds {
+            let mut embed_image_url = embed.image.as_ref().map(|i| &i.url as &str);
+            // Fall back to thumbnail if no main image
+            if embed_image_url.is_none() {
+                embed_image_url = embed.thumbnail.as_ref().map(|t| &t.url as &str);
+            }
+            if let Some(url) = embed_image_url {
+                // Skip if this URL is already in attachments (avoid duplicates)
+                if referenced_msg.attachments.iter().any(|a| a.url == *url) {
+                    continue;
+                }
+                eprintln!("[is_this_real] Downloading embed image: {}", url);
+                match reqwest::get(url).await {
+                    Ok(resp) => match resp.bytes().await {
+                        Ok(bytes) => {
+                            let b64 = BASE64_STANDARD.encode(&bytes);
+                            // Guess content type from URL extension
+                            let ext = url.rsplit('.').next().unwrap_or("jpeg");
+                            let content_type = match ext {
+                                "png" => "image/png",
+                                "gif" => "image/gif",
+                                "webp" => "image/webp",
+                                _ => "image/jpeg",
+                            };
+                            images.push((content_type.to_string(), b64));
+                        }
+                        Err(e) => {
+                            eprintln!("[is_this_real] Failed to read embed image bytes: {}", e);
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("[is_this_real] Failed to download embed image: {}", e);
+                    }
+                }
+            }
+        }
+
         // 12. Ask pi via RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
