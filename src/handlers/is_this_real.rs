@@ -189,13 +189,21 @@ impl IsThisReal {
             }
         }
 
-        // 10. React with :eyes: to acknowledge
+        // 10. React with :eyes: to acknowledge, then :thinking: while processing
         match msg
             .channel_id
             .create_reaction(&ctx.http, msg.id, '\u{1F440}')
             .await
         {
             Ok(_) => eprintln!("[is_this_real] Reacted with :eyes:"),
+            Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
+        }
+        match msg
+            .channel_id
+            .create_reaction(&ctx.http, msg.id, '\u{1F914}') // 🤔
+            .await
+        {
+            Ok(_) => eprintln!("[is_this_real] Reacted with 🤔"),
             Err(e) => eprintln!("[is_this_real] Failed to react: {}", e),
         }
 
@@ -255,6 +263,11 @@ impl IsThisReal {
             Ok(text) => text.trim().to_string(),
             Err(e) => {
                 eprintln!("[is_this_real] pi RPC ask failed: {}", e);
+                // Remove thinking emoji
+                let _ = msg
+                    .channel_id
+                    .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
+                    .await;
                 if let Err(why) = msg
                     .channel_id
                     .send_message(
@@ -271,7 +284,11 @@ impl IsThisReal {
             }
         };
 
-        // 13. Post response (reply to the user's question)
+        // 13. Remove thinking emoji and post response
+        let _ = msg
+            .channel_id
+            .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
+            .await;
         eprintln!("[is_this_real] Posting response...");
         match msg
             .channel_id
@@ -287,7 +304,7 @@ impl IsThisReal {
             Err(why) => eprintln!("[is_this_real] Failed to post response: {}", why),
         }
 
-        // 13. Update cooldown (fire and forget) — skip for admin
+        // 14. Update cooldown (fire and forget) — skip for admin
         if user_id != ADMIN_USER_ID {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
