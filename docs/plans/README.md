@@ -1,13 +1,15 @@
 # Plans
 
 ## Quick Stats
-- **Total Plans:** 2
+- **Total Plans:** 3
 - **In Progress:** 0
-- **Completed:** 1
+- **Completed:** 2
 
 ## Active Plans
 
-None.
+| Plan | Status | Date | PR | Key Commits |
+|------|--------|------|-----|-------------|
+| [Improve is-this-real Skill](2026-06-10-improve-is-this-real-skill.md) | ✅ COMPLETED | 2026-06-10 | [#39](https://github.com/danielcherubini/tugbot-rs/pull/39) | [c437c9e](https://github.com/danielcherubini/tugbot-rs/commit/c437c9e) |
 
 ## Completed Plans
 
