@@ -1,3 +1,40 @@
+# Improve is-this-real Skill Plan
+
+**Goal:** Improve the `skills/is-this-real/SKILL.md` to handle broader claim types (screenshots, memes, photos, videos, out-of-context, AI-generated) while strengthening Tugbot's personality voice.
+
+**Architecture:** Single-file edit — replace the existing SKILL.md with the approved design spec. No code changes, no new files.
+
+**Tech Stack:** Markdown, Agent Skills standard
+
+---
+
+### Task 1: Write the improved SKILL.md
+
+**Context:**
+The current skill only handles text claims with generic snark. The approved design expands it to 7 claim types with per-type verification strategies, adds a dedicated Tugbot Voice section for authentic Discord-bot personality, and fixes the frontmatter description to follow CSO best practices (triggers only, no workflow summary).
+
+**Files:**
+- Modify: `skills/is-this-real/SKILL.md`
+
+**What to implement:**
+
+Replace the entire file with the approved spec. The new file has these sections in order:
+
+1. **Frontmatter** — Fixed description with single-quoted YAML value: `'Use when asked whether a claim, screenshot, meme, photo, video, or quote is real, true, legit, or fake. Also triggers on "is this doctored", "did this actually happen", "fact check this".'`
+
+2. **When to Use** — 5 bullet triggers covering all media types
+3. **When NOT to Use** — 4 bullets (opinions, questions, creative writing, internal commands)
+4. **Claim Classification** — Table of 7 types: Text, Screenshot, Meme, Photo, Video, Out-of-context, AI-generated. Each with "What It Is" and "How You'll See It".
+5. **Verification Strategies** — Table mapping each type to primary tool (`web_search`, `fetch_content`) and strategy. Search tips subsection.
+6. **Response Rules** — 5 rules: 1-2 sentences max, accuracy, search when uncertain, no preamble, match the medium.
+7. **Tugbot Voice** — Personality section: dry deadpan snark, Discord-native, confident not arrogant, allowed/avoided humor styles, snark at claim not person.
+8. **Decision Flow** — ASCII flowchart: classify → obviously true/false → search → media → can't verify.
+9. **Tone Examples** — Table of 8 situations with example responses (includes media-specific examples for doctored screenshots, memes, out-of-context photos, AI-generated images).
+10. **Common Mistakes** — 8 anti-patterns including moralizing, over-explaining, hedging, mean-spirited, treating memes as serious, writing essays, guessing instead of searching.
+
+**Exact content to write** (copy verbatim into `skills/is-this-real/SKILL.md`):
+
+~~~markdown
 ---
 name: is-this-real
 description: 'Use when asked whether a claim, screenshot, meme, photo, video, or quote is real, true, legit, or fake. Also triggers on "is this doctored", "did this actually happen", "fact check this".'
@@ -52,8 +89,6 @@ Pick tools based on claim type. One search is usually enough — you're writing 
 | **Out-of-context** | `web_search` | Search content + date; find original posting time vs claimed time |
 | **AI-generated** | `web_search` + visual inspection | Search for AI indicators; check source credibility; look for inconsistencies |
 
-**When to search:** Anything that isn't obvious common knowledge. If you don't know the answer, if you're unsure, if you have any doubt — **use `web_search`**. Better to search and be sure than to guess and look dumb. Never skip searching just to save time.
-
 **Search tips:**
 - Use specific phrases from the claim, not paraphrases
 - For images/videos: describe distinctive visual details in the search
@@ -64,7 +99,7 @@ Pick tools based on claim type. One search is usually enough — you're writing 
 
 - **One to two sentences maximum.** No essays, no lectures.
 - **Be accurate.** The joke lands harder when the fact is right. Never sacrifice truth for a punchline.
-- **When uncertain, search.** If you don't know or are unsure about ANYTHING, use `web_search` before answering. Never guess. Never skip searching.
+- **When uncertain, search.** Use `web_search` to verify before answering. Don't guess.
 - **No preamble.** Skip "I'll check that" or "Let me look into this." Just answer.
 - **Match the medium.** If it's a meme, acknowledge the format. If it's a screenshot, call out the medium. Don't treat everything like a text claim.
 
@@ -116,3 +151,27 @@ Claim received
 - **Treating memes as serious claims.** If it's a meme, acknowledge the format. The humor inside the meme is separate from any factual claim it makes.
 - **Writing essays.** If your response needs a paragraph, you've already failed. Two sentences max.
 - **Guessing instead of searching.** If you're not sure, search. Looking dumb is worse than taking two extra seconds.
+~~~
+
+**Steps:**
+- [ ] Create feature branch: `git checkout -b improve/is-this-real-skill`
+- [ ] Read the current `skills/is-this-real/SKILL.md` to confirm baseline
+- [ ] Replace the entire file content with the approved spec above (between the ~~~ fences)
+- [ ] Verify the file has valid YAML frontmatter (only `name` and `description`)
+- [ ] Verify the description is under 1024 characters and starts with "Use when..."
+- [ ] Verify no `@` file references (they force-load and burn context)
+- [ ] Run `wc -w skills/is-this-real/SKILL.md` and confirm it's under 1100 words
+- [ ] Commit with message: "improve is-this-real skill: broader scope, Tugbot voice, CSO fix"
+- [ ] Push branch: `git push -u origin improve/is-this-real-skill`
+- [ ] Create PR: `gh pr create --title "improve is-this-real skill: broader scope, Tugbot voice, CSO fix" --body "Expands the is-this-real skill to handle screenshots, memes, photos, videos, out-of-context content, and AI-generated claims. Adds Tugbot Voice section for authentic Discord-bot personality. Fixes frontmatter description to follow CSO best practices."`
+
+**Acceptance criteria:**
+- [ ] File has valid YAML frontmatter with trigger-only description
+- [ ] All 10 sections present in correct order
+- [ ] 7 claim types defined with verification strategies
+- [ ] Tugbot Voice section present with personality guidelines
+- [ ] Tone examples include media-specific cases (screenshot, meme, out-of-context, AI)
+- [ ] Common Mistakes section has 8 items
+- [ ] Total word count under 1100 words
+- [ ] No `@` file references
+- [ ] No workflow summary in description
