@@ -50,13 +50,14 @@ Spawns `pi --mode rpc` as a subprocess. Key details:
 
 ### System Prompt (`skills/tugbot-system-prompt.md`)
 
-All routing logic and skill instructions are inlined here. Four modes:
+All routing logic and skill instructions are inlined here. Five modes:
 
 | Mode | Use When | Length | Tools |
 |------|----------|--------|-------|
 | **Research** | Fact-checking, "is this real", general knowledge | 1-2 sentences | `web_search`, `fetch_content` |
 | **Meme-knowledge** | SA lore, 4chan, old memes, internet history | 2-4 sentences | None (training data) |
 | **Image-analysis** | User shared an image | 1-2 sentences | `web_search` for verification |
+| **Assassination** | "how do I kill X" — internal joke, absurd impractical methods | 1-3 sentences | None |
 | **Casual** | Banter, greetings, personal questions, default | 1-3 sentences | None |
 
 SA lore is baked in (Fartcar, ADTRW, Lowtax, 4chan origins). Code questions are refused with attitude. Anti-injection guardrails are always appended.
