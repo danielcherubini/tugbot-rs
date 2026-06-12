@@ -15,7 +15,7 @@ fn next_id() -> String {
 
 const TIMEOUT_SECS: u64 = 300;
 const PI_BINARY: &str = "pi";
-/// Tools allowed in RPC mode — research only, no bash/read/write/edit.
+/// Tools allowed in RPC mode — research only.
 const PI_RPC_TOOLS: &str = "web_search,fetch_content";
 /// Path to the skills directory (relative to project root).
 const PI_RPC_SKILLS_DIR: &str = "skills";
