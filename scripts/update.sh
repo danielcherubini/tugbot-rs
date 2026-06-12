@@ -29,7 +29,7 @@ echo "[2/4] Running database migrations..."
 diesel migration run
 
 echo "[3/4] Installing updated binary..."
-cargo install --path .
+cargo install --path . --locked
 
 echo "[4/4] Restarting service..."
 systemctl restart ${SERVICE_NAME}.service

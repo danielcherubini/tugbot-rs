@@ -75,7 +75,7 @@ diesel migration run
 
 # Install tugbot binary
 echo "[5/5] Installing tugbot binary..."
-cargo install --path .
+cargo install --path . --locked
 echo "       Binary installed to: /root/.cargo/bin/tugbot"
 
 # Install systemd service (use existing service file, update paths)
