@@ -129,10 +129,15 @@ impl Mention {
                     let remaining = cooldown_limit - elapsed;
                     let hours = remaining / 3600;
                     let mins = (remaining % 3600) / 60;
-                    let cooldown_msg = if hours > 0 {
-                        format!("I'm still sleeping — try again in {}h {}m", hours, mins)
+                    let time_str = if hours > 0 {
+                        format!("{}h {}m", hours, mins)
                     } else {
-                        format!("I'm still sleeping — try again in {}m", mins)
+                        format!("{}m", mins)
+                    };
+                    let cooldown_msg = if SLOW_USERS.contains(&user_id) {
+                        format!("Shut the fuck up {}, come back in {}", msg.author.mention(), time_str)
+                    } else {
+                        format!("I'm still sleeping — try again in {}", time_str)
                     };
                     if let Err(why) = msg
                         .channel_id
