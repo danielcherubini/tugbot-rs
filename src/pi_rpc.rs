@@ -144,7 +144,12 @@ impl PiRpc {
         } else {
             prompt.to_string()
         };
-        eprintln!("[pi_rpc] → prompt: {}", log_prompt);
+        if !images.is_empty() {
+            let img_info: Vec<String> = images.iter().map(|(mime, b64)| format!("{} ({} bytes)", mime, b64.len())).collect();
+            eprintln!("[pi_rpc] → prompt: {} | images: {}", log_prompt, img_info.join(", "));
+        } else {
+            eprintln!("[pi_rpc] → prompt: {}", log_prompt);
+        }
 
         // Write to stdin
         let stdin = inner.stdin.as_mut().context("Stdin not available")?;
