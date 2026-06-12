@@ -244,45 +244,7 @@ impl Mention {
             }
         }
 
-        // 10. Determine which skill to use
-        let skill_prefix = if !images.is_empty() {
-            "/skill:image-analysis"
-        } else if question.to_lowercase().contains("sa lore")
-            || question.to_lowercase().contains("something awful")
-            || question.to_lowercase().contains("fartcar")
-            || question.to_lowercase().contains("adtrw")
-            || question.to_lowercase().contains("lowtax")
-            || question.to_lowercase().contains("4chan")
-            || question.to_lowercase().contains("meme")
-            || question.to_lowercase().contains("goon")
-            || question.to_lowercase().contains("internet history")
-            || question.to_lowercase().contains("psp")
-            || question.to_lowercase().contains("photoshop phriday")
-            || question.to_lowercase().contains("let's play")
-            || question.to_lowercase().contains("image macro")
-            || question.to_lowercase().contains("ancient meme")
-            || question.to_lowercase().contains("old meme")
-            || question.to_lowercase().contains("origin")
-            || question.to_lowercase().contains("where is this from")
-            || question.to_lowercase().contains("what is this from")
-        {
-            "/skill:meme-knowledge"
-        } else if question.to_lowercase().contains("am i")
-            || question.to_lowercase().contains("hello")
-            || question.to_lowercase().contains("hey")
-            || question.to_lowercase().contains("hi ")
-            || question == "hi"
-            || question == "yo"
-            || question.to_lowercase().contains("sup")
-            || question.to_lowercase().starts_with("what's up")
-        {
-            "/skill:casual"
-        } else {
-            "/skill:research"
-        };
-        eprintln!("[mention] Routing to: {}", skill_prefix);
-
-        // 11. Ask pi via RPC
+        // 10. Get pi RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
             None => {
@@ -291,7 +253,57 @@ impl Mention {
             }
         };
 
-        // Build prompt — include skill prefix and referenced message context
+        // 11. Determine which skill to use
+        // Fast path: images always go to image-analysis
+        let skill_name = if !images.is_empty() {
+            "image-analysis".to_string()
+        } else {
+            // Phase 1: ask LLM to classify the intent
+            let classify_prompt = format!(
+                r#"You are a router. Pick exactly ONE skill for this Discord message. Reply with ONLY the skill name, nothing else.
+
+Skills:
+- research: fact-checking, "is this real", general knowledge, explaining things
+- meme-knowledge: internet history, old memes, SomethingAwful/SA lore, 4chan references, "where is this from"
+- casual: banter, shitposts, "am i gay", greetings, personal questions, anything conversational
+- image-analysis: questions about images (not applicable here, no images)
+
+Message: {}"#,
+                question
+            );
+            match pi_rpc.ask_with_images(&classify_prompt, &[]).await {
+                Ok(response) => {
+                    let response_lower = response.to_lowercase();
+                    let skill = if response_lower.contains("meme") {
+                        "meme-knowledge"
+                    } else if response_lower.contains("casual") {
+                        "casual"
+                    } else if response_lower.contains("research") {
+                        "research"
+                    } else if response_lower.contains("image") {
+                        "image-analysis"
+                    } else {
+                        // Fallback: try to extract a word that matches a skill name
+                        if response_lower.contains("meme-knowledge") || response_lower.contains("meme knowledge") {
+                            "meme-knowledge"
+                        } else if response_lower.contains("casual") {
+                            "casual"
+                        } else {
+                            "research"
+                        }
+                    };
+                    eprintln!("[mention] LLM routing → {} (response: {})", skill, response.trim());
+                    skill.to_string()
+                }
+                Err(e) => {
+                    eprintln!("[mention] Classification failed: {}, falling back to research", e);
+                    "research".to_string()
+                }
+            }
+        };
+        let skill_prefix = format!("/skill:{}", skill_name);
+
+        // 12. Build prompt — include skill prefix and referenced message context
         let prompt = match &referenced_msg {
             Some(ref_msg) => {
                 let context = match (!ref_msg.content.is_empty(), !images.is_empty()) {
@@ -337,7 +349,7 @@ impl Mention {
             }
         };
 
-        // 12. Remove thinking emoji and post response
+        // 13. Remove thinking emoji and post response
         let _ = msg
             .channel_id
             .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
