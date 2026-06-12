@@ -253,56 +253,7 @@ impl Mention {
             }
         };
 
-        // 11. Determine which skill to use
-        // Fast path: images always go to image-analysis
-        let skill_name = if !images.is_empty() {
-            "image-analysis".to_string()
-        } else {
-            // Phase 1: ask LLM to classify the intent
-            let classify_prompt = format!(
-                r#"ROUTING INSTRUCTION: Read the message below and pick the ONE best skill. Reply with ONLY the word from the list. Do not answer the message. Do not add commentary.
-
-Options (reply with exactly one of these words):
-1. research — fact-checking, "is this real", general knowledge
-2. meme-knowledge — internet history, old memes, SomethingAwful lore, 4chan
-3. casual — banter, shitposts, greetings, personal questions, conversational
-
-Message: {}"#,
-                question
-            );
-            match pi_rpc.ask_with_images(&classify_prompt, &[]).await {
-                Ok(response) => {
-                    let trimmed = response.trim();
-                    let response_lower = trimmed.to_lowercase();
-                    let skill = if response_lower.contains("meme-knowledge") || response_lower.contains("meme knowledge") {
-                        "meme-knowledge"
-                    } else if response_lower == "casual" || (response_lower.contains("casual") && !response_lower.contains("research")) {
-                        "casual"
-                    } else if response_lower.contains("research") {
-                        "research"
-                    } else if response_lower.contains("image") {
-                        "image-analysis"
-                    } else {
-                        // Fallback: check if it's just the word alone
-                        match trimmed {
-                            s if s.to_lowercase() == "casual" => "casual",
-                            s if s.to_lowercase() == "research" => "research",
-                            s if s.to_lowercase() == "meme-knowledge" => "meme-knowledge",
-                            _ => "research",
-                        }
-                    };
-                    eprintln!("[mention] LLM routing → {} (response: {})", skill, trimmed);
-                    skill.to_string()
-                }
-                Err(e) => {
-                    eprintln!("[mention] Classification failed: {}, falling back to research", e);
-                    "research".to_string()
-                }
-            }
-        };
-        let skill_prefix = format!("/skill:{}", skill_name);
-
-        // 12. Build prompt — include skill prefix and referenced message context
+        // 11. Build prompt — include referenced message context
         let prompt = match &referenced_msg {
             Some(ref_msg) => {
                 let context = match (!ref_msg.content.is_empty(), !images.is_empty()) {
@@ -312,14 +263,14 @@ Message: {}"#,
                     (false, false) => String::from("[replied to an image]"),
                 };
                 format!(
-                    "{} {} replied to: \"{}\" and asked: \"{}\"",
-                    skill_prefix, msg.author.name, context, question
+                    "{} replied to: \"{}\" and asked: \"{}\"",
+                    msg.author.name, context, question
                 )
             }
             None => {
                 format!(
-                    "{} {} asked: \"{}\"",
-                    skill_prefix, msg.author.name, question
+                    "{} asked: \"{}\"",
+                    msg.author.name, question
                 )
             }
         };
