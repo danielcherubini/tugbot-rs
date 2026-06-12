@@ -1,12 +1,13 @@
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
-use std::{sync::Arc, time::SystemTime};
+use std::{path::Path, sync::Arc, time::Duration, time::SystemTime};
 
 use crate::db::{
     get_is_this_real_usage, get_or_create_is_this_real_usage, get_server_by_guild_id,
     update_is_this_real_usage, DbPool,
 };
 use crate::features::Features;
+use crate::handlers::get_config;
 use crate::handlers::get_pool;
 use crate::handlers::gulag::{Gulag, GulagParams};
 use serenity::{
@@ -21,11 +22,32 @@ fn is_safe_url(url: &str) -> bool {
     url.starts_with("http://") || url.starts_with("https://")
 }
 
+/// Map a URL's file extension to a MIME type, defaulting to image/jpeg.
+/// Strips the query string and fragment first so URLs like `image.png?v=2`
+/// don't get misclassified.
+fn mime_for_url(url: &str) -> &'static str {
+    let path = url
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(url);
+    match Path::new(path).extension().and_then(|e| e.to_str()) {
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => "image/jpeg",
+    }
+}
+
+/// Build a shared HTTP client with a 10s timeout for image downloads.
+fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 pub struct Mention;
 
-const SPECIAL_USER_ID: u64 = 0; // no special user
-const ADMIN_USER_ID: u64 = 212879017257205760;
-const SLOW_USERS: &[u64] = &[163055057254875136]; // slowmode users
 const COOLDOWN_SECS: u64 = 1_800; // 30m between uses
 const SLOW_COOLDOWN_SECS: u64 = 7_200; // 2h between uses
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
@@ -63,18 +85,33 @@ impl Mention {
         };
 
         // 4. Special user — ANY mention of the bot sends them to gulag
-        if msg.author.id.get() == SPECIAL_USER_ID {
+        //    (config-driven: the same SLOW_USER_IDS list controls the special
+        //    user trap, since the trap is meant for the user we want to throttle.)
+        let config = get_config(ctx).await;
+        let slow_user_ids = &config.slow_user_ids;
+        let admin_user_id = config.admin_user_id;
+        if slow_user_ids.contains(&msg.author.id.get()) {
             Mention::handle_special_user_gulag(&ctx.http, &pool, guild_id.get(), msg).await;
             return;
         }
 
-        // 5. Extract question — strip bot mention
-        let bot_mention = format!("<@{}>", bot_user.id.get());
-        let bot_mention_with_exclamation = format!("<@!{}>", bot_user.id.get());
+        // 5. Extract question — strip bot mentions by tokenizing on whitespace
+        //    and filtering out anything that looks like <@...> matching the bot ID.
+        //    This handles <@ID>, <@!ID>, and avoids any false-positive replace()
+        //    matches if a user types text containing "<@".
+        let bot_id_str = bot_user.id.get().to_string();
         let question = msg
             .content
-            .replace(&bot_mention, "")
-            .replace(&bot_mention_with_exclamation, "")
+            .split_whitespace()
+            .filter(|tok| {
+                let stripped = tok
+                    .trim_start_matches("<@")
+                    .trim_start_matches('!')
+                    .trim_end_matches('>');
+                stripped != bot_id_str
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
             .trim()
             .to_string();
         eprintln!("[mention] Question: '{}'", question);
@@ -112,12 +149,12 @@ impl Mention {
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
-        let cooldown_limit = if SLOW_USERS.contains(&user_id) {
+        let cooldown_limit = if slow_user_ids.contains(&user_id) {
             SLOW_COOLDOWN_SECS
         } else {
             COOLDOWN_SECS
         };
-        if user_id != ADMIN_USER_ID {
+        if user_id != admin_user_id {
             if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64)
             {
                 let elapsed = SystemTime::now()
@@ -134,7 +171,7 @@ impl Mention {
                     } else {
                         format!("{}m", mins)
                     };
-                    let cooldown_msg = if SLOW_USERS.contains(&user_id) {
+                    let cooldown_msg = if slow_user_ids.contains(&user_id) {
                         format!("Shut the fuck up {}, come back in {}", msg.author.mention(), time_str)
                     } else {
                         format!("I'm still sleeping — try again in {}", time_str)
@@ -177,6 +214,7 @@ impl Mention {
         // 9. Download images from referenced message if it exists
         let mut images: Vec<(String, String)> = Vec::new();
         if let Some(ref ref_msg) = referenced_msg {
+            let client = http_client();
             for attachment in &ref_msg.attachments {
                 let content_type = attachment
                     .content_type
@@ -193,7 +231,7 @@ impl Mention {
                     "[mention] Downloading image: {} ({})",
                     attachment.url, content_type
                 );
-                match reqwest::get(&attachment.url).await {
+                match client.get(&attachment.url).send().await {
                     Ok(resp) => match resp.bytes().await {
                         Ok(bytes) => {
                             let b64 = BASE64_STANDARD.encode(&bytes);
@@ -224,18 +262,12 @@ impl Mention {
                         continue;
                     }
                     eprintln!("[mention] Downloading embed image: {}", url);
-                    match reqwest::get(url).await {
+                    let content_type = mime_for_url(url).to_string();
+                    match client.get(url).send().await {
                         Ok(resp) => match resp.bytes().await {
                             Ok(bytes) => {
                                 let b64 = BASE64_STANDARD.encode(&bytes);
-                                let ext = url.rsplit('.').next().unwrap_or("jpeg");
-                                let content_type = match ext {
-                                    "png" => "image/png",
-                                    "gif" => "image/gif",
-                                    "webp" => "image/webp",
-                                    _ => "image/jpeg",
-                                };
-                                images.push((content_type.to_string(), b64));
+                                images.push((content_type, b64));
                             }
                             Err(e) => {
                                 eprintln!("[mention] Failed to read embed image bytes: {}", e);
@@ -304,6 +336,16 @@ impl Mention {
             }
         };
 
+        // Don't post or update cooldown for empty responses
+        if final_text.is_empty() {
+            eprintln!("[mention] pi returned empty response, skipping post and cooldown update");
+            let _ = msg
+                .channel_id
+                .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
+                .await;
+            return;
+        }
+
         // 13. Remove thinking emoji and post response
         let _ = msg
             .channel_id
@@ -331,7 +373,7 @@ impl Mention {
         };
 
         // 12. Update cooldown only if response was delivered — skip for admin
-        if posted && user_id != ADMIN_USER_ID {
+        if posted && user_id != admin_user_id {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
             if let Ok(u) = usage_result {
@@ -362,9 +404,13 @@ impl Mention {
 
         let gulag_channel =
             match Gulag::find_channel(http, guild_id_u64, "the-gulag".to_string()).await {
-                Some(c) => c,
-                None => {
+                Ok(Some(c)) => c,
+                Ok(None) => {
                     eprintln!("[mention] No gulag channel found");
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("[mention] Error looking up gulag channel: {}", e);
                     return;
                 }
             };
@@ -372,7 +418,13 @@ impl Mention {
         let params = GulagParams {
             guildid: guild_id_u64,
             userid: msg.author.id.get(),
-            gulag_roleid: server.gulag_id as u64,
+            gulag_roleid: match u64::try_from(server.gulag_id) {
+                Ok(id) => id,
+                Err(_) => {
+                    eprintln!("[mention] gulag role ID {} overflows u64", server.gulag_id);
+                    return;
+                }
+            },
             gulaglength: GULAG_DURATION_SECS,
             channelid: gulag_channel.id.get(),
             messageid: msg.id.get(),
@@ -398,5 +450,56 @@ impl Mention {
                 eprintln!("[mention] Failed to gulag special user: {}", e);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mime_for_url;
+
+    #[test]
+    fn mime_for_url_png() {
+        assert_eq!(mime_for_url("https://cdn.discordapp.com/foo.png"), "image/png");
+    }
+
+    #[test]
+    fn mime_for_url_png_with_query_string() {
+        assert_eq!(
+            mime_for_url("https://cdn.discordapp.com/foo.png?v=2&hm=abc"),
+            "image/png"
+        );
+    }
+
+    #[test]
+    fn mime_for_url_png_with_fragment() {
+        assert_eq!(
+            mime_for_url("https://cdn.discordapp.com/foo.png#section"),
+            "image/png"
+        );
+    }
+
+    #[test]
+    fn mime_for_url_gif() {
+        assert_eq!(mime_for_url("https://example.com/a/b/c.gif"), "image/gif");
+    }
+
+    #[test]
+    fn mime_for_url_webp() {
+        assert_eq!(mime_for_url("https://example.com/img.webp"), "image/webp");
+    }
+
+    #[test]
+    fn mime_for_url_jpg() {
+        assert_eq!(mime_for_url("https://example.com/photo.jpg"), "image/jpeg");
+    }
+
+    #[test]
+    fn mime_for_url_no_extension_defaults_to_jpeg() {
+        assert_eq!(mime_for_url("https://example.com/photo"), "image/jpeg");
+    }
+
+    #[test]
+    fn mime_for_url_unknown_extension_defaults_to_jpeg() {
+        assert_eq!(mime_for_url("https://example.com/photo.bmp"), "image/jpeg");
     }
 }

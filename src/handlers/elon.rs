@@ -22,9 +22,9 @@ impl Elon {
             };
             let guildid = guild_id.get();
             match msg.member(&ctx.http).await {
-                Err(_) => println!("no partial member"),
+                Err(_) => eprintln!("no partial member"),
                 Ok(member) => {
-                    println!("{:?}", member);
+                    eprintln!("{:?}", member);
 
                     if Elon::has_elon_role(ctx, guildid, &member).await {
                         let channelid = msg.channel_id.get();

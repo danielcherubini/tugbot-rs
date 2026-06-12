@@ -18,15 +18,15 @@ impl Instagram {
                         .edit(&ctx.http, EditMessage::new().suppress_embeds(true))
                         .await
                     {
-                        println!("Error supressing embeds {:?}", why);
+                        eprintln!("Error supressing embeds {:?}", why);
                     }
 
-                    println!("Suppressed Embed");
+                    eprintln!("Suppressed Embed");
                     if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                        println!("Error posting Instagram message {:?}", why);
+                        eprintln!("Error posting Instagram message {:?}", why);
                     }
 
-                    println!("Posted Instagram");
+                    eprintln!("Posted Instagram");
                 }
             }
         }

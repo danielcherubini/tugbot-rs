@@ -8,6 +8,11 @@ pub struct Config {
     pub application_id: u64,
     pub db_url: String,
     pub intents: GatewayIntents,
+    /// Discord user ID that bypasses mention-feature cooldowns.
+    pub admin_user_id: u64,
+    /// Discord user IDs that get the slower cooldown (2h instead of 30m)
+    /// and trigger the auto-gulag on bot mention.
+    pub slow_user_ids: Vec<u64>,
 }
 
 impl Config {
@@ -21,6 +26,23 @@ impl Config {
             .parse()
             .expect("application id is not a valid id");
 
+        // ADMIN_USER_ID — bypasses mention cooldowns. Default: 0 (disabled).
+        let admin_user_id: u64 = env::var("ADMIN_USER_ID")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
+
+        // SLOW_USER_IDS — comma-separated Discord user IDs that get the slow
+        // cooldown AND trigger the auto-gulag on mention. Default: empty.
+        let slow_user_ids: Vec<u64> = env::var("SLOW_USER_IDS")
+            .ok()
+            .map(|s| {
+                s.split(',')
+                    .filter_map(|part| part.trim().parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+
         let intents = GatewayIntents::privileged()
             .union(GatewayIntents::MESSAGE_CONTENT)
             .union(GatewayIntents::GUILD_MESSAGES)
@@ -31,6 +53,8 @@ impl Config {
             token,
             application_id,
             intents,
+            admin_user_id,
+            slow_user_ids,
         }
     }
 }

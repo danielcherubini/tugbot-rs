@@ -12,15 +12,15 @@ impl Teh {
         if Features::is_enabled(&pool, "teh") && msg.content.to_lowercase().contains("teh") {
             // React with "🇹"
             if let Err(why) = msg.react(ctx, ReactionType::Unicode("🇹".to_string())).await {
-                println!("Error reacting with emoji T: {:?}", why);
+                eprintln!("Error reacting with emoji T: {:?}", why);
             }
             // React with "🇪"
             if let Err(why) = msg.react(ctx, ReactionType::Unicode("🇪".to_string())).await {
-                println!("Error reacting with emoji E: {:?}", why);
+                eprintln!("Error reacting with emoji E: {:?}", why);
             }
             // React with "🇭"
             if let Err(why) = msg.react(ctx, ReactionType::Unicode("🇭".to_string())).await {
-                println!("Error reacting with emoji H: {:?}", why);
+                eprintln!("Error reacting with emoji H: {:?}", why);
             }
         }
     }

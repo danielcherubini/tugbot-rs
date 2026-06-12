@@ -38,7 +38,7 @@ impl Servers {
         };
 
         if results.is_empty() {
-            println!("Nothing found in DB");
+            eprintln!("Nothing found in DB");
             let current_guild_id = GuildId::new(1);
             let guilds = match ctx
                 .http
@@ -105,7 +105,7 @@ impl Servers {
                 }
             }
         } else {
-            println!("found in DB");
+            eprintln!("found in DB");
 
             for s in results {
                 // Safe conversion with overflow check

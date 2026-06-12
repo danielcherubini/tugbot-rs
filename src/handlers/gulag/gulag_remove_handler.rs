@@ -75,7 +75,7 @@ impl GulagRemoveHandler {
                                     )
                                     .await
                                     {
-                                        Some(gulag_channel) => {
+                                        Ok(Some(gulag_channel)) => {
                                             match ctx
                                                 .http
                                                 .get_member(
@@ -119,7 +119,7 @@ impl GulagRemoveHandler {
                                                             )
                                                             .execute(&mut conn)
                                                             {
-                                                                Ok(_) => println!("Removed from database"),
+                                                                Ok(_) => eprintln!("Removed from database"),
                                                                 Err(e) => eprintln!(
                                                                     "Failed to delete gulag user from DB: {}",
                                                                     e
@@ -141,7 +141,11 @@ impl GulagRemoveHandler {
                                                 Err(_) => Gulag::send_error("Couldn't get member"),
                                             }
                                         }
-                                        None => Gulag::send_error("Couldn't find Gulag Channel"),
+                                        Ok(None) => Gulag::send_error("Couldn't find Gulag Channel"),
+                                        Err(e) => {
+                                            eprintln!("Error looking up Gulag Channel: {}", e);
+                                            Gulag::send_error("Error looking up Gulag Channel")
+                                        }
                                     }
                                 }
                                 None => Gulag::send_error("Couldn't find user in Database"),

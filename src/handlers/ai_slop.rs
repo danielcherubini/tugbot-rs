@@ -166,7 +166,7 @@ impl AiSlopHandler {
         }
 
         // Post notification to #the-gulag channel
-        if let Some(gulag_channel) =
+        if let Ok(Some(gulag_channel)) =
             Gulag::find_channel(&ctx.http, guild_id, "the-gulag".to_string()).await
         {
             let channel_message = format!(

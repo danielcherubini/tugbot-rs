@@ -6,17 +6,16 @@ pub mod elon;
 pub mod feat;
 pub mod goku_poll;
 pub mod gulag;
-pub mod horny;
 pub mod instagram;
 pub mod mention;
-pub mod nickname;
-pub mod phony;
+pub mod prefix_handler;
 pub mod teh;
 pub mod tiktok;
 pub mod twitter;
 
 use crate::db::DbPool;
 use crate::pi_rpc::PiRpc;
+use crate::tugbot::config::Config;
 use serenity::prelude::TypeMapKey;
 
 // TypeMapKey for storing the database pool in Serenity's context
@@ -31,6 +30,21 @@ pub async fn get_pool(ctx: &serenity::client::Context) -> DbPool {
     let data = ctx.data.read().await;
     data.get::<DbPoolKey>()
         .expect("Expected DbPool in TypeMap")
+        .clone()
+}
+
+// TypeMapKey for storing the bot's Config (wrapped in Arc for cheap clones) in Serenity's context
+pub struct ConfigKey;
+
+impl TypeMapKey for ConfigKey {
+    type Value = std::sync::Arc<Config>;
+}
+
+// Helper function to get an Arc<Config> from context
+pub async fn get_config(ctx: &serenity::client::Context) -> std::sync::Arc<Config> {
+    let data = ctx.data.read().await;
+    data.get::<ConfigKey>()
+        .expect("Expected Config in TypeMap")
         .clone()
 }
 
@@ -58,13 +72,12 @@ use crate::handlers::{
         gulag_handler::GulagHandler,
         gulag_list_handler::GulagListHandler,
         gulag_message_command::GulagMessageCommandHandler,
-        gulag_reaction::{GulagReaction, GulagReactionType},
+        gulag_reaction::GulagReaction,
         gulag_remove_handler::GulagRemoveHandler,
         Gulag,
     },
-    horny::Horny,
     mention::Mention,
-    phony::Phony,
+    prefix_handler::PrefixHandler,
     teh::Teh,
     twitter::Twitter,
 };
@@ -98,11 +111,11 @@ impl EventHandler for Handler {
     }
 
     async fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::ADDED).await;
+        GulagReaction::handler(&ctx, &add_reaction).await;
     }
 
     async fn reaction_remove(&self, ctx: Context, add_reaction: Reaction) {
-        GulagReaction::handler(&ctx, &add_reaction, GulagReactionType::REMOVED).await;
+        GulagReaction::handler(&ctx, &add_reaction).await;
     }
 
     async fn message_update(
@@ -191,7 +204,7 @@ impl EventHandler for Handler {
                     .send_message(&ctx.http, CreateMessage::new().content(message))
                     .await
                 {
-                    println!("Failed to send gulag escape message: {}", why);
+                    eprintln!("Failed to send gulag escape message: {}", why);
                 }
             }
         }
@@ -207,8 +220,8 @@ impl EventHandler for Handler {
                     GulagMessageCommandHandler::setup_interaction(&ctx, &command).await
                 }
                 "AI Slop" => AiSlopHandler::setup_interaction(&ctx, &command).await,
-                "phony" => Phony::setup_interaction(&ctx, &command).await,
-                "horny" => Horny::setup_interaction(&ctx, &command).await,
+                "phony" => PrefixHandler::setup_interaction(&ctx, &command).await,
+                "horny" => PrefixHandler::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implemented".to_string(),
@@ -229,13 +242,13 @@ impl EventHandler for Handler {
                 .await
             {
                 Ok(()) => {}
-                Err(why) => println!("Cannot respond to slash command: {}", why),
+                Err(why) => eprintln!("Cannot respond to slash command: {}", why),
             }
         }
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        eprintln!("{} is connected!", ready.user.name);
 
         let pool = get_pool(&ctx).await;
 
@@ -248,7 +261,7 @@ impl EventHandler for Handler {
             Ok(pi_rpc) => {
                 let mut data = ctx.data.write().await;
                 data.insert::<PiRpcKey>(pi_rpc);
-                println!("pi RPC subprocess started");
+                eprintln!("pi RPC subprocess started");
             }
             Err(e) => {
                 eprintln!(
@@ -269,21 +282,21 @@ impl EventHandler for Handler {
                         GulagListHandler::setup_command(),
                         GulagMessageCommandHandler::setup_command(),
                         AiSlopHandler::setup_command(),
-                        Horny::setup_command(),
-                        Phony::setup_command(),
+                        PrefixHandler::setup_command("horny", "Mark yourself as horny/lfg"),
+                        PrefixHandler::setup_command("phony", "Mark yourself as phony/watching"),
                         Feat::setup_command(),
                     ],
                 )
                 .await;
 
-            println!("I now have the following guild slash commands:");
+            eprintln!("I now have the following guild slash commands:");
             match commands {
                 Ok(commandvec) => {
                     for command in commandvec {
-                        println!("{}", command.name)
+                        eprintln!("{}", command.name)
                     }
                 }
-                Err(e) => println!("{}", e),
+                Err(e) => eprintln!("{}", e),
             }
         }
     }

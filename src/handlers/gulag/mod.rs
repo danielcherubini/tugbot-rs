@@ -114,6 +114,18 @@ impl Gulag {
         }
     }
 
+    /// Returns true if the error chain contains a Discord 404 (Unknown Guild / Unknown Message).
+    /// Used to decide whether stale gulag DB rows should be cleaned up.
+    fn is_discord_not_found(err: &anyhow::Error) -> bool {
+        err.chain().filter_map(|cause| cause.downcast_ref::<serenity::Error>()).any(|serenity_err| {
+            if let serenity::Error::Http(http_err) = serenity_err {
+                http_err.status_code().map(|s| s.as_u16() == 404).unwrap_or(false)
+            } else {
+                false
+            }
+        })
+    }
+
     pub async fn member_has_role(
         http: &Arc<Http>,
         guildid: u64,
@@ -151,22 +163,26 @@ impl Gulag {
         }
     }
 
+    /// Look up a channel by name within a guild.
+    ///
+    /// Returns:
+    /// - `Ok(Some(channel))` if the channel exists.
+    /// - `Ok(None)` if the channel doesn't exist (or no longer does).
+    /// - `Err(serenity::Error)` if Discord returned an error (e.g. Unknown Guild 404,
+    ///   rate limit, network). The error is propagated so the caller can distinguish
+    ///   "channel gone" from "guild gone" and decide whether to clean up state.
     pub async fn find_channel(
         http: &Arc<Http>,
         guildid: u64,
         channel_name: String,
-    ) -> Option<GuildChannel> {
-        match http.get_channels(guildid.into()).await {
-            Err(_why) => None,
-            Ok(channels) => {
-                for channel in channels {
-                    if channel.name == channel_name {
-                        return Some(channel);
-                    }
-                }
-                None
+    ) -> Result<Option<GuildChannel>, serenity::Error> {
+        let channels = http.get_channels(guildid.into()).await?;
+        for channel in channels {
+            if channel.name == channel_name {
+                return Ok(Some(channel));
             }
         }
+        Ok(None)
     }
 
     pub async fn is_tugbot(http: &Arc<Http>, user: &User) -> Option<bool> {
@@ -273,7 +289,8 @@ impl Gulag {
 
         let gulag_channel = Gulag::find_channel(http, guildid, "the-gulag".to_string())
             .await
-            .with_context(|| "Cant find gulag channel".to_string())?;
+            .with_context(|| "the-gulag channel lookup failed".to_string())?
+            .with_context(|| "the-gulag channel not found".to_string())?;
         let gulag_user = Gulag::add_to_gulag(
             http,
             pool,
@@ -321,14 +338,16 @@ impl Gulag {
     ) -> Result<()> {
         let mem = http.get_member(guildid.into(), userid.into()).await?;
         mem.remove_role(&http, gulag_roleid).await?;
-        let channel = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
+        let channel_opt = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
             .await
-            .with_context(|| "Couldn't find gulag channel".to_string())?;
+            .with_context(|| "the-gulag channel lookup failed".to_string())?;
+        let channel = channel_opt
+            .ok_or_else(|| anyhow::anyhow!("the-gulag channel not found"))?;
         let message = format!("Freeing {} from the gulag", mem);
         channel
             .send_message(&http, CreateMessage::new().content(message))
             .await?;
-        println!("Removed from gulag");
+        eprintln!("Removed from gulag");
         Ok(())
     }
 
@@ -363,10 +382,10 @@ impl Gulag {
                         continue;
                     }
                 };
-                //println!("{:?}", results.len());
+                //eprintln!("{:?}", results.len());
                 if !results.is_empty() {
                     for result in results {
-                        println!(
+                        eprintln!(
                             "It's been {} minutes, releasing {} from the gulag",
                             result.gulag_length / 60,
                             result.id
@@ -427,7 +446,7 @@ impl Gulag {
                                     eprintln!("Failed to delete gulag user {}: {}", result.id, e);
                                     continue;
                                 }
-                                println!("Removed from database");
+                                eprintln!("Removed from database");
 
                                 if result.message_id != 0 {
                                     // Done the vote from the database
@@ -448,7 +467,7 @@ impl Gulag {
                                     match done_result {
                                         Ok(done_result) => {
                                             if done_result.job_status == JobStatus::Done {
-                                                println!("Updated Gulag Vote Check Item to Done");
+                                                eprintln!("Updated Gulag Vote Check Item to Done");
                                             }
                                         }
                                         Err(e) => {
@@ -457,8 +476,10 @@ impl Gulag {
                                     }
                                 }
                             }
-                            Err(why) => match why.to_string().as_str() {
-                                "Unknown Guild" | "Unknown Message" => {
+                            Err(why) => {
+                                if Gulag::is_discord_not_found(&why) {
+                                    // Guild or message was deleted on Discord's side —
+                                    // clean up the stale DB row.
                                     if let Err(e) = diesel::delete(
                                         gulag_users.filter(gulag_users::id.eq(result.id)),
                                     )
@@ -469,13 +490,15 @@ impl Gulag {
                                             result.id, e
                                         );
                                     } else {
-                                        println!("Removed from database due to error {}", why);
+                                        eprintln!(
+                                            "Removed stale gulag user {} from database ({} not found)",
+                                            result.id, why
+                                        );
                                     }
+                                } else {
+                                    eprintln!("Error run_gulag_check: {:?}", why);
                                 }
-                                _ => {
-                                    println!("Error run_gulag_check: {:?}", why.to_string());
-                                }
-                            },
+                            }
                         };
                     }
                 }
@@ -540,7 +563,7 @@ impl Gulag {
                             Self::gulag_check_handler(http.to_owned(), &pool, &mut conn, &result)
                                 .await
                         {
-                            println!("Error running gulag vote {:?}", err);
+                            eprintln!("Error running gulag vote {:?}", err);
                             if let Err(update_err) =
                                 diesel::update(message_votes.find(result.message_id))
                                     .set(message_votes::job_status.eq(JobStatus::Failure))
@@ -570,7 +593,7 @@ impl Gulag {
             .get_result(conn)
             .with_context(|| format!("Failed to update message_vote_id {}", result.message_id))?;
         if updated_result.job_status == JobStatus::Running {
-            println!("Updated Gulag Vote Check Item to Running");
+            eprintln!("Updated Gulag Vote Check Item to Running");
             // Remove all gulag emoji's from gulag_reaction
             // Safe conversion of IDs
             let channel_id_u64 = u64::try_from(result.channel_id)
@@ -619,7 +642,7 @@ impl Gulag {
             .await
             {
                 Ok(()) => {
-                    println!("OK done with sending to gulag, now setting it to done");
+                    eprintln!("OK done with sending to gulag, now setting it to done");
                     let empty_vec: Vec<i64> = vec![];
                     let _updated_result: MessageVotes =
                         diesel::update(message_votes.find(result.message_id))
@@ -684,6 +707,19 @@ impl Gulag {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::anyhow;
+
+    #[test]
+    fn is_discord_not_found_ignores_non_serenity_error() {
+        let err = anyhow!("plain anyhow error with no serenity cause");
+        assert!(!Gulag::is_discord_not_found(&err));
+    }
+
+    #[test]
+    fn is_discord_not_found_ignores_empty_chain() {
+        let err = anyhow::Error::msg("io error");
+        assert!(!Gulag::is_discord_not_found(&err));
+    }
 
     #[test]
     fn test_send_error_formats_correctly() {

@@ -24,7 +24,7 @@ impl Derpies {
             Err(_) => (),
             Ok(member) => {
                 if Gulag::member_has_role(&ctx.http, guild_id, &member, "derpies").await {
-                    println!("It's derpies");
+                    eprintln!("It's derpies");
                 }
             }
         }

@@ -16,15 +16,15 @@ impl TikTok {
                     .edit(&ctx.http, EditMessage::new().suppress_embeds(true))
                     .await
                 {
-                    println!("Error supressing embeds {:?}", why);
+                    eprintln!("Error supressing embeds {:?}", why);
                 }
 
-                println!("Suppressed Embed");
+                eprintln!("Suppressed Embed");
                 if let Err(why) = msg.channel_id.say(ctx, fixed_message).await {
-                    println!("Error posting TikTok message {:?}", why);
+                    eprintln!("Error posting TikTok message {:?}", why);
                 }
 
-                println!("Posted Tickeytackey");
+                eprintln!("Posted Tickeytackey");
             }
         }
     }
@@ -46,7 +46,7 @@ impl TikTok {
                         None => None,
                     },
                     Err(e) => {
-                        println!("Error with get request for tiktok {:?}", e);
+                        eprintln!("Error with get request for tiktok {:?}", e);
                         None
                     }
                 },

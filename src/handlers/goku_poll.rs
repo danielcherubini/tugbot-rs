@@ -105,9 +105,13 @@ impl GokuPoll {
         // Find a channel to post in - use the-gulag channel
         let gulag_channel =
             match Gulag::find_channel(&ctx.http, guild_id, "the-gulag".to_string()).await {
-                Some(c) => c,
-                None => {
+                Ok(Some(c)) => c,
+                Ok(None) => {
                     eprintln!("Goku poll: could not find the-gulag channel");
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("Goku poll: error looking up the-gulag channel: {}", e);
                     return;
                 }
             };
