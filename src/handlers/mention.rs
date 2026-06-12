@@ -255,9 +255,16 @@ impl Mention {
             || question.to_lowercase().contains("4chan")
             || question.to_lowercase().contains("meme")
             || question.to_lowercase().contains("goon")
-            || question.to_lowercase().contains("where does")
-            || question.to_lowercase().contains("what does")
             || question.to_lowercase().contains("internet history")
+            || question.to_lowercase().contains("psp")
+            || question.to_lowercase().contains("photoshop phriday")
+            || question.to_lowercase().contains("let's play")
+            || question.to_lowercase().contains("image macro")
+            || question.to_lowercase().contains("ancient meme")
+            || question.to_lowercase().contains("old meme")
+            || question.to_lowercase().contains("origin")
+            || question.to_lowercase().contains("where is this from")
+            || question.to_lowercase().contains("what is this from")
         {
             "/skill:meme-knowledge"
         } else if question.to_lowercase().contains("am i")
