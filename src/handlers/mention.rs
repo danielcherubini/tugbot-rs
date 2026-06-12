@@ -25,9 +25,9 @@ pub struct Mention;
 
 const SPECIAL_USER_ID: u64 = 0; // no special user
 const ADMIN_USER_ID: u64 = 212879017257205760;
-const RESTRICTED_USER_ID: u64 = 0; // no restricted users
+const SLOW_USERS: &[u64] = &[163055057254875136]; // slowmode users
 const COOLDOWN_SECS: u64 = 7_200; // 2h between uses (12 per day)
-const RESTRICTED_COOLDOWN_SECS: u64 = 86_400; // 24h (1 per day)
+const SLOW_COOLDOWN_SECS: u64 = 86_400; // 24h (1 per day)
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
 impl Mention {
@@ -112,8 +112,8 @@ impl Mention {
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
-        let cooldown_limit = if user_id == RESTRICTED_USER_ID {
-            RESTRICTED_COOLDOWN_SECS
+        let cooldown_limit = if SLOW_USERS.contains(&user_id) {
+            SLOW_COOLDOWN_SECS
         } else {
             COOLDOWN_SECS
         };
