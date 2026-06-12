@@ -17,11 +17,11 @@ use serenity::{
 };
 
 /// Check if a URL uses http or https scheme.
-pub struct Mention;
-
 fn is_safe_url(url: &str) -> bool {
     url.starts_with("http://") || url.starts_with("https://")
 }
+
+pub struct Mention;
 
 const SPECIAL_USER_ID: u64 = 163055057254875136;
 const ADMIN_USER_ID: u64 = 212879017257205760;
@@ -68,25 +68,7 @@ impl Mention {
             return;
         }
 
-        // 5. Reply check
-        let referenced_id = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
-            Some(id) => id,
-            None => {
-                eprintln!("[mention] Not a reply");
-                return;
-            }
-        };
-
-        // 6. Fetch referenced message
-        let referenced_msg = match ctx.http.get_message(msg.channel_id, referenced_id).await {
-            Ok(m) => m,
-            Err(e) => {
-                eprintln!("[mention] Failed to fetch referenced message: {}", e);
-                return;
-            }
-        };
-
-        // 7. Extract question — strip bot mention
+        // 5. Extract question — strip bot mention
         let bot_mention = format!("<@{}>", bot_user.id.get());
         let bot_mention_with_exclamation = format!("<@!{}>", bot_user.id.get());
         let question = msg
@@ -112,7 +94,21 @@ impl Mention {
             return;
         }
 
-        // 8. Cooldown check (normal users, admin gets unlimited)
+        // 6. Optional: fetch referenced message if this is a reply
+        let referenced_msg = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
+            Some(referenced_id) => {
+                match ctx.http.get_message(msg.channel_id, referenced_id).await {
+                    Ok(m) => Some(m),
+                    Err(e) => {
+                        eprintln!("[mention] Failed to fetch referenced message: {}", e);
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+
+        // 7. Cooldown check (normal users, admin gets unlimited)
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
@@ -155,7 +151,7 @@ impl Mention {
             }
         }
 
-        // 9. React with :eyes: to acknowledge, then :thinking: while processing
+        // 8. React with :eyes: to acknowledge, then :thinking: while processing
         match msg
             .channel_id
             .create_reaction(&ctx.http, msg.id, '\u{1F440}')
@@ -173,80 +169,82 @@ impl Mention {
             Err(e) => eprintln!("[mention] Failed to react: {}", e),
         }
 
-        // 10. Download any image attachments as base64
+        // 9. Download images from referenced message if it exists
         let mut images: Vec<(String, String)> = Vec::new();
-        for attachment in &referenced_msg.attachments {
-            let content_type = attachment
-                .content_type
-                .as_deref()
-                .unwrap_or("application/octet-stream");
-            if !content_type.starts_with("image/") {
-                continue;
-            }
-            if !is_safe_url(&attachment.url) {
-                eprintln!("[mention] Skipping unsafe URL: {}", attachment.url);
-                continue;
-            }
-            eprintln!(
-                "[mention] Downloading image: {} ({})",
-                attachment.url, content_type
-            );
-            match reqwest::get(&attachment.url).await {
-                Ok(resp) => match resp.bytes().await {
-                    Ok(bytes) => {
-                        let b64 = BASE64_STANDARD.encode(&bytes);
-                        images.push((content_type.to_string(), b64));
-                    }
-                    Err(e) => {
-                        eprintln!("[mention] Failed to read image bytes: {}", e);
-                    }
-                },
-                Err(e) => {
-                    eprintln!("[mention] Failed to download image: {}", e);
-                }
-            }
-        }
-
-        // 10b. Also grab images from embeds
-        for embed in &referenced_msg.embeds {
-            let mut embed_image_url = embed.image.as_ref().map(|i| &i.url as &str);
-            if embed_image_url.is_none() {
-                embed_image_url = embed.thumbnail.as_ref().map(|t| &t.url as &str);
-            }
-            if let Some(url) = embed_image_url {
-                if referenced_msg.attachments.iter().any(|a| a.url == *url) {
+        if let Some(ref ref_msg) = referenced_msg {
+            for attachment in &ref_msg.attachments {
+                let content_type = attachment
+                    .content_type
+                    .as_deref()
+                    .unwrap_or("application/octet-stream");
+                if !content_type.starts_with("image/") {
                     continue;
                 }
-                if !is_safe_url(url) {
-                    eprintln!("[mention] Skipping unsafe embed URL: {}", url);
+                if !is_safe_url(&attachment.url) {
+                    eprintln!("[mention] Skipping unsafe URL: {}", attachment.url);
                     continue;
                 }
-                eprintln!("[mention] Downloading embed image: {}", url);
-                match reqwest::get(url).await {
+                eprintln!(
+                    "[mention] Downloading image: {} ({})",
+                    attachment.url, content_type
+                );
+                match reqwest::get(&attachment.url).await {
                     Ok(resp) => match resp.bytes().await {
                         Ok(bytes) => {
                             let b64 = BASE64_STANDARD.encode(&bytes);
-                            let ext = url.rsplit('.').next().unwrap_or("jpeg");
-                            let content_type = match ext {
-                                "png" => "image/png",
-                                "gif" => "image/gif",
-                                "webp" => "image/webp",
-                                _ => "image/jpeg",
-                            };
                             images.push((content_type.to_string(), b64));
                         }
                         Err(e) => {
-                            eprintln!("[mention] Failed to read embed image bytes: {}", e);
+                            eprintln!("[mention] Failed to read image bytes: {}", e);
                         }
                     },
                     Err(e) => {
-                        eprintln!("[mention] Failed to download embed image: {}", e);
+                        eprintln!("[mention] Failed to download image: {}", e);
+                    }
+                }
+            }
+
+            // Also grab images from embeds
+            for embed in &ref_msg.embeds {
+                let mut embed_image_url = embed.image.as_ref().map(|i| &i.url as &str);
+                if embed_image_url.is_none() {
+                    embed_image_url = embed.thumbnail.as_ref().map(|t| &t.url as &str);
+                }
+                if let Some(url) = embed_image_url {
+                    if ref_msg.attachments.iter().any(|a| a.url == *url) {
+                        continue;
+                    }
+                    if !is_safe_url(url) {
+                        eprintln!("[mention] Skipping unsafe embed URL: {}", url);
+                        continue;
+                    }
+                    eprintln!("[mention] Downloading embed image: {}", url);
+                    match reqwest::get(url).await {
+                        Ok(resp) => match resp.bytes().await {
+                            Ok(bytes) => {
+                                let b64 = BASE64_STANDARD.encode(&bytes);
+                                let ext = url.rsplit('.').next().unwrap_or("jpeg");
+                                let content_type = match ext {
+                                    "png" => "image/png",
+                                    "gif" => "image/gif",
+                                    "webp" => "image/webp",
+                                    _ => "image/jpeg",
+                                };
+                                images.push((content_type.to_string(), b64));
+                            }
+                            Err(e) => {
+                                eprintln!("[mention] Failed to read embed image bytes: {}", e);
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("[mention] Failed to download embed image: {}", e);
+                        }
                     }
                 }
             }
         }
 
-        // 11. Ask pi via RPC
+        // 10. Ask pi via RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
             None => {
@@ -255,18 +253,27 @@ impl Mention {
             }
         };
 
-        // Build context from the referenced message
-        let referenced_context = match (!referenced_msg.content.is_empty(), !images.is_empty()) {
-            (true, true) => format!("{} [also shared an image]", referenced_msg.content),
-            (false, true) => format!("[shared an image ({})]", images.len()),
-            (true, false) => referenced_msg.content.clone(),
-            (false, false) => String::new(),
+        // Build prompt — include referenced message context if it exists
+        let prompt = match &referenced_msg {
+            Some(ref_msg) => {
+                let context = match (!ref_msg.content.is_empty(), !images.is_empty()) {
+                    (true, true) => format!("{} [also shared an image]", ref_msg.content),
+                    (false, true) => format!("[shared an image ({})]", images.len()),
+                    (true, false) => ref_msg.content.clone(),
+                    (false, false) => String::from("[replied to an image]"),
+                };
+                format!(
+                    "{} replied to: \"{}\" and asked: \"{}\"",
+                    msg.author.name, context, question
+                )
+            }
+            None => {
+                format!(
+                    "{} asked: \"{}\"",
+                    msg.author.name, question
+                )
+            }
         };
-
-        let prompt = format!(
-            "{} replied to: \"{}\" and asked: \"{}\"",
-            msg.author.name, referenced_context, question
-        );
 
         let final_text = match pi_rpc.ask_with_images(&prompt, &images).await {
             Ok(text) => text.trim().to_string(),
@@ -292,7 +299,7 @@ impl Mention {
             }
         };
 
-        // 12. Remove thinking emoji and post response
+        // 11. Remove thinking emoji and post response
         let _ = msg
             .channel_id
             .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
@@ -318,7 +325,7 @@ impl Mention {
             }
         };
 
-        // 13. Update cooldown only if response was delivered — skip for admin
+        // 12. Update cooldown only if response was delivered — skip for admin
         if posted && user_id != ADMIN_USER_ID {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
