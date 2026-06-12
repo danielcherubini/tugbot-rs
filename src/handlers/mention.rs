@@ -260,39 +260,38 @@ impl Mention {
         } else {
             // Phase 1: ask LLM to classify the intent
             let classify_prompt = format!(
-                r#"You are a router. Pick exactly ONE skill for this Discord message. Reply with ONLY the skill name, nothing else.
+                r#"ROUTING INSTRUCTION: Read the message below and pick the ONE best skill. Reply with ONLY the word from the list. Do not answer the message. Do not add commentary.
 
-Skills:
-- research: fact-checking, "is this real", general knowledge, explaining things
-- meme-knowledge: internet history, old memes, SomethingAwful/SA lore, 4chan references, "where is this from"
-- casual: banter, shitposts, "am i gay", greetings, personal questions, anything conversational
-- image-analysis: questions about images (not applicable here, no images)
+Options (reply with exactly one of these words):
+1. research — fact-checking, "is this real", general knowledge
+2. meme-knowledge — internet history, old memes, SomethingAwful lore, 4chan
+3. casual — banter, shitposts, greetings, personal questions, conversational
 
 Message: {}"#,
                 question
             );
             match pi_rpc.ask_with_images(&classify_prompt, &[]).await {
                 Ok(response) => {
-                    let response_lower = response.to_lowercase();
-                    let skill = if response_lower.contains("meme") {
+                    let trimmed = response.trim();
+                    let response_lower = trimmed.to_lowercase();
+                    let skill = if response_lower.contains("meme-knowledge") || response_lower.contains("meme knowledge") {
                         "meme-knowledge"
-                    } else if response_lower.contains("casual") {
+                    } else if response_lower == "casual" || (response_lower.contains("casual") && !response_lower.contains("research")) {
                         "casual"
                     } else if response_lower.contains("research") {
                         "research"
                     } else if response_lower.contains("image") {
                         "image-analysis"
                     } else {
-                        // Fallback: try to extract a word that matches a skill name
-                        if response_lower.contains("meme-knowledge") || response_lower.contains("meme knowledge") {
-                            "meme-knowledge"
-                        } else if response_lower.contains("casual") {
-                            "casual"
-                        } else {
-                            "research"
+                        // Fallback: check if it's just the word alone
+                        match trimmed {
+                            s if s.to_lowercase() == "casual" => "casual",
+                            s if s.to_lowercase() == "research" => "research",
+                            s if s.to_lowercase() == "meme-knowledge" => "meme-knowledge",
+                            _ => "research",
                         }
                     };
-                    eprintln!("[mention] LLM routing → {} (response: {})", skill, response.trim());
+                    eprintln!("[mention] LLM routing → {} (response: {})", skill, trimmed);
                     skill.to_string()
                 }
                 Err(e) => {
