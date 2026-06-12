@@ -244,7 +244,38 @@ impl Mention {
             }
         }
 
-        // 10. Ask pi via RPC
+        // 10. Determine which skill to use
+        let skill_prefix = if !images.is_empty() {
+            "/skill:image-analysis"
+        } else if question.to_lowercase().contains("sa lore")
+            || question.to_lowercase().contains("something awful")
+            || question.to_lowercase().contains("fartcar")
+            || question.to_lowercase().contains("adtrw")
+            || question.to_lowercase().contains("lowtax")
+            || question.to_lowercase().contains("4chan")
+            || question.to_lowercase().contains("meme")
+            || question.to_lowercase().contains("goon")
+            || question.to_lowercase().contains("where does")
+            || question.to_lowercase().contains("what does")
+            || question.to_lowercase().contains("internet history")
+        {
+            "/skill:meme-knowledge"
+        } else if question.to_lowercase().contains("am i")
+            || question.to_lowercase().contains("hello")
+            || question.to_lowercase().contains("hey")
+            || question.to_lowercase().contains("hi ")
+            || question == "hi"
+            || question == "yo"
+            || question.to_lowercase().contains("sup")
+            || question.to_lowercase().starts_with("what's up")
+        {
+            "/skill:casual"
+        } else {
+            "/skill:research"
+        };
+        eprintln!("[mention] Routing to: {}", skill_prefix);
+
+        // 11. Ask pi via RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
             None => {
@@ -253,7 +284,7 @@ impl Mention {
             }
         };
 
-        // Build prompt — include referenced message context if it exists
+        // Build prompt — include skill prefix and referenced message context
         let prompt = match &referenced_msg {
             Some(ref_msg) => {
                 let context = match (!ref_msg.content.is_empty(), !images.is_empty()) {
@@ -263,14 +294,14 @@ impl Mention {
                     (false, false) => String::from("[replied to an image]"),
                 };
                 format!(
-                    "{} replied to: \"{}\" and asked: \"{}\"",
-                    msg.author.name, context, question
+                    "{} {} replied to: \"{}\" and asked: \"{}\"",
+                    skill_prefix, msg.author.name, context, question
                 )
             }
             None => {
                 format!(
-                    "{} asked: \"{}\"",
-                    msg.author.name, question
+                    "{} {} asked: \"{}\"",
+                    skill_prefix, msg.author.name, question
                 )
             }
         };
@@ -299,7 +330,7 @@ impl Mention {
             }
         };
 
-        // 11. Remove thinking emoji and post response
+        // 12. Remove thinking emoji and post response
         let _ = msg
             .channel_id
             .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')

@@ -43,6 +43,7 @@ fn pi_rpc_args() -> Vec<String> {
         "--mode".into(), "rpc".into(),
         "--no-session".into(),
         "--tools".into(), PI_RPC_TOOLS.into(),
+        "--skill".into(), skills_path,
         "--append-system-prompt".into(), system_prompt_path,
         "--append-system-prompt".into(), PI_RPC_SECURITY_FALLBACK.into(),
         "--no-context-files".into(),
