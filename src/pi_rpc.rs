@@ -139,6 +139,14 @@ impl PiRpc {
         let command = serde_json::Value::Object(cmd);
         let command_str = serde_json::to_string(&command).context("Failed to serialize command")?;
 
+        // Log the prompt for debugging (truncate if very long)
+        let log_prompt = if prompt.len() > 500 {
+            format!("{}...", &prompt[..500])
+        } else {
+            prompt.to_string()
+        };
+        eprintln!("[pi_rpc] → prompt: {}", log_prompt);
+
         // Write to stdin
         let stdin = inner.stdin.as_mut().context("Stdin not available")?;
         stdin
@@ -155,7 +163,15 @@ impl PiRpc {
         .await;
 
         match result {
-            Ok(Ok(text)) => Ok(text),
+            Ok(Ok(ref text)) => {
+                let log_text = if text.len() > 500 {
+                    format!("{}...", &text[..500])
+                } else {
+                    text.clone()
+                };
+                eprintln!("[pi_rpc] ← response: {}", log_text);
+                Ok(text.clone())
+            }
             Ok(Err(e)) => {
                 // Process died — mark as dead
                 inner.child = None;
