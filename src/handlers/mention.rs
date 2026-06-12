@@ -26,8 +26,8 @@ pub struct Mention;
 const SPECIAL_USER_ID: u64 = 0; // no special user
 const ADMIN_USER_ID: u64 = 212879017257205760;
 const SLOW_USERS: &[u64] = &[163055057254875136]; // slowmode users
-const COOLDOWN_SECS: u64 = 7_200; // 2h between uses (12 per day)
-const SLOW_COOLDOWN_SECS: u64 = 86_400; // 24h (1 per day)
+const COOLDOWN_SECS: u64 = 1_800; // 30m between uses
+const SLOW_COOLDOWN_SECS: u64 = 7_200; // 2h between uses
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 
 impl Mention {
