@@ -23,7 +23,7 @@ fn is_safe_url(url: &str) -> bool {
 
 pub struct Mention;
 
-const SPECIAL_USER_ID: u64 = 163055057254875136;
+const SPECIAL_USER_ID: u64 = 0; // no special user
 const ADMIN_USER_ID: u64 = 212879017257205760;
 const RESTRICTED_USER_ID: u64 = 0; // no restricted users
 const COOLDOWN_SECS: u64 = 7_200; // 2h between uses (12 per day)
