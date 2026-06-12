@@ -16,7 +16,12 @@ use serenity::{
     prelude::Context,
 };
 
+/// Check if a URL uses http or https scheme.
 pub struct Mention;
+
+fn is_safe_url(url: &str) -> bool {
+    url.starts_with("http://") || url.starts_with("https://")
+}
 
 const SPECIAL_USER_ID: u64 = 163055057254875136;
 const ADMIN_USER_ID: u64 = 212879017257205760;
@@ -178,6 +183,10 @@ impl Mention {
             if !content_type.starts_with("image/") {
                 continue;
             }
+            if !is_safe_url(&attachment.url) {
+                eprintln!("[mention] Skipping unsafe URL: {}", attachment.url);
+                continue;
+            }
             eprintln!(
                 "[mention] Downloading image: {} ({})",
                 attachment.url, content_type
@@ -206,6 +215,10 @@ impl Mention {
             }
             if let Some(url) = embed_image_url {
                 if referenced_msg.attachments.iter().any(|a| a.url == *url) {
+                    continue;
+                }
+                if !is_safe_url(url) {
+                    eprintln!("[mention] Skipping unsafe embed URL: {}", url);
                     continue;
                 }
                 eprintln!("[mention] Downloading embed image: {}", url);
@@ -285,7 +298,7 @@ impl Mention {
             .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
             .await;
         eprintln!("[mention] Posting response...");
-        match msg
+        let posted = match msg
             .channel_id
             .send_message(
                 &ctx.http,
@@ -295,12 +308,18 @@ impl Mention {
             )
             .await
         {
-            Ok(_) => eprintln!("[mention] Response posted"),
-            Err(why) => eprintln!("[mention] Failed to post response: {}", why),
-        }
+            Ok(_) => {
+                eprintln!("[mention] Response posted");
+                true
+            }
+            Err(why) => {
+                eprintln!("[mention] Failed to post response: {}", why);
+                false
+            }
+        };
 
-        // 13. Update cooldown (fire and forget) — skip for admin
-        if user_id != ADMIN_USER_ID {
+        // 13. Update cooldown only if response was delivered — skip for admin
+        if posted && user_id != ADMIN_USER_ID {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
             if let Ok(u) = usage_result {

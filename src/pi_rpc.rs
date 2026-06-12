@@ -30,13 +30,14 @@ const PI_RPC_SECURITY_FALLBACK: &str =
 /// Build the args for spawning pi in RPC mode.
 fn pi_rpc_args() -> Vec<String> {
     // Resolve paths relative to the project root.
-    let base_dir = if let Ok(dir) = std::env::var("TUGBOT_SKILLS_DIR") {
-        dir
+    // TUGBOT_SKILLS_DIR can point to either the project root or the skills dir directly.
+    let base_dir = std::env::var("TUGBOT_SKILLS_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string());
+    let skills_path = if base_dir.ends_with(PI_RPC_SKILLS_DIR) {
+        base_dir.clone()
     } else {
-        env!("CARGO_MANIFEST_DIR").to_string()
+        format!("{}/{}", base_dir, PI_RPC_SKILLS_DIR)
     };
-    let skills_path = format!("{}/{}", base_dir, PI_RPC_SKILLS_DIR);
-    let system_prompt_path = format!("{}/{}/{}", base_dir, PI_RPC_SKILLS_DIR, PI_RPC_SYSTEM_PROMPT);
+    let system_prompt_path = format!("{}/{}", skills_path, PI_RPC_SYSTEM_PROMPT);
 
     vec![
         "--mode".into(), "rpc".into(),

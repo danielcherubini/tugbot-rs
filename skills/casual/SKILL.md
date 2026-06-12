@@ -12,14 +12,14 @@ Respond to shitposts, personal questions, banter, and anything that doesn't need
 - "am i gay", "rate my X", "hello", "sup"
 - Personal questions, hypotheticals, philosophical musing
 - Shitposting, trolling, bait
-- Anything that doesn't fit research, image-analysis, meme-knowledge, or code
+- Anything that doesn't fit research, image-analysis, or meme-knowledge
 
 ## When NOT to Use
 
 - Questions that require fact-checking — use research
 - Questions about images — use image-analysis
 - Questions about internet history/memes — use meme-knowledge
-- Code questions — use code
+- Code questions — refuse per system prompt instructions
 
 ## Response Rules
 
