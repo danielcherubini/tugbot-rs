@@ -66,7 +66,7 @@ fn format_remaining(seconds: u64) -> String {
 
 pub struct Mention;
 
-const COOLDOWN_SECS: u64 = 1_800; // 30m between uses
+const COOLDOWN_SECS: u64 = 300; // 5m between uses
 const SLOW_COOLDOWN_SECS: u64 = 7_200; // 2h between uses
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 const ASK_TUGBOT_CHANNEL_ID: u64 = 1515343076401479790; // #ask-tugbot
