@@ -46,11 +46,30 @@ fn http_client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
+/// Format a remaining-cooldown duration in human-readable units.
+/// Avoids the "0m" bug when fewer than 60 seconds remain.
+fn format_remaining(seconds: u64) -> String {
+    if seconds >= 3600 {
+        let hours = seconds / 3600;
+        let mins = (seconds % 3600) / 60;
+        if mins > 0 {
+            format!("{}h {}m", hours, mins)
+        } else {
+            format!("{}h", hours)
+        }
+    } else if seconds >= 60 {
+        format!("{}m", seconds / 60)
+    } else {
+        format!("{}s", seconds)
+    }
+}
+
 pub struct Mention;
 
 const COOLDOWN_SECS: u64 = 1_800; // 30m between uses
 const SLOW_COOLDOWN_SECS: u64 = 7_200; // 2h between uses
 const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
+const ASK_TUGBOT_CHANNEL_ID: u64 = 1515343076401479790; // #ask-tugbot
 
 impl Mention {
     pub async fn handler(ctx: &Context, msg: &Message) {
@@ -84,7 +103,12 @@ impl Mention {
             None => return,
         };
 
-        // 4. Special user — ANY mention of the bot sends them to gulag
+        // 4. Channel restriction — only respond to mentions in #ask-tugbot
+        if msg.channel_id.get() != ASK_TUGBOT_CHANNEL_ID {
+            return;
+        }
+
+        // 5. Special user — ANY mention of the bot sends them to gulag
         //    (config-driven: the same SLOW_USER_IDS list controls the special
         //    user trap, since the trap is meant for the user we want to throttle.)
         let config = get_config(ctx).await;
@@ -95,7 +119,7 @@ impl Mention {
             return;
         }
 
-        // 5. Extract question — strip bot mentions by tokenizing on whitespace
+        // 6. Extract question — strip bot mentions by tokenizing on whitespace
         //    and filtering out anything that looks like <@...> matching the bot ID.
         //    This handles <@ID>, <@!ID>, and avoids any false-positive replace()
         //    matches if a user types text containing "<@".
@@ -122,7 +146,7 @@ impl Mention {
                 .send_message(
                     &ctx.http,
                     CreateMessage::new()
-                        .content("You mentioned me for no reason — try asking something."),
+                        .content("You mentioned me but didn't ask anything — what's up?"),
                 )
                 .await
             {
@@ -131,7 +155,7 @@ impl Mention {
             return;
         }
 
-        // 6. Optional: fetch referenced message if this is a reply
+        // 7. Optional: fetch referenced message if this is a reply
         let referenced_msg = match msg.message_reference.as_ref().and_then(|r| r.message_id) {
             Some(referenced_id) => {
                 match ctx.http.get_message(msg.channel_id, referenced_id).await {
@@ -145,7 +169,7 @@ impl Mention {
             None => None,
         };
 
-        // 7. Cooldown check (normal users, admin gets unlimited)
+        // 8. Cooldown check (normal users, admin gets unlimited)
         let user_id = msg.author.id.get();
         let guild_id_u64 = guild_id.get();
 
@@ -164,17 +188,15 @@ impl Mention {
 
                 if elapsed < cooldown_limit {
                     let remaining = cooldown_limit - elapsed;
-                    let hours = remaining / 3600;
-                    let mins = (remaining % 3600) / 60;
-                    let time_str = if hours > 0 {
-                        format!("{}h {}m", hours, mins)
-                    } else {
-                        format!("{}m", mins)
-                    };
+                    let time_str = format_remaining(remaining);
                     let cooldown_msg = if slow_user_ids.contains(&user_id) {
-                        format!("Shut the fuck up {}, come back in {}", msg.author.mention(), time_str)
+                        format!(
+                            "Easy there, {} — give it a rest for {}",
+                            msg.author.mention(),
+                            time_str
+                        )
                     } else {
-                        format!("I'm still sleeping — try again in {}", time_str)
+                        format!("I'm still waking up — try again in {}", time_str)
                     };
                     if let Err(why) = msg
                         .channel_id
@@ -193,7 +215,7 @@ impl Mention {
             }
         }
 
-        // 8. React with :eyes: to acknowledge, then :thinking: while processing
+        // 9. React with :eyes: to acknowledge, then :thinking: while processing
         match msg
             .channel_id
             .create_reaction(&ctx.http, msg.id, '\u{1F440}')
@@ -211,7 +233,7 @@ impl Mention {
             Err(e) => eprintln!("[mention] Failed to react: {}", e),
         }
 
-        // 9. Download images from referenced message if it exists
+        // 10. Download images from referenced message if it exists
         let mut images: Vec<(String, String)> = Vec::new();
         if let Some(ref ref_msg) = referenced_msg {
             let client = http_client();
@@ -281,7 +303,7 @@ impl Mention {
             }
         }
 
-        // 10. Get pi RPC
+        // 11. Get pi RPC
         let pi_rpc = match (ctx.data.read().await).get::<crate::handlers::PiRpcKey>() {
             Some(rpc) => rpc.clone(),
             None => {
@@ -290,7 +312,7 @@ impl Mention {
             }
         };
 
-        // 11. Build prompt — include referenced message context
+        // 12. Build prompt — include referenced message context
         let prompt = match &referenced_msg {
             Some(ref_msg) => {
                 let context = match (!ref_msg.content.is_empty(), !images.is_empty()) {
@@ -346,7 +368,7 @@ impl Mention {
             return;
         }
 
-        // 13. Remove thinking emoji and post response
+        // 14. Remove thinking emoji and post response
         let _ = msg
             .channel_id
             .delete_reaction(&ctx.http, msg.id, Some(bot_user.id), '\u{1F914}')
@@ -372,7 +394,7 @@ impl Mention {
             }
         };
 
-        // 12. Update cooldown only if response was delivered — skip for admin
+        // 15. Update cooldown only if response was delivered — skip for admin
         if posted && user_id != admin_user_id {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
@@ -455,7 +477,7 @@ impl Mention {
 
 #[cfg(test)]
 mod tests {
-    use super::mime_for_url;
+    use super::{format_remaining, mime_for_url};
 
     #[test]
     fn mime_for_url_png() {
@@ -501,5 +523,25 @@ mod tests {
     #[test]
     fn mime_for_url_unknown_extension_defaults_to_jpeg() {
         assert_eq!(mime_for_url("https://example.com/photo.bmp"), "image/jpeg");
+    }
+
+    #[test]
+    fn format_remaining_sub_minute_shows_seconds() {
+        assert_eq!(format_remaining(59), "59s");
+        assert_eq!(format_remaining(1), "1s");
+    }
+
+    #[test]
+    fn format_remaining_minutes() {
+        assert_eq!(format_remaining(60), "1m");
+        assert_eq!(format_remaining(3_599), "59m");
+    }
+
+    #[test]
+    fn format_remaining_hours_with_minutes() {
+        assert_eq!(format_remaining(3_600), "1h");
+        assert_eq!(format_remaining(3_660), "1h 1m");
+        assert_eq!(format_remaining(7_200), "2h");
+        assert_eq!(format_remaining(7_260), "2h 1m");
     }
 }
