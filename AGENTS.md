@@ -29,7 +29,7 @@ cargo clippy --all-targets   # Lint (must be warning-free)
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `ADMIN_USER_ID` | Discord user ID that bypasses mention cooldowns (legacy, use `COOLDOWN_EXEMPT_USER_IDS`) | No (default: 0 = disabled) |
 | `COOLDOWN_EXEMPT_USER_IDS` | Comma-separated user IDs that bypass mention cooldowns | No (default: empty) |
-| `SLOW_USER_IDS` | Comma-separated user IDs with slower 2h mention cooldown (no auto-gulag) | No (default: empty) |
+| `SLOW_USER_IDS` | Comma-separated user IDs with slower 2h mention cooldown. Auto-gulag on mention is controlled separately by the `slow_user_auto_gulag` feature flag (default off) | No (default: empty) |
 | `TUGBOT_SKILLS_DIR` | Override the skills dir path (for prod deployments) | No (default: project root) |
 | `RUST_LOG` / `RUST_BACKTRACE` | Standard Rust env vars | No |
 
@@ -40,8 +40,9 @@ cargo clippy --all-targets   # Lint (must be warning-free)
 Main entry point for bot interactions. When a user mentions the bot:
 
 1. **Feature flag check** — DB key is `"is_this_real"` (backward compat)
-2. **Bot mention parsing** — tokenize-and-filter on `msg.mentions` semantics (no string-replace)
-3. **Cooldown check** — 5m normal (`COOLDOWN_SECS = 300`), 2h for slow users (`SLOW_COOLDOWN_SECS = 7200`), admin bypass via `COOLDOWN_EXEMPT_USER_IDS`. Slow users do NOT get auto-gulagged on mention — they just get the longer cooldown.
+2. **Slow-user auto-gulag (gated by feature flag)** — if the user is in `SLOW_USER_IDS` AND the `slow_user_auto_gulag` feature is enabled, they are gulagged for 5m and the handler returns. Default: flag is OFF, so this is a no-op for normal users.
+3. **Bot mention parsing** — tokenize-and-filter on `msg.mentions` semantics (no string-replace)
+4. **Cooldown check** — 5m normal (`COOLDOWN_SECS = 300`), 2h for slow users (`SLOW_COOLDOWN_SECS = 7200`), admin bypass via `COOLDOWN_EXEMPT_USER_IDS`
 4. **Image download** — fetches images from referenced message attachments and embeds (10s timeout, validated via `is_safe_url`, MIME detected via `mime_for_url`)
 5. **Prompt build** — includes author name, referenced message context, and the question
 6. **pi RPC call** — sends prompt to `pi --mode rpc` subprocess via `ask_with_images()`
@@ -108,6 +109,10 @@ Database-backed toggles. Two APIs:
 - `Features::check_enabled(&pool, "key") -> Result<bool>` — propagates error (user-facing commands)
 
 `Features::all(&pool)` lists all features. `Features::update(&pool, "key", bool)` toggles.
+
+**Current feature keys:**
+- `is_this_real` — master switch for the mention handler (DB key name is preserved for backward compat)
+- `slow_user_auto_gulag` — when ON, users in `SLOW_USER_IDS` get auto-gulagged on any bot mention. When OFF (default), they only get the 2h cooldown.
 
 ### Handlers — shared patterns
 
