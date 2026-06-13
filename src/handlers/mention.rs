@@ -1,17 +1,15 @@
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
-use std::{path::Path, sync::Arc, time::Duration, time::SystemTime};
+use std::{path::Path, time::Duration, time::SystemTime};
 
 use crate::db::{
-    get_is_this_real_usage, get_or_create_is_this_real_usage, get_server_by_guild_id,
-    update_is_this_real_usage, DbPool,
+    get_is_this_real_usage, get_or_create_is_this_real_usage, update_is_this_real_usage,
 };
 use crate::features::Features;
 use crate::handlers::get_config;
 use crate::handlers::get_pool;
-use crate::handlers::gulag::{Gulag, GulagParams};
 use serenity::{
-    all::{Http, Mentionable},
+    all::Mentionable,
     builder::CreateMessage,
     model::prelude::Message,
     prelude::Context,
@@ -68,7 +66,6 @@ pub struct Mention;
 
 const COOLDOWN_SECS: u64 = 300; // 5m between uses
 const SLOW_COOLDOWN_SECS: u64 = 7_200; // 2h between uses
-const GULAG_DURATION_SECS: u32 = 300; // 5 minutes
 const ASK_TUGBOT_CHANNEL_ID: u64 = 1515343076401479790; // #ask-tugbot
 
 impl Mention {
@@ -108,16 +105,14 @@ impl Mention {
             return;
         }
 
-        // 5. Special user — ANY mention of the bot sends them to gulag
-        //    (config-driven: the same SLOW_USER_IDS list controls the special
-        //    user trap, since the trap is meant for the user we want to throttle.)
+        // 5. Config — slow_user_ids only affects the per-user cooldown (longer
+        //    cooldown for throttled users). The auto-gulag-on-mention trap was
+        //    intentionally disabled in 70f26ac; restoring it here was a
+        //    regression in 4e652c4. Slow users get the SLOW_COOLDOWN_SECS
+        //    cooldown at step 8 instead.
         let config = get_config(ctx).await;
         let slow_user_ids = &config.slow_user_ids;
         let cooldown_exempt_user_ids = &config.cooldown_exempt_user_ids;
-        if slow_user_ids.contains(&msg.author.id.get()) {
-            Mention::handle_special_user_gulag(&ctx.http, &pool, guild_id.get(), msg).await;
-            return;
-        }
 
         // 6. Extract question — strip bot mentions by tokenizing on whitespace
         //    and filtering out anything that looks like <@...> matching the bot ID.
@@ -402,74 +397,6 @@ impl Mention {
                 if let Err(e) = update_is_this_real_usage(&pool, u.id) {
                     eprintln!("[mention] Failed to update cooldown: {}", e);
                 }
-            }
-        }
-    }
-
-    /// Special user gulag handler — triggers on ANY bot mention, no reply or keyword needed
-    async fn handle_special_user_gulag(
-        http: &Arc<Http>,
-        pool: &DbPool,
-        guild_id_u64: u64,
-        msg: &Message,
-    ) {
-        let server = match get_server_by_guild_id(pool, guild_id_u64 as i64) {
-            Some(s) => s,
-            None => {
-                eprintln!(
-                    "[mention] No server config for guild {} (or DB unavailable)",
-                    guild_id_u64
-                );
-                return;
-            }
-        };
-
-        let gulag_channel =
-            match Gulag::find_channel(http, guild_id_u64, "the-gulag".to_string()).await {
-                Ok(Some(c)) => c,
-                Ok(None) => {
-                    eprintln!("[mention] No gulag channel found");
-                    return;
-                }
-                Err(e) => {
-                    eprintln!("[mention] Error looking up gulag channel: {}", e);
-                    return;
-                }
-            };
-
-        let params = GulagParams {
-            guildid: guild_id_u64,
-            userid: msg.author.id.get(),
-            gulag_roleid: match u64::try_from(server.gulag_id) {
-                Ok(id) => id,
-                Err(_) => {
-                    eprintln!("[mention] gulag role ID {} overflows u64", server.gulag_id);
-                    return;
-                }
-            },
-            gulaglength: GULAG_DURATION_SECS,
-            channelid: gulag_channel.id.get(),
-            messageid: msg.id.get(),
-        };
-
-        match Gulag::add_to_gulag(http, pool, params).await {
-            Ok(_) => {
-                if let Err(why) = gulag_channel
-                    .id
-                    .send_message(
-                        http,
-                        CreateMessage::new().content(format!(
-                            "{} wanted to know if something was real... now they're in the gulag for 5m. Irony.",
-                            msg.author.mention()
-                        )),
-                    )
-                    .await
-                {
-                    eprintln!("[mention] Failed to send gulag message: {}", why);
-                }
-            }
-            Err(e) => {
-                eprintln!("[mention] Failed to gulag special user: {}", e);
             }
         }
     }

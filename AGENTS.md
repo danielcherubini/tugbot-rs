@@ -5,7 +5,7 @@ Guidance for AI agents working on the tugbot-rs codebase.
 ## Project Overview
 
 tugbot-rs is a Discord bot written in Rust using the Serenity framework. Features include:
-- **LLM-powered mention handler** — responds to bot mentions with snarky, concise answers routed through five modes (research, meme-knowledge, image-analysis, assassination, casual)
+- **LLM-powered mention handler** — responds to bot mentions with snarky, concise answers routed through five modes (research, meme-knowledge, image-analysis, assassination, casual). Slow-mode users (`SLOW_USER_IDS`) get a longer 2h cooldown, NOT auto-gulag on mention (the auto-gulag-on-mention trap was intentionally disabled in 70f26ac).
 - **Gulag system** — temporary role-based punishment with voting
 - **Social media link rewrites** — Twitter, TikTok, Bsky, Instagram embed suppression
 - **Feature flags** — database-backed toggles for features
@@ -29,7 +29,7 @@ cargo clippy --all-targets   # Lint (must be warning-free)
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `ADMIN_USER_ID` | Discord user ID that bypasses mention cooldowns (legacy, use `COOLDOWN_EXEMPT_USER_IDS`) | No (default: 0 = disabled) |
 | `COOLDOWN_EXEMPT_USER_IDS` | Comma-separated user IDs that bypass mention cooldowns | No (default: empty) |
-| `SLOW_USER_IDS` | Comma-separated user IDs with slower cooldown + auto-gulag on mention | No (default: empty) |
+| `SLOW_USER_IDS` | Comma-separated user IDs with slower 2h mention cooldown (no auto-gulag) | No (default: empty) |
 | `TUGBOT_SKILLS_DIR` | Override the skills dir path (for prod deployments) | No (default: project root) |
 | `RUST_LOG` / `RUST_BACKTRACE` | Standard Rust env vars | No |
 
@@ -40,14 +40,13 @@ cargo clippy --all-targets   # Lint (must be warning-free)
 Main entry point for bot interactions. When a user mentions the bot:
 
 1. **Feature flag check** — DB key is `"is_this_real"` (backward compat)
-2. **Special user gulag** — users in `SLOW_USER_IDS` get auto-gulagged on ANY mention
-3. **Bot mention parsing** — tokenize-and-filter on `msg.mentions` semantics (no string-replace)
-4. **Cooldown check** — 30m normal (`COOLDOWN_SECS = 1800`), 2h for slow users (`SLOW_COOLDOWN_SECS = 7200`), admin bypass
-5. **Image download** — fetches images from referenced message attachments and embeds (10s timeout, validated via `is_safe_url`, MIME detected via `mime_for_url`)
-6. **Prompt build** — includes author name, referenced message context, and the question
-7. **pi RPC call** — sends prompt to `pi --mode rpc` subprocess via `ask_with_images()`
-8. **Empty-response guard** — if the LLM returns empty, skip posting AND skip cooldown update
-9. **Post response** — replies to the original message with the LLM's answer
+2. **Bot mention parsing** — tokenize-and-filter on `msg.mentions` semantics (no string-replace)
+3. **Cooldown check** — 5m normal (`COOLDOWN_SECS = 300`), 2h for slow users (`SLOW_COOLDOWN_SECS = 7200`), admin bypass via `COOLDOWN_EXEMPT_USER_IDS`. Slow users do NOT get auto-gulagged on mention — they just get the longer cooldown.
+4. **Image download** — fetches images from referenced message attachments and embeds (10s timeout, validated via `is_safe_url`, MIME detected via `mime_for_url`)
+5. **Prompt build** — includes author name, referenced message context, and the question
+6. **pi RPC call** — sends prompt to `pi --mode rpc` subprocess via `ask_with_images()`
+7. **Empty-response guard** — if the LLM returns empty, skip posting AND skip cooldown update
+8. **Post response** — replies to the original message with the LLM's answer
 
 The handler reacts with 👀 and 🤔 on receive, removes 🤔 on completion.
 
