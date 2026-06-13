@@ -113,7 +113,7 @@ impl Mention {
         //    user trap, since the trap is meant for the user we want to throttle.)
         let config = get_config(ctx).await;
         let slow_user_ids = &config.slow_user_ids;
-        let admin_user_id = config.admin_user_id;
+        let cooldown_exempt_user_ids = &config.cooldown_exempt_user_ids;
         if slow_user_ids.contains(&msg.author.id.get()) {
             Mention::handle_special_user_gulag(&ctx.http, &pool, guild_id.get(), msg).await;
             return;
@@ -178,7 +178,7 @@ impl Mention {
         } else {
             COOLDOWN_SECS
         };
-        if user_id != admin_user_id {
+        if !cooldown_exempt_user_ids.contains(&user_id) {
             if let Some(usage) = get_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64)
             {
                 let elapsed = SystemTime::now()
@@ -394,8 +394,8 @@ impl Mention {
             }
         };
 
-        // 15. Update cooldown only if response was delivered — skip for admin
-        if posted && user_id != admin_user_id {
+        // 15. Update cooldown only if response was delivered — skip exempt users
+        if posted && !cooldown_exempt_user_ids.contains(&user_id) {
             let usage_result =
                 get_or_create_is_this_real_usage(&pool, user_id as i64, guild_id_u64 as i64);
             if let Ok(u) = usage_result {

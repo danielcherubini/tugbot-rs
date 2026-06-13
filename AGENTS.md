@@ -15,7 +15,7 @@ tugbot-rs is a Discord bot written in Rust using the Serenity framework. Feature
 
 ```bash
 cargo build    # Build
-cargo run      # Run locally (requires .env with DISCORD_TOKEN, APPLICATION_ID, DATABASE_URL, ADMIN_USER_ID, SLOW_USER_IDS)
+cargo run      # Run locally (requires .env with DISCORD_TOKEN, APPLICATION_ID, DATABASE_URL)
 cargo test     # Run tests
 cargo clippy --all-targets   # Lint (must be warning-free)
 ```
@@ -27,7 +27,8 @@ cargo clippy --all-targets   # Lint (must be warning-free)
 | `DISCORD_TOKEN` | Bot token | Yes |
 | `APPLICATION_ID` | Discord application ID | Yes |
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `ADMIN_USER_ID` | Discord user ID that bypasses mention cooldowns | No (default: 0 = disabled) |
+| `ADMIN_USER_ID` | Discord user ID that bypasses mention cooldowns (legacy, use `COOLDOWN_EXEMPT_USER_IDS`) | No (default: 0 = disabled) |
+| `COOLDOWN_EXEMPT_USER_IDS` | Comma-separated user IDs that bypass mention cooldowns | No (default: empty) |
 | `SLOW_USER_IDS` | Comma-separated user IDs with slower cooldown + auto-gulag on mention | No (default: empty) |
 | `TUGBOT_SKILLS_DIR` | Override the skills dir path (for prod deployments) | No (default: project root) |
 | `RUST_LOG` / `RUST_BACKTRACE` | Standard Rust env vars | No |
