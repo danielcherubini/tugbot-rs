@@ -117,13 +117,13 @@ impl PiRpc {
             .send(request)
             .map_err(|_| anyhow::anyhow!("pi RPC supervisor task is not running"))?;
 
-        let result = tokio::time::timeout(
-            tokio::time::Duration::from_secs(TIMEOUT_SECS),
-            response_rx,
-        )
-        .await
-        .map_err(|_| anyhow::anyhow!("pi RPC ask timed out after {} seconds", TIMEOUT_SECS))?
-        .map_err(|_| anyhow::anyhow!("pi RPC supervisor dropped the response"))?;
+        let result =
+            tokio::time::timeout(tokio::time::Duration::from_secs(TIMEOUT_SECS), response_rx)
+                .await
+                .map_err(|_| {
+                    anyhow::anyhow!("pi RPC ask timed out after {} seconds", TIMEOUT_SECS)
+                })?
+                .map_err(|_| anyhow::anyhow!("pi RPC supervisor dropped the response"))?;
 
         result
     }
@@ -266,8 +266,7 @@ impl PiSubprocess {
             cmd.insert("images".into(), images_json.into());
         }
         let command = serde_json::Value::Object(cmd);
-        let command_str =
-            serde_json::to_string(&command).context("Failed to serialize command")?;
+        let command_str = serde_json::to_string(&command).context("Failed to serialize command")?;
 
         // Log the prompt for debugging (truncate if very long)
         let log_prompt = if prompt.len() > 500 {
@@ -298,10 +297,7 @@ impl PiSubprocess {
         stdin.flush().await.context("Failed to flush pi stdin")?;
 
         // Read response
-        let stdout = self
-            .stdout
-            .as_mut()
-            .context("Stdout not available")?;
+        let stdout = self.stdout.as_mut().context("Stdout not available")?;
         let text = read_response(stdout, req_id).await?;
 
         let log_text = if text.len() > 500 {

@@ -111,19 +111,25 @@ impl Gulag {
             content: format!("Error: {}", err),
             components: None,
             ephemeral: true,
+            defer_response: None,
         }
     }
 
     /// Returns true if the error chain contains a Discord 404 (Unknown Guild / Unknown Message).
     /// Used to decide whether stale gulag DB rows should be cleaned up.
     fn is_discord_not_found(err: &anyhow::Error) -> bool {
-        err.chain().filter_map(|cause| cause.downcast_ref::<serenity::Error>()).any(|serenity_err| {
-            if let serenity::Error::Http(http_err) = serenity_err {
-                http_err.status_code().map(|s| s.as_u16() == 404).unwrap_or(false)
-            } else {
-                false
-            }
-        })
+        err.chain()
+            .filter_map(|cause| cause.downcast_ref::<serenity::Error>())
+            .any(|serenity_err| {
+                if let serenity::Error::Http(http_err) = serenity_err {
+                    http_err
+                        .status_code()
+                        .map(|s| s.as_u16() == 404)
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            })
     }
 
     pub async fn member_has_role(
@@ -341,8 +347,7 @@ impl Gulag {
         let channel_opt = Gulag::find_channel(&http, guildid, "the-gulag".to_string())
             .await
             .with_context(|| "the-gulag channel lookup failed".to_string())?;
-        let channel = channel_opt
-            .ok_or_else(|| anyhow::anyhow!("the-gulag channel not found"))?;
+        let channel = channel_opt.ok_or_else(|| anyhow::anyhow!("the-gulag channel not found"))?;
         let message = format!("Freeing {} from the gulag", mem);
         channel
             .send_message(&http, CreateMessage::new().content(message))

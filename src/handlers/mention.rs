@@ -26,10 +26,7 @@ fn is_safe_url(url: &str) -> bool {
 /// Strips the query string and fragment first so URLs like `image.png?v=2`
 /// don't get misclassified.
 fn mime_for_url(url: &str) -> &'static str {
-    let path = url
-        .split(['?', '#'])
-        .next()
-        .unwrap_or(url);
+    let path = url.split(['?', '#']).next().unwrap_or(url);
     match Path::new(path).extension().and_then(|e| e.to_str()) {
         Some("png") => "image/png",
         Some("gif") => "image/gif",
@@ -334,10 +331,7 @@ impl Mention {
                 )
             }
             None => {
-                format!(
-                    "{} asked: \"{}\"",
-                    msg.author.name, question
-                )
+                format!("{} asked: \"{}\"", msg.author.name, question)
             }
         };
 
@@ -490,7 +484,10 @@ mod tests {
 
     #[test]
     fn mime_for_url_png() {
-        assert_eq!(mime_for_url("https://cdn.discordapp.com/foo.png"), "image/png");
+        assert_eq!(
+            mime_for_url("https://cdn.discordapp.com/foo.png"),
+            "image/png"
+        );
     }
 
     #[test]

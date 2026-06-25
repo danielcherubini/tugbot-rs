@@ -67,6 +67,7 @@ impl Feat {
             content: String::from("Couldn't match feature"),
             components: None,
             ephemeral: true,
+            defer_response: None,
         }
     }
 
@@ -84,6 +85,7 @@ impl Feat {
             content,
             components: None,
             ephemeral: true,
+            defer_response: None,
         }
     }
 
@@ -92,6 +94,7 @@ impl Feat {
             content,
             components: None,
             ephemeral: true,
+            defer_response: None,
         }
     }
 }

@@ -2,10 +2,17 @@ pub mod message_vote;
 pub mod models;
 pub mod schema;
 
+diesel::define_sql_function! {
+    /// PostgreSQL GREATEST function — returns the larger of two timestamps.
+    /// Used by bulk_upsert_activity to prevent timestamp regression on startup scan.
+    fn greatest(a: diesel::sql_types::Timestamp, b: diesel::sql_types::Timestamp) -> diesel::sql_types::Timestamp;
+}
+
 use self::{
     models::{
         AiSlopUsage, GokuPollUsage, GulagUser, GulagVote, IsThisRealUsage, NewAiSlopUsage,
-        NewGokuPollUsage, NewGulagUser, NewGulagVote, NewIsThisRealUsage, NewServer, Server,
+        NewGokuPollUsage, NewGulagUser, NewGulagVote, NewIsThisRealUsage, NewServer,
+        NewUserActivity, Server, UserActivity,
     },
     schema::{
         ai_slop_usage::{self},
@@ -363,4 +370,88 @@ pub fn update_is_this_real_usage(
     diesel::update(is_this_real_usage::dsl::is_this_real_usage.find(usage_id))
         .set(is_this_real_usage::dsl::last_used_at.eq(SystemTime::now()))
         .get_result(&mut conn)
+}
+
+pub fn bulk_upsert_activity(
+    pool: &DbPool,
+    records: Vec<(i64, i64)>,
+) -> Result<usize, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use crate::db::schema::user_activity;
+    use diesel::prelude::*;
+
+    let time_now = SystemTime::now();
+    let new_records: Vec<NewUserActivity> = records
+        .into_iter()
+        .map(|(uid, gid)| NewUserActivity {
+            user_id: uid,
+            guild_id: gid,
+            last_message_at: time_now,
+            created_at: time_now,
+        })
+        .collect();
+
+    let rows = diesel::insert_into(user_activity::table)
+        .values(&new_records)
+        .on_conflict((user_activity::user_id, user_activity::guild_id))
+        .do_update()
+        .set(user_activity::last_message_at.eq(greatest(
+            user_activity::last_message_at,
+            diesel::upsert::excluded(user_activity::last_message_at),
+        )))
+        .execute(&mut conn)?;
+
+    Ok(rows)
+}
+
+pub fn query_inactive_users(
+    pool: &DbPool,
+    guild_id: i64,
+    days: i32,
+) -> Result<Vec<i64>, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use crate::db::schema::user_activity;
+    use diesel::prelude::*;
+
+    let cutoff = SystemTime::now() - Duration::from_secs((days as u64) * 86400);
+    let inactive_ids: Vec<i64> = user_activity::table
+        .filter(user_activity::guild_id.eq(guild_id))
+        .filter(user_activity::last_message_at.lt(cutoff))
+        .select(user_activity::user_id)
+        .load(&mut conn)?;
+
+    Ok(inactive_ids)
+}
+
+pub fn query_all_tracked_user_ids_for_guild(
+    pool: &DbPool,
+    guild_id: i64,
+) -> Result<Vec<i64>, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use crate::db::schema::user_activity;
+    use diesel::prelude::*;
+
+    let tracked_ids: Vec<i64> = user_activity::table
+        .filter(user_activity::guild_id.eq(guild_id))
+        .select(user_activity::user_id)
+        .load(&mut conn)?;
+
+    Ok(tracked_ids)
+}
+
+pub fn query_user_activity_for_ids(
+    pool: &DbPool,
+    guild_id: i64,
+    user_ids: Vec<i64>,
+) -> Result<Vec<UserActivity>, diesel::result::Error> {
+    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
+    use crate::db::schema::user_activity;
+    use diesel::prelude::*;
+
+    let results: Vec<UserActivity> = user_activity::table
+        .filter(user_activity::guild_id.eq(guild_id))
+        .filter(user_activity::user_id.eq_any(user_ids))
+        .load(&mut conn)?;
+
+    Ok(results)
 }

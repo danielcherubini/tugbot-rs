@@ -224,6 +224,24 @@ pub struct Features {
     pub enabled: bool,
 }
 
+#[derive(Queryable, Selectable, Debug)]
+#[diesel(table_name = user_activity)]
+pub struct UserActivity {
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub last_message_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = user_activity)]
+pub struct NewUserActivity {
+    pub user_id: i64,
+    pub guild_id: i64,
+    pub last_message_at: SystemTime,
+    pub created_at: SystemTime,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

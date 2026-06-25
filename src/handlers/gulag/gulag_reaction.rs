@@ -119,13 +119,7 @@ impl GulagReaction {
                 continue;
             }
             found_gulag_reaction = true;
-            match Self::fetch_all_voters(
-                ctx,
-                channel_id,
-                message_id,
-                &reaction.reaction_type,
-            )
-            .await
+            match Self::fetch_all_voters(ctx, channel_id, message_id, &reaction.reaction_type).await
             {
                 Ok(voters) => {
                     eprintln!(

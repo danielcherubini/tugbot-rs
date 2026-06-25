@@ -108,6 +108,15 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    user_activity (user_id, guild_id) {
+        user_id -> Int8,
+        guild_id -> Int8,
+        last_message_at -> Timestamp,
+        created_at -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     ai_slop_usage,
     features,
@@ -118,4 +127,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     message_votes,
     reversal_of_fortunes,
     servers,
+    user_activity,
 );

@@ -39,6 +39,7 @@ impl GulagHandler {
                 content: String::from("Gulag feature is currently disabled"),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -50,6 +51,7 @@ impl GulagHandler {
                     content: "Error: This command can only be used in a guild".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -61,6 +63,7 @@ impl GulagHandler {
                     content: "Error: Could not verify your permissions".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -72,6 +75,7 @@ impl GulagHandler {
                     .to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -82,6 +86,7 @@ impl GulagHandler {
                     content: "Error: Missing required user option".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -93,6 +98,7 @@ impl GulagHandler {
                     content: "Error: Missing required reason option".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -104,6 +110,7 @@ impl GulagHandler {
                     content: "Error: Missing required length option".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -120,12 +127,14 @@ impl GulagHandler {
                     content: String::from("Gulag length must be positive"),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             } else {
                 return HandlerResponse {
                     content: String::from("Gulag length cannot exceed 10080 minutes (1 week)"),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         }
@@ -136,12 +145,14 @@ impl GulagHandler {
                     content: "no member".to_string(),
                     components: None,
                     ephemeral: false,
+                    defer_response: None,
                 },
                 Some(guildid) => match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
                     None => HandlerResponse {
                         content: "couldn't find gulag role".to_string(),
                         components: None,
                         ephemeral: false,
+                        defer_response: None,
                     },
                     Some(gulag_role) => {
                         let gulag_user = match Gulag::add_to_gulag(
@@ -164,6 +175,7 @@ impl GulagHandler {
                                     content: format!("Failed to send to gulag: {}", e),
                                     components: None,
                                     ephemeral: true,
+                                    defer_response: None,
                                 };
                             }
                         };
@@ -179,6 +191,7 @@ impl GulagHandler {
                                 content,
                                 components: None,
                                 ephemeral: false,
+                                defer_response: None,
                             }
                         } else {
                             let content = format!(
@@ -190,6 +203,7 @@ impl GulagHandler {
                                 content,
                                 components: None,
                                 ephemeral: false,
+                                defer_response: None,
                             }
                         }
                     }
@@ -200,6 +214,7 @@ impl GulagHandler {
                 content: "Please provide a valid user".to_string(),
                 components: None,
                 ephemeral: false,
+                defer_response: None,
             }
         }
     }
