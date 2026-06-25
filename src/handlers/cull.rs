@@ -252,8 +252,19 @@ impl CullHandler {
             after_id = all_members.last().map(|m| m.user.id.get());
         }
 
-        // g. Filter: remove bots and whitelisted users
-        let whitelist_role_ids = get_whitelist_role_ids(&ctx.http, guild_id).await;
+        // g. Fetch whitelist roles (fail-closed: abort if we can't resolve roles)
+        let whitelist_role_ids = match get_whitelist_role_ids(&ctx.http, guild_id).await {
+            Ok(ids) => ids,
+            Err(e) => {
+                return HandlerResponse {
+                    content: format!("Failed to resolve whitelist roles: {}", e),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
+
+        // Filter: remove bots and whitelisted users
         let filtered_members: Vec<_> = all_members
             .into_iter()
             .filter(|member| {
@@ -653,18 +664,18 @@ async fn run_scan(
 }
 
 /// Fetch guild roles and return IDs matching WHITELIST_ROLES.
-async fn get_whitelist_role_ids(http: &serenity::all::Http, guild_id: u64) -> HashSet<u64> {
-    match http.get_guild_roles(guild_id.into()).await {
-        Ok(roles) => roles
+/// Returns an error if roles can't be fetched (fail-closed for safety).
+async fn get_whitelist_role_ids(
+    http: &serenity::all::Http,
+    guild_id: u64,
+) -> Result<HashSet<u64>, serenity::Error> {
+    http.get_guild_roles(guild_id.into()).await.map(|roles| {
+        roles
             .into_iter()
             .filter(|role| WHITELIST_ROLES.contains(&role.name.as_str()))
             .map(|role| role.id.get())
-            .collect(),
-        Err(e) => {
-            eprintln!("[cull] Failed to get guild roles: {}", e);
-            HashSet::new()
-        }
-    }
+            .collect()
+    })
 }
 
 /// Check if a member has any of the given role IDs.
