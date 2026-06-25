@@ -18,6 +18,7 @@ use crate::db::DbPool;
 use crate::pi_rpc::PiRpc;
 use crate::tugbot::config::Config;
 use serenity::prelude::TypeMapKey;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // TypeMapKey for storing the database pool in Serenity's context
 pub struct DbPoolKey;
@@ -274,11 +275,19 @@ impl EventHandler for Handler {
         Gulag::run_gulag_vote_check(&ctx.http, pool.clone());
 
         // Spawn initial activity scan (seeds user_activity table from recent messages)
+        // Paginates backwards through each channel until messages are older than SCAN_CUTOFF_DAYS
         let http_clone = ctx.http.clone();
         let pool_clone = pool.clone();
         let servers_clone = servers.clone();
 
         tokio::spawn(async move {
+            // Cutoff: only scan messages newer than this (90 days)
+            let cutoff_secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                - 90 * 86400;
+
             for server in &servers_clone {
                 let guild_id = server.guild_id.get();
 
@@ -310,33 +319,69 @@ impl EventHandler for Handler {
                 };
 
                 for (i, channel) in text_channels.iter().enumerate() {
-                    // Fetch last 200 messages from each channel
-                    let messages = match http_clone.get_messages(channel.id, None, Some(200)).await
-                    {
-                        Ok(msgs) => msgs,
-                        Err(e) => {
-                            eprintln!(
-                                "[cull] Failed to get messages from channel {}: {}",
-                                channel.name, e
-                            );
-                            continue;
-                        }
-                    };
+                    // Paginate backwards through message history until we hit the cutoff
+                    let mut before_id: Option<serenity::all::MessageId> = None;
+                    let mut channel_msg_count = 0u32;
 
-                    for msg in &messages {
-                        if !msg.author.bot && msg.webhook_id.is_none() {
-                            let user_id = match i64::try_from(msg.author.id.get()) {
-                                Ok(id) => id,
-                                Err(_) => continue,
-                            };
-                            all_user_pairs.push((user_id, guild_id_i64));
+                    loop {
+                        let messages = match http_clone
+                            .get_messages(
+                                channel.id,
+                                before_id.map(serenity::all::MessagePagination::Before),
+                                Some(100),
+                            )
+                            .await
+                        {
+                            Ok(msgs) => msgs,
+                            Err(e) => {
+                                eprintln!(
+                                    "[cull] Failed to get messages from channel {}: {}",
+                                    channel.name, e
+                                );
+                                break;
+                            }
+                        };
+
+                        if messages.is_empty() {
+                            break;
                         }
+
+                        // Messages are returned newest-first; check oldest (last) message
+                        let oldest_timestamp = messages.last().unwrap().timestamp.unix_timestamp();
+                        if oldest_timestamp < cutoff_secs as i64 {
+                            // Oldest message in this batch is past the cutoff — stop this channel
+                            break;
+                        }
+
+                        for msg in &messages {
+                            if !msg.author.bot && msg.webhook_id.is_none() {
+                                let user_id = match i64::try_from(msg.author.id.get()) {
+                                    Ok(id) => id,
+                                    Err(_) => continue,
+                                };
+                                all_user_pairs.push((user_id, guild_id_i64));
+                            }
+                            channel_msg_count += 1;
+                        }
+
+                        // If we got fewer than 100 messages, there are no more to fetch
+                        if messages.len() < 100 {
+                            break;
+                        }
+
+                        // Set cursor for next page (oldest message in this batch)
+                        before_id = Some(messages.last().unwrap().id);
+
+                        // Be nice with Discord's rate limits (50 req/5s per channel)
+                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     }
 
                     eprintln!(
-                        "[cull] Scanned {}/{} channels, found {} unique users so far",
+                        "[cull] Scanned {}/{} channels ({} msgs in {}), found {} unique users so far",
                         i + 1,
                         text_channels.len(),
+                        channel_msg_count,
+                        channel.name,
                         all_user_pairs.len()
                     );
                 }
