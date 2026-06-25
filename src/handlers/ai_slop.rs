@@ -26,6 +26,7 @@ impl AiSlopHandler {
                 content: "This feature is currently disabled.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -36,6 +37,7 @@ impl AiSlopHandler {
                     content: "Error: This command can only be used in a guild".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -48,6 +50,7 @@ impl AiSlopHandler {
                     content: "Error: Could not verify your permissions".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -59,6 +62,7 @@ impl AiSlopHandler {
                     .to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -70,6 +74,7 @@ impl AiSlopHandler {
                     content: "Error: Could not find target message".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -82,6 +87,7 @@ impl AiSlopHandler {
                 content: "Error: You cannot AI Slop yourself!".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -92,6 +98,7 @@ impl AiSlopHandler {
                     content: "Error: You cannot AI Slop the bot!".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
             Some(false) => {} // Continue
@@ -100,6 +107,7 @@ impl AiSlopHandler {
                     content: "Error: Could not verify bot status".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         }
@@ -114,6 +122,7 @@ impl AiSlopHandler {
                             .to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -127,6 +136,7 @@ impl AiSlopHandler {
                         content: "Error: Failed to record AI slop usage".to_string(),
                         components: None,
                         ephemeral: true,
+                        defer_response: None,
                     };
                 }
             };
@@ -138,6 +148,7 @@ impl AiSlopHandler {
                     content: "Error: Usage count too high for gulag calculation".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         };
@@ -162,6 +173,7 @@ impl AiSlopHandler {
                 content: format!("Error: Failed to send to gulag: {}", e),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -193,6 +205,7 @@ impl AiSlopHandler {
             ),
             components: None,
             ephemeral: true,
+                    defer_response: None,
         }
     }
 }

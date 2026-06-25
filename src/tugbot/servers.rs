@@ -7,6 +7,7 @@ use serenity::{
 
 use crate::db::{create_server, models::Server, schema::servers::dsl::*, DbPool};
 
+#[derive(Clone)]
 pub struct Servers {
     pub guild_id: GuildId,
     pub gulag_id: RoleId,

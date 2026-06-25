@@ -25,6 +25,7 @@ impl GulagMessageCommandHandler {
                 content: "Gulag feature is currently disabled.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
         let command_data = &command.data;
@@ -34,6 +35,7 @@ impl GulagMessageCommandHandler {
                 content: "No target message found.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         };
 
@@ -46,6 +48,7 @@ impl GulagMessageCommandHandler {
                 content: "Could not resolve target message.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         };
 
@@ -54,6 +57,7 @@ impl GulagMessageCommandHandler {
                 content: "This command can only be used in a server.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         };
 
@@ -86,12 +90,14 @@ impl GulagMessageCommandHandler {
                     content,
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
             Err(err) => HandlerResponse {
                 content: err.to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             },
         }
     }

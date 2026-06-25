@@ -18,6 +18,7 @@ impl GulagListHandler {
                 content: "no member".to_string(),
                 components: None,
                 ephemeral: false,
+                defer_response: None,
             },
             Some(guildid) => {
                 let pool = get_pool(ctx).await;
@@ -30,6 +31,7 @@ impl GulagListHandler {
                                 .to_string(),
                             components: None,
                             ephemeral: true,
+                            defer_response: None,
                         };
                     }
                 };
@@ -47,6 +49,7 @@ impl GulagListHandler {
                                 .to_string(),
                             components: None,
                             ephemeral: true,
+                            defer_response: None,
                         };
                     }
                 };
@@ -56,6 +59,7 @@ impl GulagListHandler {
                         content: "No users currently in the Gulag.".to_string(),
                         components: None,
                         ephemeral: true,
+                        defer_response: None,
                     };
                 }
 
@@ -88,6 +92,7 @@ impl GulagListHandler {
                     content,
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         }

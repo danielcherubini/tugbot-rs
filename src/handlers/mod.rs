@@ -1,6 +1,7 @@
 // pub mod elkmen;
 pub mod ai_slop;
 pub mod bsky;
+pub mod cull;
 pub mod derpies;
 pub mod elon;
 pub mod feat;
@@ -66,15 +67,13 @@ pub async fn get_pi_rpc(ctx: &serenity::client::Context) -> std::sync::Arc<PiRpc
 use crate::handlers::{
     ai_slop::AiSlopHandler,
     bsky::Bsky,
+    cull::CullHandler,
     feat::Feat,
     goku_poll::GokuPoll,
     gulag::{
-        gulag_handler::GulagHandler,
-        gulag_list_handler::GulagListHandler,
-        gulag_message_command::GulagMessageCommandHandler,
-        gulag_reaction::GulagReaction,
-        gulag_remove_handler::GulagRemoveHandler,
-        Gulag,
+        gulag_handler::GulagHandler, gulag_list_handler::GulagListHandler,
+        gulag_message_command::GulagMessageCommandHandler, gulag_reaction::GulagReaction,
+        gulag_remove_handler::GulagRemoveHandler, Gulag,
     },
     mention::Mention,
     prefix_handler::PrefixHandler,
@@ -95,6 +94,8 @@ pub struct HandlerResponse {
     pub content: String,
     pub components: Option<Vec<serenity::all::CreateActionRow>>,
     pub ephemeral: bool,
+    /// If Some(true), defer the response instead of sending a message.
+    pub defer_response: Option<bool>,
 }
 
 pub struct Handler;
@@ -223,24 +224,30 @@ impl EventHandler for Handler {
                 "phony" => PrefixHandler::setup_interaction(&ctx, &command).await,
                 "horny" => PrefixHandler::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&ctx, &command).await,
+                "cull" => CullHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implemented".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 },
             };
 
-            let mut message = CreateInteractionResponseMessage::new()
-                .content(handler_response.content)
-                .ephemeral(handler_response.ephemeral);
-            if let Some(components) = handler_response.components {
-                message = message.components(components);
-            }
+            let response = if handler_response.defer_response == Some(true) {
+                CreateInteractionResponse::Defer(
+                    CreateInteractionResponseMessage::new().ephemeral(true),
+                )
+            } else {
+                let mut message = CreateInteractionResponseMessage::new()
+                    .content(handler_response.content)
+                    .ephemeral(handler_response.ephemeral);
+                if let Some(components) = handler_response.components {
+                    message = message.components(components);
+                }
+                CreateInteractionResponse::Message(message)
+            };
 
-            match command
-                .create_response(&ctx.http, CreateInteractionResponse::Message(message))
-                .await
-            {
+            match command.create_response(&ctx.http, response).await {
                 Ok(()) => {}
                 Err(why) => eprintln!("Cannot respond to slash command: {}", why),
             }
@@ -285,6 +292,7 @@ impl EventHandler for Handler {
                         PrefixHandler::setup_command("horny", "Mark yourself as horny/lfg"),
                         PrefixHandler::setup_command("phony", "Mark yourself as phony/watching"),
                         Feat::setup_command(),
+                        CullHandler::setup_command(),
                     ],
                 )
                 .await;

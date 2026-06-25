@@ -41,6 +41,7 @@ impl GulagRemoveHandler {
                     .to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             };
         }
 
@@ -51,6 +52,7 @@ impl GulagRemoveHandler {
                     content: "Expected user option".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -61,6 +63,7 @@ impl GulagRemoveHandler {
                     content: "no member".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 },
                 Some(guildid) => {
                     match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
@@ -136,12 +139,15 @@ impl GulagRemoveHandler {
                                                             .to_string(),
                                                         components: None,
                                                         ephemeral: true,
+                                                        defer_response: None,
                                                     }
                                                 }
                                                 Err(_) => Gulag::send_error("Couldn't get member"),
                                             }
                                         }
-                                        Ok(None) => Gulag::send_error("Couldn't find Gulag Channel"),
+                                        Ok(None) => {
+                                            Gulag::send_error("Couldn't find Gulag Channel")
+                                        }
                                         Err(e) => {
                                             eprintln!("Error looking up Gulag Channel: {}", e);
                                             Gulag::send_error("Error looking up Gulag Channel")
@@ -160,6 +166,7 @@ impl GulagRemoveHandler {
                 content: "Please provide a valid user".to_string(),
                 components: None,
                 ephemeral: false,
+                defer_response: None,
             }
         }
     }
