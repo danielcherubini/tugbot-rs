@@ -1,19 +1,20 @@
 use crate::db::{
-    query_all_tracked_user_ids_for_guild, query_inactive_users, query_user_activity_for_ids,
+    bulk_upsert_activity, query_all_tracked_user_ids_for_guild, query_inactive_users,
+    query_user_activity_for_ids,
 };
 use crate::features::Features;
 use crate::handlers::{get_pool, gulag::Gulag, HandlerResponse};
 use serenity::{
     all::{
         CommandDataOptionValue, CommandInteraction, CommandOptionType, CreateMessage, Member,
-        Permissions,
+        MessagePagination, Permissions,
     },
     builder::{CreateCommand, CreateCommandOption},
     client::Context,
     model::id::ChannelId,
 };
 use std::collections::{HashMap, HashSet};
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct CullHandler;
 
@@ -51,6 +52,14 @@ impl CullHandler {
                     CommandOptionType::Boolean,
                     "include-never-posted",
                     "Include users who have never posted (default: false)",
+                )
+                .required(false),
+            )
+            .add_option(
+                CreateCommandOption::new(
+                    CommandOptionType::Boolean,
+                    "scan",
+                    "Seed activity data from message history (one-time setup)",
                 )
                 .required(false),
             )
@@ -196,6 +205,22 @@ impl CullHandler {
                 _ => None,
             })
             .unwrap_or(false);
+
+        let do_scan: bool = command
+            .data
+            .options
+            .iter()
+            .find(|opt| opt.name == "scan")
+            .and_then(|opt| match &opt.value {
+                CommandDataOptionValue::Boolean(v) => Some(*v),
+                _ => None,
+            })
+            .unwrap_or(false);
+
+        // e1. Scan mode — seed activity data from message history
+        if do_scan {
+            return run_scan(ctx.http.clone(), &pool, guild_id, command).await;
+        }
 
         // f. Fetch member list via REST pagination
         let mut all_members: Vec<Member> = Vec::new();
@@ -467,6 +492,163 @@ async fn post_to_cat_herding(http: &serenity::all::Http, content: &str) -> bool 
             eprintln!("[cull] Failed to post to cat-herding: {}", e);
             false
         }
+    }
+}
+
+/// Seed the user_activity table by paginating backwards through message history.
+/// Runs as a background task — returns immediately so we don't exceed Discord's 3s window.
+async fn run_scan(
+    http: std::sync::Arc<serenity::all::Http>,
+    pool: &crate::db::DbPool,
+    guild_id: u64,
+    command: &CommandInteraction,
+) -> HandlerResponse {
+    // Cutoff: only scan messages newer than this (90 days)
+    let cutoff_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        - 90 * 86400;
+
+    let pool = pool.clone();
+    let user_name = command.user.name.clone();
+
+    tokio::spawn(async move {
+        // Fetch all channels for this guild
+        let channels = match http.get_channels(guild_id.into()).await {
+            Ok(chs) => chs,
+            Err(e) => {
+                eprintln!(
+                    "[cull] Scan: failed to get channels for guild {}: {}",
+                    guild_id, e
+                );
+                let _ = post_to_cat_herding(
+                    &http,
+                    &format!("Scan failed: could not fetch channels: {}", e),
+                )
+                .await;
+                return;
+            }
+        };
+
+        // Filter to text channels only
+        let text_channels: Vec<_> = channels
+            .into_iter()
+            .filter(|ch| matches!(ch.kind, serenity::all::ChannelType::Text))
+            .collect();
+
+        let guild_id_i64: i64 = match i64::try_from(guild_id) {
+            Ok(id) => id,
+            Err(e) => {
+                eprintln!("[cull] Scan: guild ID conversion error: {}", e);
+                return;
+            }
+        };
+
+        let mut all_user_pairs: Vec<(i64, i64)> = Vec::new();
+        let mut total_msg_count = 0u32;
+
+        for (i, channel) in text_channels.iter().enumerate() {
+            let mut before_id: Option<serenity::all::MessageId> = None;
+            let mut channel_msg_count = 0u32;
+
+            loop {
+                let messages = match http
+                    .get_messages(
+                        channel.id,
+                        before_id.map(MessagePagination::Before),
+                        Some(100),
+                    )
+                    .await
+                {
+                    Ok(msgs) => msgs,
+                    Err(e) => {
+                        eprintln!(
+                            "[cull] Scan: failed to get messages from channel {}: {}",
+                            channel.name, e
+                        );
+                        break;
+                    }
+                };
+
+                if messages.is_empty() {
+                    break;
+                }
+
+                // Messages are returned newest-first; check oldest (last) message
+                let oldest_timestamp = messages.last().unwrap().timestamp.unix_timestamp();
+                if oldest_timestamp < cutoff_secs as i64 {
+                    break;
+                }
+
+                for msg in &messages {
+                    if !msg.author.bot && msg.webhook_id.is_none() {
+                        let user_id = match i64::try_from(msg.author.id.get()) {
+                            Ok(id) => id,
+                            Err(_) => continue,
+                        };
+                        all_user_pairs.push((user_id, guild_id_i64));
+                    }
+                    channel_msg_count += 1;
+                }
+
+                if messages.len() < 100 {
+                    break;
+                }
+
+                before_id = Some(messages.last().unwrap().id);
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+
+            total_msg_count += channel_msg_count;
+            eprintln!(
+                "[cull] Scan: {}/{} channels ({} msgs in {}), {} unique users so far",
+                i + 1,
+                text_channels.len(),
+                channel_msg_count,
+                channel.name,
+                all_user_pairs.len()
+            );
+        }
+
+        // Deduplicate
+        let mut seen = std::collections::HashSet::new();
+        all_user_pairs.retain(|pair| seen.insert(*pair));
+
+        if !all_user_pairs.is_empty() {
+            match bulk_upsert_activity(&pool, all_user_pairs) {
+                Ok(rows) => {
+                    let msg = format!(
+                        "Scan complete: {} unique users tracked (scanned {} messages across {} channels). Initiated by {}",
+                        rows, total_msg_count, text_channels.len(), user_name
+                    );
+                    eprintln!("[cull] Scan: {}", msg);
+                    let _ = post_to_cat_herding(&http, &msg).await;
+                }
+                Err(e) => {
+                    eprintln!("[cull] Scan: failed to bulk upsert activity: {}", e);
+                    let _ =
+                        post_to_cat_herding(&http, &format!("Scan failed to save results: {}", e))
+                            .await;
+                }
+            }
+        } else {
+            let msg = format!(
+                "Scan complete: no users found (scanned {} messages across {} channels). Initiated by {}",
+                total_msg_count, text_channels.len(), user_name
+            );
+            eprintln!("[cull] Scan: {}", msg);
+            let _ = post_to_cat_herding(&http, &msg).await;
+        }
+    });
+
+    HandlerResponse {
+        content: format!(
+            "Scan started. Results will be posted to <#{}>.",
+            CAT_HERDING_CHANNEL_ID
+        ),
+        components: None,
+        ephemeral: true,
     }
 }
 
