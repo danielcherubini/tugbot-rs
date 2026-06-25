@@ -99,6 +99,31 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
+        // Passive activity tracking for cull command
+        // Skip: bots, webhooks, DMs (no guild)
+        if !msg.author.bot && msg.webhook_id.is_none() {
+            if let Some(guild_id) = msg.guild_id {
+                let pool = get_pool(&ctx).await;
+                let user_id = match i64::try_from(msg.author.id.get()) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        eprintln!("[cull] User ID conversion error: {}", e);
+                        return;
+                    }
+                };
+                let guild_id_i64 = match i64::try_from(guild_id.get()) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        eprintln!("[cull] Guild ID conversion error: {}", e);
+                        return;
+                    }
+                };
+                if let Err(e) = crate::db::upsert_user_activity(&pool, user_id, guild_id_i64) {
+                    eprintln!("[cull] Failed to upsert user activity: {}", e);
+                }
+            }
+        }
+
         Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
@@ -252,6 +277,95 @@ impl EventHandler for Handler {
         let servers = Servers::get_servers(&ctx, &pool).await;
         Gulag::run_gulag_check(&ctx.http, pool.clone());
         Gulag::run_gulag_vote_check(&ctx.http, pool.clone());
+
+        // Spawn initial activity scan (seeds user_activity table from recent messages)
+        let http_clone = ctx.http.clone();
+        let pool_clone = pool.clone();
+        let servers_clone = servers.clone();
+
+        tokio::spawn(async move {
+            for server in &servers_clone {
+                let guild_id = server.guild_id.get();
+
+                // Fetch all channels for this guild
+                let channels = match http_clone.get_channels(guild_id.into()).await {
+                    Ok(chs) => chs,
+                    Err(e) => {
+                        eprintln!(
+                            "[cull] Failed to get channels for guild {}: {}",
+                            guild_id, e
+                        );
+                        continue;
+                    }
+                };
+
+                // Filter to text channels only (skip voice, category, announcement, etc.)
+                let text_channels: Vec<_> = channels
+                    .into_iter()
+                    .filter(|ch| matches!(ch.kind, serenity::all::ChannelType::Text))
+                    .collect();
+
+                let mut all_user_pairs: Vec<(i64, i64)> = Vec::new();
+                let guild_id_i64 = match i64::try_from(guild_id) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        eprintln!("[cull] Guild ID conversion error for scan: {}", e);
+                        continue;
+                    }
+                };
+
+                for (i, channel) in text_channels.iter().enumerate() {
+                    // Fetch last 200 messages from each channel
+                    let messages = match http_clone.get_messages(channel.id, None, Some(200)).await {
+                        Ok(msgs) => msgs,
+                        Err(e) => {
+                            eprintln!(
+                                "[cull] Failed to get messages from channel {}: {}",
+                                channel.name, e
+                            );
+                            continue;
+                        }
+                    };
+
+                    for msg in &messages {
+                        if !msg.author.bot && msg.webhook_id.is_none() {
+                            let user_id = match i64::try_from(msg.author.id.get()) {
+                                Ok(id) => id,
+                                Err(_) => continue,
+                            };
+                            all_user_pairs.push((user_id, guild_id_i64));
+                        }
+                    }
+
+                    eprintln!(
+                        "[cull] Scanned {}/{} channels, found {} unique users so far",
+                        i + 1,
+                        text_channels.len(),
+                        all_user_pairs.len()
+                    );
+                }
+
+                // Deduplicate
+                let mut seen = std::collections::HashSet::new();
+                all_user_pairs.retain(|pair| seen.insert(*pair));
+
+                if !all_user_pairs.is_empty() {
+                    match crate::db::bulk_upsert_activity(&pool_clone, all_user_pairs) {
+                        Ok(rows) => {
+                            eprintln!(
+                                "[cull] Upserted {} user activity records for guild {}",
+                                rows, guild_id
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!("[cull] Failed to bulk upsert activity: {}", e);
+                        }
+                    }
+                }
+            }
+
+            eprintln!("[cull] Initial activity scan complete");
+        });
 
         // Start pi RPC subprocess
         match PiRpc::spawn().await {
