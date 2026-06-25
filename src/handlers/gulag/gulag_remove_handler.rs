@@ -141,7 +141,9 @@ impl GulagRemoveHandler {
                                                 Err(_) => Gulag::send_error("Couldn't get member"),
                                             }
                                         }
-                                        Ok(None) => Gulag::send_error("Couldn't find Gulag Channel"),
+                                        Ok(None) => {
+                                            Gulag::send_error("Couldn't find Gulag Channel")
+                                        }
                                         Err(e) => {
                                             eprintln!("Error looking up Gulag Channel: {}", e);
                                             Gulag::send_error("Error looking up Gulag Channel")

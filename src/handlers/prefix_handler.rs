@@ -34,10 +34,7 @@ impl PrefixHandler {
         CreateCommand::new(name).description(description)
     }
 
-    pub async fn setup_interaction(
-        ctx: &Context,
-        command: &CommandInteraction,
-    ) -> HandlerResponse {
+    pub async fn setup_interaction(ctx: &Context, command: &CommandInteraction) -> HandlerResponse {
         let pool = get_pool(ctx).await;
         let prefix = command.data.name.clone();
 
