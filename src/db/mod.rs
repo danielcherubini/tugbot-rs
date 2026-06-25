@@ -4,7 +4,7 @@ pub mod schema;
 
 diesel::define_sql_function! {
     /// PostgreSQL GREATEST function — returns the larger of two timestamps.
-    /// Used by upsert_user_activity and bulk_upsert_activity to prevent timestamp regression.
+    /// Used by bulk_upsert_activity to prevent timestamp regression on startup scan.
     fn greatest(a: diesel::sql_types::Timestamp, b: diesel::sql_types::Timestamp) -> diesel::sql_types::Timestamp;
 }
 
@@ -370,36 +370,6 @@ pub fn update_is_this_real_usage(
     diesel::update(is_this_real_usage::dsl::is_this_real_usage.find(usage_id))
         .set(is_this_real_usage::dsl::last_used_at.eq(SystemTime::now()))
         .get_result(&mut conn)
-}
-
-pub fn upsert_user_activity(
-    pool: &DbPool,
-    user_id: i64,
-    guild_id: i64,
-) -> Result<(), diesel::result::Error> {
-    let mut conn = pool.get().map_err(pool_error_to_diesel)?;
-    use crate::db::schema::user_activity;
-    use diesel::prelude::*;
-
-    let time_now = SystemTime::now();
-    let new_record = NewUserActivity {
-        user_id,
-        guild_id,
-        last_message_at: time_now,
-        created_at: time_now,
-    };
-
-    diesel::insert_into(user_activity::table)
-        .values(&new_record)
-        .on_conflict((user_activity::user_id, user_activity::guild_id))
-        .do_update()
-        .set(user_activity::last_message_at.eq(greatest(
-            user_activity::last_message_at,
-            diesel::upsert::excluded(user_activity::last_message_at),
-        )))
-        .execute(&mut conn)?;
-
-    Ok(())
 }
 
 pub fn bulk_upsert_activity(

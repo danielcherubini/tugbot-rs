@@ -102,23 +102,6 @@ pub struct Handler;
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        // Passive activity tracking for cull command
-        // Skip: bots, webhooks, DMs (no guild)
-        // ID conversion failures are rare (overflow) — log and skip tracking,
-        // but never exit the handler chain.
-        if !msg.author.bot && msg.webhook_id.is_none() {
-            if let Some(guild_id) = msg.guild_id {
-                let pool = get_pool(&ctx).await;
-                let user_id = i64::try_from(msg.author.id.get()).ok();
-                let guild_id_i64 = i64::try_from(guild_id.get()).ok();
-                if let (Some(uid), Some(gid)) = (user_id, guild_id_i64) {
-                    if let Err(e) = crate::db::upsert_user_activity(&pool, uid, gid) {
-                        eprintln!("[cull] Failed to upsert user activity: {}", e);
-                    }
-                }
-            }
-        }
-
         Teh::handler(&ctx, &msg).await;
         Twitter::handler(&ctx, &msg).await;
         //TikTok::handler(&ctx, &msg).await;
