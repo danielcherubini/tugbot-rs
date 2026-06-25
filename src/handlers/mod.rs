@@ -1,6 +1,7 @@
 // pub mod elkmen;
 pub mod ai_slop;
 pub mod bsky;
+pub mod cull;
 pub mod derpies;
 pub mod elon;
 pub mod feat;
@@ -316,7 +317,8 @@ impl EventHandler for Handler {
 
                 for (i, channel) in text_channels.iter().enumerate() {
                     // Fetch last 200 messages from each channel
-                    let messages = match http_clone.get_messages(channel.id, None, Some(200)).await {
+                    let messages = match http_clone.get_messages(channel.id, None, Some(200)).await
+                    {
                         Ok(msgs) => msgs,
                         Err(e) => {
                             eprintln!(
