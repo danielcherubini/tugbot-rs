@@ -67,6 +67,7 @@ pub async fn get_pi_rpc(ctx: &serenity::client::Context) -> std::sync::Arc<PiRpc
 use crate::handlers::{
     ai_slop::AiSlopHandler,
     bsky::Bsky,
+    cull::CullHandler,
     feat::Feat,
     goku_poll::GokuPoll,
     gulag::{
@@ -246,6 +247,7 @@ impl EventHandler for Handler {
                 "phony" => PrefixHandler::setup_interaction(&ctx, &command).await,
                 "horny" => PrefixHandler::setup_interaction(&ctx, &command).await,
                 "feature" => Feat::setup_interaction(&ctx, &command).await,
+                "cull" => CullHandler::setup_interaction(&ctx, &command).await,
                 _ => HandlerResponse {
                     content: "Not Implemented".to_string(),
                     components: None,
@@ -398,6 +400,7 @@ impl EventHandler for Handler {
                         PrefixHandler::setup_command("horny", "Mark yourself as horny/lfg"),
                         PrefixHandler::setup_command("phony", "Mark yourself as phony/watching"),
                         Feat::setup_command(),
+                        CullHandler::setup_command(),
                     ],
                 )
                 .await;
