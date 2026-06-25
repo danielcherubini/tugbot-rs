@@ -605,12 +605,7 @@ async fn run_scan(
                     break;
                 }
 
-                // Messages are returned newest-first; check oldest (last) message
-                let oldest_timestamp = messages.last().unwrap().timestamp.unix_timestamp();
-                if oldest_timestamp < cutoff_secs as i64 {
-                    break;
-                }
-
+                // Process this page first (may contain valid messages even if oldest crosses cutoff)
                 for msg in &messages {
                     if !msg.author.bot && msg.webhook_id.is_none() {
                         let user_id = match i64::try_from(msg.author.id.get()) {
@@ -622,7 +617,13 @@ async fn run_scan(
                     channel_msg_count += 1;
                 }
 
+                // Check stop conditions AFTER processing the page
                 if messages.len() < 100 {
+                    break;
+                }
+                // Messages are returned newest-first; check oldest (last) message
+                let oldest_timestamp = messages.last().unwrap().timestamp.unix_timestamp();
+                if oldest_timestamp < cutoff_secs as i64 {
                     break;
                 }
 
