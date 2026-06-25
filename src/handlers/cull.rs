@@ -76,6 +76,7 @@ impl CullHandler {
                     content: "Cull feature is currently disabled".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
             Err(e) => {
@@ -83,6 +84,7 @@ impl CullHandler {
                     content: format!("Failed to check cull feature: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         }
@@ -95,6 +97,7 @@ impl CullHandler {
                     content: "This command can only be used in a guild".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -107,6 +110,7 @@ impl CullHandler {
                     content: "Error: Could not verify your permissions".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -119,6 +123,7 @@ impl CullHandler {
                     .to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: Some(true),
             };
         }
 
@@ -130,6 +135,7 @@ impl CullHandler {
                     content: format!("Failed to get bot info: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -140,6 +146,7 @@ impl CullHandler {
                     content: format!("Failed to get bot member: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -151,6 +158,7 @@ impl CullHandler {
                     content: format!("Failed to get guild info: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -161,6 +169,7 @@ impl CullHandler {
                 content: "I don't have KICK_MEMBERS permission on this server.".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: Some(true),
             };
         }
 
@@ -181,6 +190,7 @@ impl CullHandler {
                 content: "Days must be between 1 and 365".to_string(),
                 components: None,
                 ephemeral: true,
+                defer_response: Some(true),
             };
         }
 
@@ -241,6 +251,7 @@ impl CullHandler {
                         content: format!("Failed to fetch members: {}", e),
                         components: None,
                         ephemeral: true,
+                        defer_response: Some(true),
                     };
                 }
             };
@@ -260,6 +271,7 @@ impl CullHandler {
                     content: format!("Failed to resolve whitelist roles: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -292,6 +304,7 @@ impl CullHandler {
                     content: format!("Failed to convert guild ID: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -309,6 +322,7 @@ impl CullHandler {
                     content: format!("Failed to query inactive users: {}", e),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 };
             }
         };
@@ -358,6 +372,7 @@ impl CullHandler {
                 content: "No candidates found.".to_string(),
                 components: None,
                 ephemeral: false,
+                defer_response: Some(true),
             };
         }
 
@@ -382,6 +397,7 @@ impl CullHandler {
                         content: format!("Failed to query activity: {}", e),
                         components: None,
                         ephemeral: true,
+                        defer_response: Some(true),
                     };
                 }
             };
@@ -424,6 +440,7 @@ impl CullHandler {
                     content: format!("Dry-run posted to <#{}>", CAT_HERDING_CHANNEL_ID),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 }
             } else {
                 HandlerResponse {
@@ -433,6 +450,7 @@ impl CullHandler {
                     ),
                     components: None,
                     ephemeral: true,
+                    defer_response: Some(true),
                 }
             }
         } else {
@@ -486,6 +504,7 @@ impl CullHandler {
                 ),
                 components: None,
                 ephemeral: true,
+                defer_response: Some(true),
             }
         }
     }
@@ -660,6 +679,7 @@ async fn run_scan(
         ),
         components: None,
         ephemeral: true,
+        defer_response: Some(true),
     }
 }
 

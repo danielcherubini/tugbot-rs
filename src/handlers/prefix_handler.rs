@@ -46,6 +46,7 @@ impl PrefixHandler {
                     content: String::from("This feature is currently disabled"),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
             Err(e) => {
@@ -56,6 +57,7 @@ impl PrefixHandler {
                     ),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         }
@@ -67,6 +69,7 @@ impl PrefixHandler {
                     content: String::from("Error: This command can only be used in a server"),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -77,6 +80,7 @@ impl PrefixHandler {
                     content: String::from("Error: This command can only be used in a server"),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -101,6 +105,7 @@ impl PrefixHandler {
                     ),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 };
             }
         };
@@ -113,6 +118,7 @@ impl PrefixHandler {
                 content: format!("{} | {} your nickname", action_word, prefix),
                 components: None,
                 ephemeral: true,
+                defer_response: None,
             },
             Err(e) => {
                 eprintln!("[{}] Failed to update nickname: {}", prefix, e);
@@ -127,6 +133,7 @@ impl PrefixHandler {
                     content: error_msg,
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 }
             }
         }

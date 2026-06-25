@@ -111,6 +111,7 @@ impl Gulag {
             content: format!("Error: {}", err),
             components: None,
             ephemeral: true,
+            defer_response: None,
         }
     }
 

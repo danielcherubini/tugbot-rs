@@ -74,6 +74,7 @@ impl GulagVoteHandler {
                             content: "Sorry you can't add tugbot to the gulag".to_string(),
                             components: None,
                             ephemeral: true,
+                            defer_response: None,
                         }
                     } else {
                         match Gulag::find_gulag_role(&ctx.http, guildid.get()).await {
@@ -109,6 +110,7 @@ impl GulagVoteHandler {
                                     content: message,
                                     components: None,
                                     ephemeral: false,
+                                    defer_response: None,
                                 }
                             }
                         }

@@ -94,6 +94,8 @@ pub struct HandlerResponse {
     pub content: String,
     pub components: Option<Vec<serenity::all::CreateActionRow>>,
     pub ephemeral: bool,
+    /// If Some(true), defer the response instead of sending a message.
+    pub defer_response: Option<bool>,
 }
 
 pub struct Handler;
@@ -227,20 +229,25 @@ impl EventHandler for Handler {
                     content: "Not Implemented".to_string(),
                     components: None,
                     ephemeral: true,
+                    defer_response: None,
                 },
             };
 
-            let mut message = CreateInteractionResponseMessage::new()
-                .content(handler_response.content)
-                .ephemeral(handler_response.ephemeral);
-            if let Some(components) = handler_response.components {
-                message = message.components(components);
-            }
+            let response = if handler_response.defer_response == Some(true) {
+                CreateInteractionResponse::Defer(
+                    CreateInteractionResponseMessage::new().ephemeral(true),
+                )
+            } else {
+                let mut message = CreateInteractionResponseMessage::new()
+                    .content(handler_response.content)
+                    .ephemeral(handler_response.ephemeral);
+                if let Some(components) = handler_response.components {
+                    message = message.components(components);
+                }
+                CreateInteractionResponse::Message(message)
+            };
 
-            match command
-                .create_response(&ctx.http, CreateInteractionResponse::Message(message))
-                .await
-            {
+            match command.create_response(&ctx.http, response).await {
                 Ok(()) => {}
                 Err(why) => eprintln!("Cannot respond to slash command: {}", why),
             }
