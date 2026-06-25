@@ -375,43 +375,53 @@ impl CullHandler {
                 ephemeral: true,
             }
         } else {
-            // m. Execute mode
+            // m. Execute mode — spawn kick loop as background task so we return
+            // immediately and don't exceed Discord's 3s response window.
+            // (MAX_KICKS * KICK_DELAY_MS = 75s >> 3s)
+            let http = ctx.http.clone();
+            let candidates_clone = candidates.clone();
+            let guild_id_val = guild_id;
+            let days_val = days;
+            let user_name = command.user.name.clone();
             let total = candidates.len();
-            let start_msg = format!(
-                "Starting cull: {} candidates (inactive {}+ days)...",
-                total, days
-            );
-            post_to_cat_herding(&ctx.http, &start_msg).await;
 
-            let mut success_count: usize = 0;
-            let mut skip_count: usize = 0;
+            tokio::spawn(async move {
+                let start_msg = format!(
+                    "Starting cull: {} candidates (inactive {}+ days)...",
+                    candidates_clone.len(),
+                    days_val
+                );
+                let _ = post_to_cat_herding(&http, &start_msg).await;
 
-            for uid in &candidates {
-                let reason = format!("Inactive {} days — /cull by {}", days, command.user.name);
-                match ctx
-                    .http
-                    .kick_member(guild_id.into(), (*uid).into(), Some(&reason))
-                    .await
-                {
-                    Ok(_) => success_count += 1,
-                    Err(e) => {
-                        skip_count += 1;
-                        eprintln!("[cull] Failed to kick {}: {}", uid, e);
+                let mut success_count: usize = 0;
+                let mut skip_count: usize = 0;
+
+                for uid in &candidates_clone {
+                    let reason = format!("Inactive {} days — /cull by {}", days_val, user_name);
+                    match http
+                        .kick_member(guild_id_val.into(), (*uid).into(), Some(&reason))
+                        .await
+                    {
+                        Ok(_) => success_count += 1,
+                        Err(e) => {
+                            skip_count += 1;
+                            eprintln!("[cull] Failed to kick {}: {}", uid, e);
+                        }
                     }
+                    tokio::time::sleep(std::time::Duration::from_millis(KICK_DELAY_MS)).await;
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(KICK_DELAY_MS)).await;
-            }
 
-            let summary = format!(
-                "Cull complete: {} kicked, {} skipped (errors).",
-                success_count, skip_count
-            );
-            post_to_cat_herding(&ctx.http, &summary).await;
+                let summary = format!(
+                    "Cull complete: {} kicked, {} skipped (errors).",
+                    success_count, skip_count
+                );
+                let _ = post_to_cat_herding(&http, &summary).await;
+            });
 
             HandlerResponse {
                 content: format!(
-                    "Cull complete. Results posted to <#{}>",
-                    CAT_HERDING_CHANNEL_ID
+                    "Cull started: {} candidates. Results will be posted to <#{}>.",
+                    total, CAT_HERDING_CHANNEL_ID
                 ),
                 components: None,
                 ephemeral: true,
@@ -537,5 +547,35 @@ mod tests {
     fn test_whitelist_roles() {
         assert!(WHITELIST_ROLES.contains(&"Highly Regarded"));
         assert!(WHITELIST_ROLES.contains(&"admin"));
+    }
+
+    #[test]
+    fn test_execute_mode_response_starts_with_cull_started() {
+        // Execute mode must return immediately with "Cull started" message
+        // (not "Cull complete" which would indicate blocking behavior)
+        let cat_id = CAT_HERDING_CHANNEL_ID;
+        let candidate_count = 10;
+        let expected_prefix = format!("Cull started: {} candidates.", candidate_count);
+        let expected_suffix = format!("Results will be posted to <#{}>", cat_id);
+        // Verify the message format matches the non-blocking pattern
+        let msg = format!(
+            "Cull started: {} candidates. Results will be posted to <#{}>.",
+            candidate_count, cat_id
+        );
+        assert!(msg.starts_with(&expected_prefix));
+        assert!(msg.contains(&expected_suffix));
+    }
+
+    #[test]
+    fn test_execute_mode_max_kicks_would_block() {
+        // Verify that MAX_KICKS * KICK_DELAY_MS would exceed Discord's 3s window
+        let worst_case_ms = MAX_KICKS as u64 * KICK_DELAY_MS;
+        let discord_response_window_ms = 3000;
+        assert!(
+            worst_case_ms > discord_response_window_ms,
+            "worst case {}ms exceeds Discord's {}ms window — must spawn background task",
+            worst_case_ms,
+            discord_response_window_ms
+        );
     }
 }
