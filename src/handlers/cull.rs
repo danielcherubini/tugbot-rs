@@ -114,11 +114,16 @@ impl CullHandler {
         }
 
         // d. Bot KICK_MEMBERS permission check
-        let current_user = ctx
-            .http
-            .get_current_user()
-            .await
-            .expect("Failed to get current user");
+        let current_user = match ctx.http.get_current_user().await {
+            Ok(u) => u,
+            Err(e) => {
+                return HandlerResponse {
+                    content: format!("Failed to get bot info: {}", e),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
         let bot_member = match ctx.http.get_member(guild_id.into(), current_user.id).await {
             Ok(m) => m,
             Err(e) => {
@@ -244,7 +249,16 @@ impl CullHandler {
             .collect();
 
         // i. Query inactive users from DB
-        let guild_id_i64: i64 = guild_id.try_into().unwrap_or(i64::MAX);
+        let guild_id_i64: i64 = match i64::try_from(guild_id) {
+            Ok(id) => id,
+            Err(e) => {
+                return HandlerResponse {
+                    content: format!("Failed to convert guild ID: {}", e),
+                    components: None,
+                    ephemeral: true,
+                };
+            }
+        };
         let inactive_ids_result = query_inactive_users(&pool, guild_id_i64, days as i32);
 
         let inactive_user_ids: HashSet<u64> = match inactive_ids_result {
@@ -367,12 +381,23 @@ impl CullHandler {
                 days,
             );
 
-            post_to_cat_herding(&ctx.http, &message).await;
+            let posted = post_to_cat_herding(&ctx.http, &message).await;
 
-            HandlerResponse {
-                content: format!("Dry-run posted to <#{}>", CAT_HERDING_CHANNEL_ID),
-                components: None,
-                ephemeral: true,
+            if posted {
+                HandlerResponse {
+                    content: format!("Dry-run posted to <#{}>", CAT_HERDING_CHANNEL_ID),
+                    components: None,
+                    ephemeral: true,
+                }
+            } else {
+                HandlerResponse {
+                    content: format!(
+                        "Failed to post to <#{}>. Dry-run results:\n\n{}",
+                        CAT_HERDING_CHANNEL_ID, message
+                    ),
+                    components: None,
+                    ephemeral: true,
+                }
             }
         } else {
             // m. Execute mode — spawn kick loop as background task so we return
