@@ -538,7 +538,7 @@ async fn run_scan(
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs()
-        - 90 * 86400;
+        - 180 * 86400; // 6 months
 
     let pool = pool.clone();
     let user_name = command.user.name.clone();
